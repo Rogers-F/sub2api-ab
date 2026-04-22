@@ -92,6 +92,11 @@ func (Account) Fields() []ent.Field {
 			Optional().
 			Nillable(),
 
+		// fallback_account_id: 上游失败时优先尝试的兜底账号（同平台链式兜底）
+		field.Int64("fallback_account_id").
+			Optional().
+			Nillable(),
+
 		// concurrency: 账户最大并发请求数
 		// 用于限制同一时间对该账户发起的请求数量
 		field.Int("concurrency").
@@ -222,6 +227,7 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("type"),                // 按认证类型筛选
 		index.Fields("status"),              // 按状态筛选
 		index.Fields("proxy_id"),            // 按代理筛选
+		index.Fields("fallback_account_id"), // 按兜底账号筛选
 		index.Fields("priority"),            // 按优先级排序
 		index.Fields("last_used_at"),        // 按最后使用时间排序
 		index.Fields("schedulable"),         // 筛选可调度账户

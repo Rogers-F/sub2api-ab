@@ -2282,6 +2282,16 @@
         <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
       </div>
 
+      <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
+        <label class="input-label">{{ t('admin.accounts.fallbackAccount') }}</label>
+        <Select
+          v-model="form.fallback_account_id"
+          :options="fallbackAccountOptions"
+          searchable
+        />
+        <p class="input-hint">{{ t('admin.accounts.fallbackAccountHint') }}</p>
+      </div>
+
       <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div>
           <label class="input-label">{{ t('admin.accounts.concurrency') }}</label>
@@ -2913,6 +2923,7 @@ import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
 import type {
+  Account,
   Proxy,
   AdminGroup,
   AccountPlatform,
@@ -3215,6 +3226,19 @@ const mixedChannelWarningMessageText = computed(() => {
   return mixedChannelWarningRawMessage.value
 })
 
+const fallbackAccounts = ref<Account[]>([])
+const fallbackAccountOptions = computed(() => {
+  const options = [{ value: null, label: t('admin.accounts.noFallbackAccount') }]
+  const filtered = fallbackAccounts.value
+    .filter(account => account.platform === form.platform)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(account => ({
+      value: account.id,
+      label: `${account.name} (#${account.id})`
+    }))
+  return [...options, ...filtered]
+})
+
 const geminiQuotaDocs = {
   codeAssist: 'https://developers.google.com/gemini-code-assist/resources/quotas',
   aiStudio: 'https://ai.google.dev/pricing',
@@ -3269,6 +3293,7 @@ const form = reactive({
   type: 'oauth' as AccountType, // Will be 'oauth', 'setup-token', or 'apikey'
   credentials: {} as Record<string, unknown>,
   proxy_id: null as number | null,
+  fallback_account_id: null as number | null,
   concurrency: 10,
   load_factor: null as number | null,
   priority: 1,
@@ -3320,6 +3345,13 @@ watch(
   () => props.show,
   (newVal) => {
     if (newVal) {
+      adminAPI.accounts.list(1, 1000, {
+        lite: 'true',
+        sort_by: 'name',
+        sort_order: 'asc'
+      })
+        .then(result => { fallbackAccounts.value = result.items || [] })
+        .catch(() => { fallbackAccounts.value = [] })
       // Load TLS fingerprint profiles
       adminAPI.tlsFingerprintProfiles.list()
         .then(profiles => { tlsFingerprintProfiles.value = profiles.map(p => ({ id: p.id, name: p.name })) })
@@ -3371,6 +3403,12 @@ watch(
 watch(
   () => form.platform,
   (newPlatform) => {
+    if (form.fallback_account_id != null) {
+      const selected = fallbackAccounts.value.find(account => account.id === form.fallback_account_id)
+      if (!selected || selected.platform !== newPlatform) {
+        form.fallback_account_id = null
+      }
+    }
     // Reset base URL based on platform
     apiKeyBaseUrl.value =
       (newPlatform === 'openai')
@@ -3761,6 +3799,7 @@ const resetForm = () => {
   form.type = 'oauth'
   form.credentials = {}
   form.proxy_id = null
+  form.fallback_account_id = null
   form.concurrency = 10
   form.load_factor = null
   form.priority = 1
@@ -4206,6 +4245,7 @@ const createAccountAndFinish = async (
     credentials,
     extra: finalExtra,
     proxy_id: form.proxy_id,
+    fallback_account_id: form.fallback_account_id,
     concurrency: form.concurrency,
     load_factor: form.load_factor ?? undefined,
     priority: form.priority,
@@ -4267,6 +4307,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         credentials,
         extra,
         proxy_id: form.proxy_id,
+        fallback_account_id: form.fallback_account_id,
         concurrency: form.concurrency,
         load_factor: form.load_factor ?? undefined,
         priority: form.priority,
@@ -4358,6 +4399,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
             credentials,
             extra,
             proxy_id: form.proxy_id,
+            fallback_account_id: form.fallback_account_id,
             concurrency: form.concurrency,
             load_factor: form.load_factor ?? undefined,
             priority: form.priority,
@@ -4456,6 +4498,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           credentials,
           extra: {},
           proxy_id: form.proxy_id,
+          fallback_account_id: form.fallback_account_id,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
           priority: form.priority,
@@ -4797,6 +4840,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials,
           extra,
           proxy_id: form.proxy_id,
+          fallback_account_id: form.fallback_account_id,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
           priority: form.priority,

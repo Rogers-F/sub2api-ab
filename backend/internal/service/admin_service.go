@@ -204,6 +204,7 @@ type CreateAccountInput struct {
 	Credentials        map[string]any
 	Extra              map[string]any
 	ProxyID            *int64
+	FallbackAccountID  *int64
 	Concurrency        int
 	Priority           int
 	RateMultiplier     *float64 // 账号计费倍率（>=0，允许 0）
@@ -225,6 +226,7 @@ type UpdateAccountInput struct {
 	Credentials           map[string]any
 	Extra                 map[string]any
 	ProxyID               *int64
+	FallbackAccountID     *int64
 	Concurrency           *int     // 使用指针区分"未提供"和"设置为0"
 	Priority              *int     // 使用指针区分"未提供"和"设置为0"
 	RateMultiplier        *float64 // 账号计费倍率（>=0，允许 0）
@@ -978,6 +980,13 @@ func normalizePrice(price *float64) *float64 {
 	return price
 }
 
+func normalizeFallbackAccountID(id *int64) *int64 {
+	if id == nil || *id <= 0 {
+		return nil
+	}
+	return id
+}
+
 // validateFallbackGroup 校验降级分组的有效性
 // currentGroupID: 当前分组 ID（新建时为 0）
 // fallbackGroupID: 降级分组 ID
@@ -1044,6 +1053,42 @@ func (s *adminServiceImpl) validateFallbackGroupOnInvalidRequest(ctx context.Con
 	if fallbackGroup.FallbackGroupIDOnInvalidRequest != nil {
 		return fmt.Errorf("fallback group cannot have invalid request fallback configured")
 	}
+	return nil
+}
+
+func (s *adminServiceImpl) validateFallbackAccount(ctx context.Context, currentAccountID int64, platform string, fallbackAccountID int64) error {
+	if fallbackAccountID <= 0 {
+		return nil
+	}
+	if currentAccountID > 0 && currentAccountID == fallbackAccountID {
+		return fmt.Errorf("cannot set self as fallback account")
+	}
+
+	visited := map[int64]struct{}{}
+	if currentAccountID > 0 {
+		visited[currentAccountID] = struct{}{}
+	}
+
+	nextID := fallbackAccountID
+	for nextID > 0 {
+		if _, seen := visited[nextID]; seen {
+			return fmt.Errorf("fallback account cycle detected")
+		}
+		visited[nextID] = struct{}{}
+
+		account, err := s.accountRepo.GetByID(ctx, nextID)
+		if err != nil {
+			return fmt.Errorf("fallback account not found: %w", err)
+		}
+		if platform != "" && account.Platform != platform {
+			return fmt.Errorf("fallback account platform mismatch: expected %s, got %s", platform, account.Platform)
+		}
+		if account.FallbackAccountID == nil || *account.FallbackAccountID <= 0 {
+			return nil
+		}
+		nextID = *account.FallbackAccountID
+	}
+
 	return nil
 }
 
@@ -1535,18 +1580,26 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		}
 	}
 
+	fallbackAccountID := normalizeFallbackAccountID(input.FallbackAccountID)
+	if fallbackAccountID != nil {
+		if err := s.validateFallbackAccount(ctx, 0, input.Platform, *fallbackAccountID); err != nil {
+			return nil, err
+		}
+	}
+
 	account := &Account{
-		Name:        input.Name,
-		Notes:       normalizeAccountNotes(input.Notes),
-		Platform:    input.Platform,
-		Type:        input.Type,
-		Credentials: input.Credentials,
-		Extra:       input.Extra,
-		ProxyID:     input.ProxyID,
-		Concurrency: input.Concurrency,
-		Priority:    input.Priority,
-		Status:      StatusActive,
-		Schedulable: true,
+		Name:              input.Name,
+		Notes:             normalizeAccountNotes(input.Notes),
+		Platform:          input.Platform,
+		Type:              input.Type,
+		Credentials:       input.Credentials,
+		Extra:             input.Extra,
+		ProxyID:           input.ProxyID,
+		FallbackAccountID: fallbackAccountID,
+		Concurrency:       input.Concurrency,
+		Priority:          input.Priority,
+		Status:            StatusActive,
+		Schedulable:       true,
 	}
 	// 预计算固定时间重置的下次重置时间
 	if account.Extra != nil {
@@ -1669,6 +1722,15 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			account.ProxyID = input.ProxyID
 		}
 		account.Proxy = nil // 清除关联对象，防止 GORM Save 时根据 Proxy.ID 覆盖 ProxyID
+	}
+	if input.FallbackAccountID != nil {
+		fallbackAccountID := normalizeFallbackAccountID(input.FallbackAccountID)
+		if fallbackAccountID != nil {
+			if err := s.validateFallbackAccount(ctx, account.ID, account.Platform, *fallbackAccountID); err != nil {
+				return nil, err
+			}
+		}
+		account.FallbackAccountID = fallbackAccountID
 	}
 	// 只在指针非 nil 时更新 Concurrency（支持设置为 0）
 	if input.Concurrency != nil {

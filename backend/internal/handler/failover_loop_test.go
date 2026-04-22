@@ -727,3 +727,50 @@ func TestHandleSelectionExhausted(t *testing.T) {
 		require.Equal(t, FailoverContinue, action)
 	})
 }
+
+func TestHandleFailoverError_LastFailedAccountID(t *testing.T) {
+	t.Run("同账号重试阶段不记录最后失败账号", func(t *testing.T) {
+		mock := &mockTempUnscheduler{}
+		fs := NewFailoverState(3, false)
+
+		action := fs.HandleFailoverError(context.Background(), mock, 42, "openai", newTestFailoverErr(400, true, false))
+
+		require.Equal(t, FailoverContinue, action)
+		require.Zero(t, fs.LastFailedAccountID)
+	})
+
+	t.Run("切换账号时记录最后失败账号", func(t *testing.T) {
+		mock := &mockTempUnscheduler{}
+		fs := NewFailoverState(3, false)
+
+		action := fs.HandleFailoverError(context.Background(), mock, 42, "openai", newTestFailoverErr(500, false, false))
+
+		require.Equal(t, FailoverContinue, action)
+		require.Equal(t, int64(42), fs.LastFailedAccountID)
+	})
+}
+
+func TestHandleSelectionExhausted_ClearsLastFailedAccountID(t *testing.T) {
+	fs := NewFailoverState(3, false)
+	fs.SwitchCount = 1
+	fs.LastFailoverErr = newTestFailoverErr(503, false, false)
+	fs.LastFailedAccountID = 88
+	fs.FailedAccountIDs[88] = struct{}{}
+
+	action := fs.HandleSelectionExhausted(context.Background())
+
+	require.Equal(t, FailoverContinue, action)
+	require.Zero(t, fs.LastFailedAccountID)
+	require.Empty(t, fs.FailedAccountIDs)
+}
+
+func TestWithFailoverSelectionContext(t *testing.T) {
+	fs := NewFailoverState(3, false)
+	fs.LastFailedAccountID = 123
+
+	ctx := withFailoverSelectionContext(context.Background(), fs, false)
+	accountID, ok := service.FailoverSourceAccountIDFromContext(ctx)
+
+	require.True(t, ok)
+	require.Equal(t, int64(123), accountID)
+}

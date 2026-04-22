@@ -35,6 +35,8 @@ const (
 	FieldExtra = "extra"
 	// FieldProxyID holds the string denoting the proxy_id field in the database.
 	FieldProxyID = "proxy_id"
+	// FieldFallbackAccountID holds the string denoting the fallback_account_id field in the database.
+	FieldFallbackAccountID = "fallback_account_id"
 	// FieldConcurrency holds the string denoting the concurrency field in the database.
 	FieldConcurrency = "concurrency"
 	// FieldLoadFactor holds the string denoting the load_factor field in the database.
@@ -122,6 +124,7 @@ var Columns = []string{
 	FieldCredentials,
 	FieldExtra,
 	FieldProxyID,
+	FieldFallbackAccountID,
 	FieldConcurrency,
 	FieldLoadFactor,
 	FieldPriority,
@@ -246,6 +249,11 @@ func ByType(opts ...sql.OrderTermOption) OrderOption {
 // ByProxyID orders the results by the proxy_id field.
 func ByProxyID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProxyID, opts...).ToFunc()
+}
+
+// ByFallbackAccountID orders the results by the fallback_account_id field.
+func ByFallbackAccountID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFallbackAccountID, opts...).ToFunc()
 }
 
 // ByConcurrency orders the results by the concurrency field.

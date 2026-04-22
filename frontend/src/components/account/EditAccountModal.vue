@@ -1036,6 +1036,16 @@
         <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
       </div>
 
+      <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
+        <label class="input-label">{{ t('admin.accounts.fallbackAccount') }}</label>
+        <Select
+          v-model="form.fallback_account_id"
+          :options="fallbackAccountOptions"
+          searchable
+        />
+        <p class="input-hint">{{ t('admin.accounts.fallbackAccountHint') }}</p>
+      </div>
+
       <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div>
           <label class="input-label">{{ t('admin.accounts.concurrency') }}</label>
@@ -1963,6 +1973,7 @@ const mixedChannelWarningDetails = ref<{ groupName: string; currentPlatform: str
 const mixedChannelWarningRawMessage = ref('')
 const mixedChannelWarningAction = ref<(() => Promise<void>) | null>(null)
 const antigravityMixedChannelConfirmed = ref(false)
+const fallbackAccounts = ref<Account[]>([])
 
 // Quota control state (Anthropic OAuth/SetupToken only)
 const windowCostEnabled = ref(false)
@@ -2095,10 +2106,28 @@ const mixedChannelWarningMessageText = computed(() => {
   return mixedChannelWarningRawMessage.value
 })
 
+const fallbackAccountOptions = computed(() => {
+  const currentAccount = props.account
+  const options = [{ value: null, label: t('admin.accounts.noFallbackAccount') }]
+  if (!currentAccount) {
+    return options
+  }
+
+  const filtered = fallbackAccounts.value
+    .filter(account => account.platform === currentAccount.platform && account.id !== currentAccount.id)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(account => ({
+      value: account.id,
+      label: `${account.name} (#${account.id})`
+    }))
+  return [...options, ...filtered]
+})
+
 const form = reactive({
   name: '',
   notes: '',
   proxy_id: null as number | null,
+  fallback_account_id: null as number | null,
   concurrency: 1,
   load_factor: null as number | null,
   priority: 1,
@@ -2153,6 +2182,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   form.name = newAccount.name
   form.notes = newAccount.notes || ''
   form.proxy_id = newAccount.proxy_id
+  form.fallback_account_id = newAccount.fallback_account_id ?? null
   form.concurrency = newAccount.concurrency
   form.load_factor = newAccount.load_factor ?? null
   form.priority = newAccount.priority
@@ -2432,6 +2462,7 @@ watch(
     if (!wasShow || newAccount !== previousAccount) {
       syncFormFromAccount(newAccount)
       loadTLSProfiles()
+      loadFallbackAccounts()
     }
   },
   { immediate: true }
@@ -2443,6 +2474,19 @@ const loadTLSProfiles = async () => {
     tlsFingerprintProfiles.value = profiles.map(p => ({ id: p.id, name: p.name }))
   } catch {
     tlsFingerprintProfiles.value = []
+  }
+}
+
+const loadFallbackAccounts = async () => {
+  try {
+    const result = await adminAPI.accounts.list(1, 1000, {
+      lite: 'true',
+      sort_by: 'name',
+      sort_order: 'asc'
+    })
+    fallbackAccounts.value = result.items || []
+  } catch {
+    fallbackAccounts.value = []
   }
 }
 
@@ -2865,6 +2909,9 @@ const handleSubmit = async () => {
     // 后端期望 proxy_id: 0 表示清除代理，而不是 null
     if (updatePayload.proxy_id === null) {
       updatePayload.proxy_id = 0
+    }
+    if (updatePayload.fallback_account_id === null) {
+      updatePayload.fallback_account_id = 0
     }
     if (form.expires_at === null) {
       updatePayload.expires_at = 0

@@ -700,6 +700,115 @@ func TestGatewayService_SelectAccountForModelWithExclusions_ForcePlatform(t *tes
 	require.Equal(t, PlatformAntigravity, acc.Platform)
 }
 
+func TestGatewayService_SelectAccountForModelWithExclusions_PrefersFallbackChain(t *testing.T) {
+	ctx := WithFailoverSourceAccountID(context.Background(), 1, false)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{ID: 1, Platform: PlatformAnthropic, Priority: 50, Status: StatusActive, Schedulable: true, FallbackAccountID: ptr(int64(2))},
+			{ID: 2, Platform: PlatformAnthropic, Priority: 100, Status: StatusActive, Schedulable: true},
+			{ID: 3, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	for i := range repo.accounts {
+		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+	}
+
+	svc := &GatewayService{
+		accountRepo: repo,
+		cache:       &mockGatewayCacheForPlatform{},
+		cfg:         testConfig(),
+	}
+
+	acc, err := svc.SelectAccountForModelWithExclusions(ctx, nil, "", "claude-3-5-sonnet-20241022", map[int64]struct{}{1: {}})
+	require.NoError(t, err)
+	require.NotNil(t, acc)
+	require.Equal(t, int64(2), acc.ID, "兜底链账号应优先于普通调度结果")
+}
+
+func TestGatewayService_SelectAccountWithLoadAwareness_FallbackChainUsesSourcePlatformInMixedScheduling(t *testing.T) {
+	ctx := WithFailoverSourceAccountID(context.Background(), 1, false)
+	groupID := int64(88)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:                1,
+				Platform:          PlatformAntigravity,
+				Priority:          50,
+				Status:            StatusActive,
+				Schedulable:       true,
+				Concurrency:       5,
+				AccountGroups:     []AccountGroup{{GroupID: groupID}},
+				Extra:             map[string]any{"mixed_scheduling": true},
+				FallbackAccountID: ptr(int64(2)),
+			},
+			{
+				ID:            2,
+				Platform:      PlatformAntigravity,
+				Priority:      100,
+				Status:        StatusActive,
+				Schedulable:   true,
+				Concurrency:   5,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+				Extra:         map[string]any{"mixed_scheduling": true},
+			},
+			{
+				ID:            3,
+				Platform:      PlatformAnthropic,
+				Priority:      0,
+				Status:        StatusActive,
+				Schedulable:   true,
+				Concurrency:   5,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+			},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	for i := range repo.accounts {
+		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+	}
+
+	groupRepo := &mockGroupRepoForGateway{
+		groups: map[int64]*Group{
+			groupID: {
+				ID:       groupID,
+				Platform: PlatformAnthropic,
+				Status:   StatusActive,
+				Hydrated: true,
+			},
+		},
+	}
+
+	cfg := testConfig()
+	cfg.Gateway.Scheduling.LoadBatchEnabled = true
+
+	concurrencyCache := &mockConcurrencyCache{
+		loadMap: map[int64]*AccountLoadInfo{
+			2: {AccountID: 2, LoadRate: 90},
+			3: {AccountID: 3, LoadRate: 0},
+		},
+	}
+
+	svc := &GatewayService{
+		accountRepo:        repo,
+		groupRepo:          groupRepo,
+		cache:              &mockGatewayCacheForPlatform{},
+		cfg:                cfg,
+		concurrencyService: NewConcurrencyService(concurrencyCache),
+	}
+
+	result, err := svc.SelectAccountWithLoadAwareness(ctx, &groupID, "", "claude-sonnet-4-5", map[int64]struct{}{1: {}}, "", 0)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.Account)
+	require.Equal(t, int64(2), result.Account.ID, "混合调度下应沿失败账号的同平台兜底链继续选择")
+	if result.ReleaseFunc != nil {
+		result.ReleaseFunc()
+	}
+}
+
 func TestGatewayService_SelectAccountForModelWithPlatform_RoutedStickySessionClears(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(10)

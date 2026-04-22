@@ -1217,6 +1217,15 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 		return nil, fmt.Errorf("%w supporting model: %s (channel pricing restriction)", ErrNoAvailableAccounts, requestedModel)
 	}
 
+	if fallbackAccount, ok, err := s.selectFallbackChainAccount(ctx, groupID, requestedModel, excludedIDs); err != nil {
+		return nil, err
+	} else if ok {
+		if sessionHash != "" {
+			_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, fallbackAccount.ID, openaiStickySessionTTL)
+		}
+		return s.hydrateSelectedAccount(ctx, fallbackAccount)
+	}
+
 	// 1. 尝试粘性会话命中
 	// Try sticky session hit
 	if account := s.tryStickySessionHit(ctx, groupID, sessionHash, requestedModel, excludedIDs, stickyAccountID); account != nil {
@@ -1449,6 +1458,12 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		return excluded
 	}
 
+	if fallbackSelection, ok, err := s.trySelectFallbackChainWithLoadAwareness(ctx, groupID, sessionHash, requestedModel, excludedIDs); err != nil {
+		return nil, err
+	} else if ok {
+		return fallbackSelection, nil
+	}
+
 	// ============ Layer 1: Sticky session ============
 	if sessionHash != "" {
 		accountID := stickyAccountID
@@ -1644,6 +1659,169 @@ func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accoun
 		return &AcquireResult{Acquired: true, ReleaseFunc: func() {}}, nil
 	}
 	return s.concurrencyService.AcquireAccountSlot(ctx, accountID, maxConcurrency)
+}
+
+func (s *OpenAIGatewayService) isAccountInScope(account *Account, groupID *int64) bool {
+	if account == nil {
+		return false
+	}
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		return true
+	}
+	if groupID == nil {
+		return len(account.AccountGroups) == 0
+	}
+	for _, ag := range account.AccountGroups {
+		if ag.GroupID == *groupID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *OpenAIGatewayService) listFallbackChainAccounts(ctx context.Context, sourceAccountID int64) ([]*Account, error) {
+	if sourceAccountID <= 0 {
+		return nil, nil
+	}
+
+	visited := map[int64]struct{}{sourceAccountID: {}}
+	currentID := sourceAccountID
+	requiredPlatform := ""
+	result := make([]*Account, 0, 4)
+
+	for currentID > 0 {
+		account, err := s.getSchedulableAccount(ctx, currentID)
+		if err != nil || account == nil || account.FallbackAccountID == nil || *account.FallbackAccountID <= 0 {
+			return result, err
+		}
+		if requiredPlatform == "" {
+			requiredPlatform = account.Platform
+		}
+
+		nextID := *account.FallbackAccountID
+		if _, seen := visited[nextID]; seen {
+			return result, nil
+		}
+		visited[nextID] = struct{}{}
+
+		nextAccount, err := s.getSchedulableAccount(ctx, nextID)
+		if err != nil || nextAccount == nil {
+			return result, err
+		}
+		if requiredPlatform != "" && nextAccount.Platform != requiredPlatform {
+			return result, nil
+		}
+
+		result = append(result, nextAccount)
+		currentID = nextID
+	}
+
+	return result, nil
+}
+
+func (s *OpenAIGatewayService) resolveFallbackChainCandidate(
+	ctx context.Context,
+	groupID *int64,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+	account *Account,
+) *Account {
+	if account == nil {
+		return nil
+	}
+	if _, excluded := excludedIDs[account.ID]; excluded {
+		return nil
+	}
+	if !s.isAccountInScope(account, groupID) {
+		return nil
+	}
+	if !account.IsSchedulable() || !account.IsOpenAI() {
+		return nil
+	}
+	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+		return nil
+	}
+
+	fresh := s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
+	if fresh == nil || !s.isAccountInScope(fresh, groupID) {
+		return nil
+	}
+	if groupID != nil && s.needsUpstreamChannelRestrictionCheck(ctx, groupID) &&
+		s.isUpstreamModelRestrictedByChannel(ctx, *groupID, fresh, requestedModel) {
+		return nil
+	}
+	return fresh
+}
+
+func (s *OpenAIGatewayService) selectFallbackChainAccount(
+	ctx context.Context,
+	groupID *int64,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+) (*Account, bool, error) {
+	sourceAccountID := failoverSourceAccountIDFromContext(ctx)
+	if sourceAccountID <= 0 {
+		return nil, false, nil
+	}
+
+	candidates, err := s.listFallbackChainAccounts(ctx, sourceAccountID)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, candidate := range candidates {
+		if resolved := s.resolveFallbackChainCandidate(ctx, groupID, requestedModel, excludedIDs, candidate); resolved != nil {
+			return resolved, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+func (s *OpenAIGatewayService) trySelectFallbackChainWithLoadAwareness(
+	ctx context.Context,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+) (*AccountSelectionResult, bool, error) {
+	sourceAccountID := failoverSourceAccountIDFromContext(ctx)
+	if sourceAccountID <= 0 {
+		return nil, false, nil
+	}
+
+	candidates, err := s.listFallbackChainAccounts(ctx, sourceAccountID)
+	if err != nil {
+		return nil, false, err
+	}
+
+	waitCandidates := make([]*Account, 0, len(candidates))
+	for _, candidate := range candidates {
+		resolved := s.resolveFallbackChainCandidate(ctx, groupID, requestedModel, excludedIDs, candidate)
+		if resolved == nil {
+			continue
+		}
+
+		result, acquireErr := s.tryAcquireAccountSlot(ctx, resolved.ID, resolved.Concurrency)
+		if acquireErr == nil && result.Acquired {
+			if sessionHash != "" {
+				_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, resolved.ID, openaiStickySessionTTL)
+			}
+			selection, err := s.newSelectionResult(ctx, resolved, true, result.ReleaseFunc, nil)
+			return selection, true, err
+		}
+		waitCandidates = append(waitCandidates, resolved)
+	}
+
+	for _, candidate := range waitCandidates {
+		selection, err := s.newSelectionResult(ctx, candidate, false, nil, &AccountWaitPlan{
+			AccountID:      candidate.ID,
+			MaxConcurrency: candidate.Concurrency,
+			Timeout:        s.schedulingConfig().FallbackWaitTimeout,
+			MaxWaiting:     s.schedulingConfig().FallbackMaxWaiting,
+		})
+		return selection, true, err
+	}
+
+	return nil, false, nil
 }
 
 func (s *OpenAIGatewayService) resolveFreshSchedulableOpenAIAccount(ctx context.Context, account *Account, requestedModel string) *Account {

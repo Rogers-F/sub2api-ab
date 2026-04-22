@@ -935,6 +935,115 @@ func TestOpenAISelectAccountWithLoadAwareness_PreferNeverUsed(t *testing.T) {
 	}
 }
 
+func TestOpenAISelectAccountForModelWithExclusions_PrefersFallbackChain(t *testing.T) {
+	repo := stubOpenAIAccountRepo{
+		accounts: []Account{
+			{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Priority: 50, FallbackAccountID: func(v int64) *int64 { return &v }(2)},
+			{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Priority: 100},
+			{ID: 3, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Priority: 1},
+		},
+	}
+
+	svc := &OpenAIGatewayService{accountRepo: repo}
+	ctx := WithFailoverSourceAccountID(context.Background(), 1, false)
+
+	acc, err := svc.SelectAccountForModelWithExclusions(ctx, nil, "", "gpt-4", map[int64]struct{}{1: {}})
+	require.NoError(t, err)
+	require.NotNil(t, acc)
+	require.Equal(t, int64(2), acc.ID, "兜底链账号应优先于普通高优先级账号")
+}
+
+func TestOpenAISelectAccountWithLoadAwareness_FallbackChainSkipsIneligibleCandidates(t *testing.T) {
+	groupID := int64(10)
+	repo := stubOpenAIAccountRepo{
+		accounts: []Account{
+			{
+				ID:                1,
+				Platform:          PlatformOpenAI,
+				Type:              AccountTypeAPIKey,
+				Status:            StatusActive,
+				Schedulable:       true,
+				Concurrency:       1,
+				Priority:          50,
+				AccountGroups:     []AccountGroup{{GroupID: groupID}},
+				FallbackAccountID: func(v int64) *int64 { return &v }(2),
+			},
+			{
+				ID:                2,
+				Platform:          PlatformOpenAI,
+				Type:              AccountTypeAPIKey,
+				Status:            StatusDisabled,
+				Schedulable:       true,
+				Concurrency:       1,
+				Priority:          1,
+				AccountGroups:     []AccountGroup{{GroupID: groupID}},
+				FallbackAccountID: func(v int64) *int64 { return &v }(3),
+			},
+			{
+				ID:          3,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Priority:    1,
+				AccountGroups: []AccountGroup{
+					{GroupID: groupID},
+				},
+				Credentials: map[string]any{
+					"model_mapping": map[string]any{"gpt-3.5-turbo": "gpt-3.5-turbo"},
+				},
+				FallbackAccountID: func(v int64) *int64 { return &v }(4),
+			},
+			{
+				ID:                4,
+				Platform:          PlatformOpenAI,
+				Type:              AccountTypeAPIKey,
+				Status:            StatusActive,
+				Schedulable:       true,
+				Concurrency:       1,
+				Priority:          1,
+				FallbackAccountID: func(v int64) *int64 { return &v }(5),
+			},
+			{
+				ID:            5,
+				Platform:      PlatformOpenAI,
+				Type:          AccountTypeAPIKey,
+				Status:        StatusActive,
+				Schedulable:   true,
+				Concurrency:   1,
+				Priority:      100,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+			},
+			{
+				ID:            6,
+				Platform:      PlatformOpenAI,
+				Type:          AccountTypeAPIKey,
+				Status:        StatusActive,
+				Schedulable:   true,
+				Concurrency:   1,
+				Priority:      0,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+			},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo:        repo,
+		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
+	}
+	ctx := WithFailoverSourceAccountID(context.Background(), 1, false)
+
+	selection, err := svc.SelectAccountWithLoadAwareness(ctx, &groupID, "", "gpt-4", map[int64]struct{}{1: {}})
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.Equal(t, int64(5), selection.Account.ID, "应跳过不可调度/模型不匹配/分组不可见的兜底账号后继续链式兜底")
+	if selection.ReleaseFunc != nil {
+		selection.ReleaseFunc()
+	}
+}
+
 func TestOpenAIStreamingTimeout(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{

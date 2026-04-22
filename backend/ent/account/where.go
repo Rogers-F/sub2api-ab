@@ -95,6 +95,11 @@ func ProxyID(v int64) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldProxyID, v))
 }
 
+// FallbackAccountID applies equality check predicate on the "fallback_account_id" field. It's identical to FallbackAccountIDEQ.
+func FallbackAccountID(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldFallbackAccountID, v))
+}
+
 // Concurrency applies equality check predicate on the "concurrency" field. It's identical to ConcurrencyEQ.
 func Concurrency(v int) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldConcurrency, v))
@@ -613,6 +618,56 @@ func ProxyIDIsNil() predicate.Account {
 // ProxyIDNotNil applies the NotNil predicate on the "proxy_id" field.
 func ProxyIDNotNil() predicate.Account {
 	return predicate.Account(sql.FieldNotNull(FieldProxyID))
+}
+
+// FallbackAccountIDEQ applies the EQ predicate on the "fallback_account_id" field.
+func FallbackAccountIDEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldFallbackAccountID, v))
+}
+
+// FallbackAccountIDNEQ applies the NEQ predicate on the "fallback_account_id" field.
+func FallbackAccountIDNEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldFallbackAccountID, v))
+}
+
+// FallbackAccountIDIn applies the In predicate on the "fallback_account_id" field.
+func FallbackAccountIDIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldFallbackAccountID, vs...))
+}
+
+// FallbackAccountIDNotIn applies the NotIn predicate on the "fallback_account_id" field.
+func FallbackAccountIDNotIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldFallbackAccountID, vs...))
+}
+
+// FallbackAccountIDGT applies the GT predicate on the "fallback_account_id" field.
+func FallbackAccountIDGT(v int64) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldFallbackAccountID, v))
+}
+
+// FallbackAccountIDGTE applies the GTE predicate on the "fallback_account_id" field.
+func FallbackAccountIDGTE(v int64) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldFallbackAccountID, v))
+}
+
+// FallbackAccountIDLT applies the LT predicate on the "fallback_account_id" field.
+func FallbackAccountIDLT(v int64) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldFallbackAccountID, v))
+}
+
+// FallbackAccountIDLTE applies the LTE predicate on the "fallback_account_id" field.
+func FallbackAccountIDLTE(v int64) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldFallbackAccountID, v))
+}
+
+// FallbackAccountIDIsNil applies the IsNil predicate on the "fallback_account_id" field.
+func FallbackAccountIDIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldFallbackAccountID))
+}
+
+// FallbackAccountIDNotNil applies the NotNil predicate on the "fallback_account_id" field.
+func FallbackAccountIDNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldFallbackAccountID))
 }
 
 // ConcurrencyEQ applies the EQ predicate on the "concurrency" field.

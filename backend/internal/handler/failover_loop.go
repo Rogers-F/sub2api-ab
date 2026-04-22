@@ -10,6 +10,13 @@ import (
 	"go.uber.org/zap"
 )
 
+func withFailoverSelectionContext(ctx context.Context, fs *FailoverState, bridgeOldKeys bool) context.Context {
+	if ctx == nil || fs == nil || fs.LastFailedAccountID <= 0 {
+		return ctx
+	}
+	return service.WithFailoverSourceAccountID(ctx, fs.LastFailedAccountID, bridgeOldKeys)
+}
+
 // TempUnscheduler 用于 HandleFailoverError 中同账号重试耗尽后的临时封禁。
 // GatewayService 隐式实现此接口。
 type TempUnscheduler interface {
@@ -46,6 +53,7 @@ type FailoverState struct {
 	FailedAccountIDs      map[int64]struct{}
 	SameAccountRetryCount map[int64]int
 	LastFailoverErr       *service.UpstreamFailoverError
+	LastFailedAccountID   int64
 	ForceCacheBilling     bool
 	hasBoundSession       bool
 }
@@ -98,6 +106,7 @@ func (s *FailoverState) HandleFailoverError(
 
 	// 加入失败列表
 	s.FailedAccountIDs[accountID] = struct{}{}
+	s.LastFailedAccountID = accountID
 
 	// 检查是否耗尽
 	if s.SwitchCount >= s.MaxSwitches {
@@ -149,6 +158,7 @@ func (s *FailoverState) HandleSelectionExhausted(ctx context.Context) FailoverAc
 			zap.Int("max_switches", s.MaxSwitches),
 		)
 		s.FailedAccountIDs = make(map[int64]struct{})
+		s.LastFailedAccountID = 0
 		return FailoverContinue
 	}
 	return FailoverExhausted

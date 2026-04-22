@@ -125,6 +125,20 @@ func (_c *AccountCreate) SetNillableProxyID(v *int64) *AccountCreate {
 	return _c
 }
 
+// SetFallbackAccountID sets the "fallback_account_id" field.
+func (_c *AccountCreate) SetFallbackAccountID(v int64) *AccountCreate {
+	_c.mutation.SetFallbackAccountID(v)
+	return _c
+}
+
+// SetNillableFallbackAccountID sets the "fallback_account_id" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableFallbackAccountID(v *int64) *AccountCreate {
+	if v != nil {
+		_c.SetFallbackAccountID(*v)
+	}
+	return _c
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (_c *AccountCreate) SetConcurrency(v int) *AccountCreate {
 	_c.mutation.SetConcurrency(v)
@@ -633,6 +647,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 		_spec.SetField(account.FieldExtra, field.TypeJSON, value)
 		_node.Extra = value
 	}
+	if value, ok := _c.mutation.FallbackAccountID(); ok {
+		_spec.SetField(account.FieldFallbackAccountID, field.TypeInt64, value)
+		_node.FallbackAccountID = &value
+	}
 	if value, ok := _c.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)
 		_node.Concurrency = value
@@ -933,6 +951,30 @@ func (u *AccountUpsert) UpdateProxyID() *AccountUpsert {
 // ClearProxyID clears the value of the "proxy_id" field.
 func (u *AccountUpsert) ClearProxyID() *AccountUpsert {
 	u.SetNull(account.FieldProxyID)
+	return u
+}
+
+// SetFallbackAccountID sets the "fallback_account_id" field.
+func (u *AccountUpsert) SetFallbackAccountID(v int64) *AccountUpsert {
+	u.Set(account.FieldFallbackAccountID, v)
+	return u
+}
+
+// UpdateFallbackAccountID sets the "fallback_account_id" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateFallbackAccountID() *AccountUpsert {
+	u.SetExcluded(account.FieldFallbackAccountID)
+	return u
+}
+
+// AddFallbackAccountID adds v to the "fallback_account_id" field.
+func (u *AccountUpsert) AddFallbackAccountID(v int64) *AccountUpsert {
+	u.Add(account.FieldFallbackAccountID, v)
+	return u
+}
+
+// ClearFallbackAccountID clears the value of the "fallback_account_id" field.
+func (u *AccountUpsert) ClearFallbackAccountID() *AccountUpsert {
+	u.SetNull(account.FieldFallbackAccountID)
 	return u
 }
 
@@ -1437,6 +1479,34 @@ func (u *AccountUpsertOne) UpdateProxyID() *AccountUpsertOne {
 func (u *AccountUpsertOne) ClearProxyID() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearProxyID()
+	})
+}
+
+// SetFallbackAccountID sets the "fallback_account_id" field.
+func (u *AccountUpsertOne) SetFallbackAccountID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetFallbackAccountID(v)
+	})
+}
+
+// AddFallbackAccountID adds v to the "fallback_account_id" field.
+func (u *AccountUpsertOne) AddFallbackAccountID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddFallbackAccountID(v)
+	})
+}
+
+// UpdateFallbackAccountID sets the "fallback_account_id" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateFallbackAccountID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateFallbackAccountID()
+	})
+}
+
+// ClearFallbackAccountID clears the value of the "fallback_account_id" field.
+func (u *AccountUpsertOne) ClearFallbackAccountID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearFallbackAccountID()
 	})
 }
 
@@ -2159,6 +2229,34 @@ func (u *AccountUpsertBulk) UpdateProxyID() *AccountUpsertBulk {
 func (u *AccountUpsertBulk) ClearProxyID() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearProxyID()
+	})
+}
+
+// SetFallbackAccountID sets the "fallback_account_id" field.
+func (u *AccountUpsertBulk) SetFallbackAccountID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetFallbackAccountID(v)
+	})
+}
+
+// AddFallbackAccountID adds v to the "fallback_account_id" field.
+func (u *AccountUpsertBulk) AddFallbackAccountID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddFallbackAccountID(v)
+	})
+}
+
+// UpdateFallbackAccountID sets the "fallback_account_id" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateFallbackAccountID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateFallbackAccountID()
+	})
+}
+
+// ClearFallbackAccountID clears the value of the "fallback_account_id" field.
+func (u *AccountUpsertBulk) ClearFallbackAccountID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearFallbackAccountID()
 	})
 }
 

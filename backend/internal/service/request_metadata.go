@@ -18,6 +18,7 @@ type RequestMetadata struct {
 	PrefetchedStickyGroupID    *int64
 	SingleAccountRetry         *bool
 	AccountSwitchCount         *int
+	FailoverSourceAccountID    *int64
 }
 
 var (
@@ -116,6 +117,15 @@ func WithAccountSwitchCount(ctx context.Context, value int, bridgeOldKeys bool) 
 	})
 }
 
+func WithFailoverSourceAccountID(ctx context.Context, value int64, bridgeOldKeys bool) context.Context {
+	return updateRequestMetadata(ctx, bridgeOldKeys, func(md *RequestMetadata) {
+		v := value
+		md.FailoverSourceAccountID = &v
+	}, func(base context.Context) context.Context {
+		return context.WithValue(base, ctxkey.FailoverSourceAccountID, value)
+	})
+}
+
 func IsMaxTokensOneHaikuRequestFromContext(ctx context.Context) (bool, bool) {
 	if md := metadataFromContext(ctx); md != nil && md.IsMaxTokensOneHaikuRequest != nil {
 		return *md.IsMaxTokensOneHaikuRequest, true
@@ -211,6 +221,23 @@ func AccountSwitchCountFromContext(ctx context.Context) (int, bool) {
 	case int64:
 		requestMetadataFallbackAccountSwitchCountTotal.Add(1)
 		return int(t), true
+	}
+	return 0, false
+}
+
+func FailoverSourceAccountIDFromContext(ctx context.Context) (int64, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.FailoverSourceAccountID != nil {
+		return *md.FailoverSourceAccountID, true
+	}
+	if ctx == nil {
+		return 0, false
+	}
+	v := ctx.Value(ctxkey.FailoverSourceAccountID)
+	switch t := v.(type) {
+	case int64:
+		return t, true
+	case int:
+		return int64(t), true
 	}
 	return 0, false
 }

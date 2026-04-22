@@ -2268,6 +2268,8 @@ type AccountMutation struct {
 	_type                     *string
 	credentials               *map[string]interface{}
 	extra                     *map[string]interface{}
+	fallback_account_id       *int64
+	addfallback_account_id    *int64
 	concurrency               *int
 	addconcurrency            *int
 	load_factor               *int
@@ -2799,6 +2801,76 @@ func (m *AccountMutation) ProxyIDCleared() bool {
 func (m *AccountMutation) ResetProxyID() {
 	m.proxy = nil
 	delete(m.clearedFields, account.FieldProxyID)
+}
+
+// SetFallbackAccountID sets the "fallback_account_id" field.
+func (m *AccountMutation) SetFallbackAccountID(i int64) {
+	m.fallback_account_id = &i
+	m.addfallback_account_id = nil
+}
+
+// FallbackAccountID returns the value of the "fallback_account_id" field in the mutation.
+func (m *AccountMutation) FallbackAccountID() (r int64, exists bool) {
+	v := m.fallback_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFallbackAccountID returns the old "fallback_account_id" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldFallbackAccountID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFallbackAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFallbackAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFallbackAccountID: %w", err)
+	}
+	return oldValue.FallbackAccountID, nil
+}
+
+// AddFallbackAccountID adds i to the "fallback_account_id" field.
+func (m *AccountMutation) AddFallbackAccountID(i int64) {
+	if m.addfallback_account_id != nil {
+		*m.addfallback_account_id += i
+	} else {
+		m.addfallback_account_id = &i
+	}
+}
+
+// AddedFallbackAccountID returns the value that was added to the "fallback_account_id" field in this mutation.
+func (m *AccountMutation) AddedFallbackAccountID() (r int64, exists bool) {
+	v := m.addfallback_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFallbackAccountID clears the value of the "fallback_account_id" field.
+func (m *AccountMutation) ClearFallbackAccountID() {
+	m.fallback_account_id = nil
+	m.addfallback_account_id = nil
+	m.clearedFields[account.FieldFallbackAccountID] = struct{}{}
+}
+
+// FallbackAccountIDCleared returns if the "fallback_account_id" field was cleared in this mutation.
+func (m *AccountMutation) FallbackAccountIDCleared() bool {
+	_, ok := m.clearedFields[account.FieldFallbackAccountID]
+	return ok
+}
+
+// ResetFallbackAccountID resets all changes to the "fallback_account_id" field.
+func (m *AccountMutation) ResetFallbackAccountID() {
+	m.fallback_account_id = nil
+	m.addfallback_account_id = nil
+	delete(m.clearedFields, account.FieldFallbackAccountID)
 }
 
 // SetConcurrency sets the "concurrency" field.
@@ -3855,7 +3927,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 29)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -3885,6 +3957,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.proxy != nil {
 		fields = append(fields, account.FieldProxyID)
+	}
+	if m.fallback_account_id != nil {
+		fields = append(fields, account.FieldFallbackAccountID)
 	}
 	if m.concurrency != nil {
 		fields = append(fields, account.FieldConcurrency)
@@ -3968,6 +4043,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.Extra()
 	case account.FieldProxyID:
 		return m.ProxyID()
+	case account.FieldFallbackAccountID:
+		return m.FallbackAccountID()
 	case account.FieldConcurrency:
 		return m.Concurrency()
 	case account.FieldLoadFactor:
@@ -4033,6 +4110,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldExtra(ctx)
 	case account.FieldProxyID:
 		return m.OldProxyID(ctx)
+	case account.FieldFallbackAccountID:
+		return m.OldFallbackAccountID(ctx)
 	case account.FieldConcurrency:
 		return m.OldConcurrency(ctx)
 	case account.FieldLoadFactor:
@@ -4147,6 +4226,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProxyID(v)
+		return nil
+	case account.FieldFallbackAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFallbackAccountID(v)
 		return nil
 	case account.FieldConcurrency:
 		v, ok := value.(int)
@@ -4282,6 +4368,9 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *AccountMutation) AddedFields() []string {
 	var fields []string
+	if m.addfallback_account_id != nil {
+		fields = append(fields, account.FieldFallbackAccountID)
+	}
 	if m.addconcurrency != nil {
 		fields = append(fields, account.FieldConcurrency)
 	}
@@ -4302,6 +4391,8 @@ func (m *AccountMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *AccountMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case account.FieldFallbackAccountID:
+		return m.AddedFallbackAccountID()
 	case account.FieldConcurrency:
 		return m.AddedConcurrency()
 	case account.FieldLoadFactor:
@@ -4319,6 +4410,13 @@ func (m *AccountMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *AccountMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case account.FieldFallbackAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFallbackAccountID(v)
+		return nil
 	case account.FieldConcurrency:
 		v, ok := value.(int)
 		if !ok {
@@ -4363,6 +4461,9 @@ func (m *AccountMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(account.FieldProxyID) {
 		fields = append(fields, account.FieldProxyID)
+	}
+	if m.FieldCleared(account.FieldFallbackAccountID) {
+		fields = append(fields, account.FieldFallbackAccountID)
 	}
 	if m.FieldCleared(account.FieldLoadFactor) {
 		fields = append(fields, account.FieldLoadFactor)
@@ -4422,6 +4523,9 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldProxyID:
 		m.ClearProxyID()
+		return nil
+	case account.FieldFallbackAccountID:
+		m.ClearFallbackAccountID()
 		return nil
 	case account.FieldLoadFactor:
 		m.ClearLoadFactor()
@@ -4496,6 +4600,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldProxyID:
 		m.ResetProxyID()
+		return nil
+	case account.FieldFallbackAccountID:
+		m.ResetFallbackAccountID()
 		return nil
 	case account.FieldConcurrency:
 		m.ResetConcurrency()

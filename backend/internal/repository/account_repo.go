@@ -105,6 +105,9 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	if account.ProxyID != nil {
 		builder.SetProxyID(*account.ProxyID)
 	}
+	if account.FallbackAccountID != nil {
+		builder.SetFallbackAccountID(*account.FallbackAccountID)
+	}
 	if account.LastUsedAt != nil {
 		builder.SetLastUsedAt(*account.LastUsedAt)
 	}
@@ -345,6 +348,11 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		builder.SetProxyID(*account.ProxyID)
 	} else {
 		builder.ClearProxyID()
+	}
+	if account.FallbackAccountID != nil {
+		builder.SetFallbackAccountID(*account.FallbackAccountID)
+	} else {
+		builder.ClearFallbackAccountID()
 	}
 	if account.LastUsedAt != nil {
 		builder.SetLastUsedAt(*account.LastUsedAt)
@@ -1730,6 +1738,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		Credentials:             copyJSONMap(m.Credentials),
 		Extra:                   copyJSONMap(m.Extra),
 		ProxyID:                 m.ProxyID,
+		FallbackAccountID:       m.FallbackAccountID,
 		Concurrency:             m.Concurrency,
 		Priority:                m.Priority,
 		RateMultiplier:          &rateMultiplier,

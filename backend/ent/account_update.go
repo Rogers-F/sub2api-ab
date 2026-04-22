@@ -151,6 +151,33 @@ func (_u *AccountUpdate) ClearProxyID() *AccountUpdate {
 	return _u
 }
 
+// SetFallbackAccountID sets the "fallback_account_id" field.
+func (_u *AccountUpdate) SetFallbackAccountID(v int64) *AccountUpdate {
+	_u.mutation.ResetFallbackAccountID()
+	_u.mutation.SetFallbackAccountID(v)
+	return _u
+}
+
+// SetNillableFallbackAccountID sets the "fallback_account_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableFallbackAccountID(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetFallbackAccountID(*v)
+	}
+	return _u
+}
+
+// AddFallbackAccountID adds value to the "fallback_account_id" field.
+func (_u *AccountUpdate) AddFallbackAccountID(v int64) *AccountUpdate {
+	_u.mutation.AddFallbackAccountID(v)
+	return _u
+}
+
+// ClearFallbackAccountID clears the value of the "fallback_account_id" field.
+func (_u *AccountUpdate) ClearFallbackAccountID() *AccountUpdate {
+	_u.mutation.ClearFallbackAccountID()
+	return _u
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (_u *AccountUpdate) SetConcurrency(v int) *AccountUpdate {
 	_u.mutation.ResetConcurrency()
@@ -705,6 +732,15 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Extra(); ok {
 		_spec.SetField(account.FieldExtra, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.FallbackAccountID(); ok {
+		_spec.SetField(account.FieldFallbackAccountID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedFallbackAccountID(); ok {
+		_spec.AddField(account.FieldFallbackAccountID, field.TypeInt64, value)
+	}
+	if _u.mutation.FallbackAccountIDCleared() {
+		_spec.ClearField(account.FieldFallbackAccountID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)
 	}
@@ -1075,6 +1111,33 @@ func (_u *AccountUpdateOne) SetNillableProxyID(v *int64) *AccountUpdateOne {
 // ClearProxyID clears the value of the "proxy_id" field.
 func (_u *AccountUpdateOne) ClearProxyID() *AccountUpdateOne {
 	_u.mutation.ClearProxyID()
+	return _u
+}
+
+// SetFallbackAccountID sets the "fallback_account_id" field.
+func (_u *AccountUpdateOne) SetFallbackAccountID(v int64) *AccountUpdateOne {
+	_u.mutation.ResetFallbackAccountID()
+	_u.mutation.SetFallbackAccountID(v)
+	return _u
+}
+
+// SetNillableFallbackAccountID sets the "fallback_account_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableFallbackAccountID(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetFallbackAccountID(*v)
+	}
+	return _u
+}
+
+// AddFallbackAccountID adds value to the "fallback_account_id" field.
+func (_u *AccountUpdateOne) AddFallbackAccountID(v int64) *AccountUpdateOne {
+	_u.mutation.AddFallbackAccountID(v)
+	return _u
+}
+
+// ClearFallbackAccountID clears the value of the "fallback_account_id" field.
+func (_u *AccountUpdateOne) ClearFallbackAccountID() *AccountUpdateOne {
+	_u.mutation.ClearFallbackAccountID()
 	return _u
 }
 
@@ -1661,6 +1724,15 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.Extra(); ok {
 		_spec.SetField(account.FieldExtra, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.FallbackAccountID(); ok {
+		_spec.SetField(account.FieldFallbackAccountID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedFallbackAccountID(); ok {
+		_spec.AddField(account.FieldFallbackAccountID, field.TypeInt64, value)
+	}
+	if _u.mutation.FallbackAccountIDCleared() {
+		_spec.ClearField(account.FieldFallbackAccountID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)

@@ -15,6 +15,7 @@ func TestRequestMetadataWriteAndRead_NoBridge(t *testing.T) {
 	ctx = WithPrefetchedStickySession(ctx, 123, 456, false)
 	ctx = WithSingleAccountRetry(ctx, true, false)
 	ctx = WithAccountSwitchCount(ctx, 2, false)
+	ctx = WithFailoverSourceAccountID(ctx, 789, false)
 
 	isHaiku, ok := IsMaxTokensOneHaikuRequestFromContext(ctx)
 	require.True(t, ok)
@@ -40,12 +41,17 @@ func TestRequestMetadataWriteAndRead_NoBridge(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, 2, switchCount)
 
+	failoverSourceID, ok := FailoverSourceAccountIDFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, int64(789), failoverSourceID)
+
 	require.Nil(t, ctx.Value(ctxkey.IsMaxTokensOneHaikuRequest))
 	require.Nil(t, ctx.Value(ctxkey.ThinkingEnabled))
 	require.Nil(t, ctx.Value(ctxkey.PrefetchedStickyAccountID))
 	require.Nil(t, ctx.Value(ctxkey.PrefetchedStickyGroupID))
 	require.Nil(t, ctx.Value(ctxkey.SingleAccountRetry))
 	require.Nil(t, ctx.Value(ctxkey.AccountSwitchCount))
+	require.Nil(t, ctx.Value(ctxkey.FailoverSourceAccountID))
 }
 
 func TestRequestMetadataWrite_BridgeLegacyKeys(t *testing.T) {
@@ -55,6 +61,7 @@ func TestRequestMetadataWrite_BridgeLegacyKeys(t *testing.T) {
 	ctx = WithPrefetchedStickySession(ctx, 123, 456, true)
 	ctx = WithSingleAccountRetry(ctx, true, true)
 	ctx = WithAccountSwitchCount(ctx, 2, true)
+	ctx = WithFailoverSourceAccountID(ctx, 789, true)
 
 	require.Equal(t, true, ctx.Value(ctxkey.IsMaxTokensOneHaikuRequest))
 	require.Equal(t, true, ctx.Value(ctxkey.ThinkingEnabled))
@@ -62,6 +69,7 @@ func TestRequestMetadataWrite_BridgeLegacyKeys(t *testing.T) {
 	require.Equal(t, int64(456), ctx.Value(ctxkey.PrefetchedStickyGroupID))
 	require.Equal(t, true, ctx.Value(ctxkey.SingleAccountRetry))
 	require.Equal(t, 2, ctx.Value(ctxkey.AccountSwitchCount))
+	require.Equal(t, int64(789), ctx.Value(ctxkey.FailoverSourceAccountID))
 }
 
 func TestRequestMetadataRead_LegacyFallbackAndStats(t *testing.T) {
@@ -74,6 +82,7 @@ func TestRequestMetadataRead_LegacyFallbackAndStats(t *testing.T) {
 	ctx = context.WithValue(ctx, ctxkey.PrefetchedStickyGroupID, int64(654))
 	ctx = context.WithValue(ctx, ctxkey.SingleAccountRetry, true)
 	ctx = context.WithValue(ctx, ctxkey.AccountSwitchCount, int64(3))
+	ctx = context.WithValue(ctx, ctxkey.FailoverSourceAccountID, int64(987))
 
 	isHaiku, ok := IsMaxTokensOneHaikuRequestFromContext(ctx)
 	require.True(t, ok)
@@ -98,6 +107,10 @@ func TestRequestMetadataRead_LegacyFallbackAndStats(t *testing.T) {
 	switchCount, ok := AccountSwitchCountFromContext(ctx)
 	require.True(t, ok)
 	require.Equal(t, 3, switchCount)
+
+	failoverSourceID, ok := FailoverSourceAccountIDFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, int64(987), failoverSourceID)
 
 	afterHaiku, afterThinking, afterAccount, afterGroup, afterSingleRetry, afterSwitchCount := RequestMetadataFallbackStats()
 	require.Equal(t, beforeHaiku+1, afterHaiku)

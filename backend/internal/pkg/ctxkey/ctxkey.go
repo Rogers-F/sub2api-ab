@@ -29,6 +29,10 @@ const (
 	// AccountSwitchCount 表示请求过程中发生的账号切换次数
 	AccountSwitchCount Key = "ctx_account_switch_count"
 
+	// FailoverSourceAccountID 标识当前 failover 选择链路的起点账号 ID。
+	// 当某个账号失败后，下一轮选号会优先尝试它配置的 fallback_account_id 链。
+	FailoverSourceAccountID Key = "ctx_failover_source_account_id"
+
 	// IsClaudeCodeClient 标识当前请求是否来自 Claude Code 客户端
 	IsClaudeCodeClient Key = "ctx_is_claude_code_client"
 

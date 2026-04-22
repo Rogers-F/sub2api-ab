@@ -434,6 +434,13 @@ func prefetchedStickyAccountIDFromContext(ctx context.Context, groupID *int64) i
 	return 0
 }
 
+func failoverSourceAccountIDFromContext(ctx context.Context) int64 {
+	if accountID, ok := FailoverSourceAccountIDFromContext(ctx); ok && accountID > 0 {
+		return accountID
+	}
+	return 0
+}
+
 // shouldClearStickySession 检查账号是否处于不可调度状态，需要清理粘性会话绑定。
 // 委托 IsSchedulable() 判断账号级可调度性（状态、配额、过载、限流等），
 // 额外检查模型级限流。
@@ -1159,14 +1166,16 @@ func (s *GatewayService) SelectAccountForModel(ctx context.Context, groupID *int
 func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
 	// 优先检查 context 中的强制平台（/antigravity 路由）
 	var platform string
+	var group *Group
 	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
 	if hasForcePlatform && forcePlatform != "" {
 		platform = forcePlatform
 	} else if groupID != nil {
-		group, resolvedGroupID, err := s.resolveGatewayGroup(ctx, groupID)
+		resolvedGroup, resolvedGroupID, err := s.resolveGatewayGroup(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
+		group = resolvedGroup
 		groupID = resolvedGroupID
 		ctx = s.withGroupContext(ctx, group)
 		platform = group.Platform
@@ -1182,6 +1191,17 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 			"group_id", derefGroupID(groupID),
 			"model", requestedModel)
 		return nil, fmt.Errorf("%w supporting model: %s (channel pricing restriction)", ErrNoAvailableAccounts, requestedModel)
+	}
+
+	if fallbackAccount, ok, err := s.selectFallbackChainAccount(ctx, groupID, requestedModel, platform, platform == PlatformAnthropic || platform == PlatformGemini, excludedIDs, group); err != nil {
+		return nil, err
+	} else if ok {
+		if sessionHash != "" && s.cache != nil {
+			if err := s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), sessionHash, fallbackAccount.ID, stickySessionTTL); err != nil {
+				logger.LegacyPrintf("service.gateway", "set session account failed: session=%s account_id=%d err=%v", sessionHash, fallbackAccount.ID, err)
+			}
+		}
+		return s.hydrateSelectedAccount(ctx, fallbackAccount)
 	}
 
 	// anthropic/gemini 分组支持混合调度（包含启用了 mixed_scheduling 的 antigravity 账户）
@@ -1335,6 +1355,12 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		}
 		_, excluded := excludedIDs[accountID]
 		return excluded
+	}
+
+	if fallbackSelection, ok, err := s.trySelectFallbackChainWithLoadAwareness(ctx, groupID, sessionHash, requestedModel, platform, useMixed, excludedIDs, group, cfg); err != nil {
+		return nil, err
+	} else if ok {
+		return fallbackSelection, nil
 	}
 
 	// 获取模型路由配置（仅 anthropic 平台）
@@ -2069,6 +2095,9 @@ func (s *GatewayService) isAccountInGroup(account *Account, groupID *int64) bool
 	if account == nil {
 		return false
 	}
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		return true
+	}
 	if groupID == nil {
 		// 无分组的 API Key 只能使用未分组的账号
 		return len(account.AccountGroups) == 0
@@ -2086,6 +2115,180 @@ func (s *GatewayService) tryAcquireAccountSlot(ctx context.Context, accountID in
 		return &AcquireResult{Acquired: true, ReleaseFunc: func() {}}, nil
 	}
 	return s.concurrencyService.AcquireAccountSlot(ctx, accountID, maxConcurrency)
+}
+
+func (s *GatewayService) listFallbackChainAccounts(ctx context.Context, sourceAccountID int64, platform string) ([]*Account, error) {
+	if sourceAccountID <= 0 {
+		return nil, nil
+	}
+
+	visited := map[int64]struct{}{sourceAccountID: {}}
+	currentID := sourceAccountID
+	requiredPlatform := ""
+	result := make([]*Account, 0, 4)
+
+	for currentID > 0 {
+		account, err := s.getSchedulableAccount(ctx, currentID)
+		if err != nil || account == nil || account.FallbackAccountID == nil || *account.FallbackAccountID <= 0 {
+			return result, err
+		}
+		if requiredPlatform == "" {
+			requiredPlatform = account.Platform
+		}
+
+		nextID := *account.FallbackAccountID
+		if _, seen := visited[nextID]; seen {
+			return result, nil
+		}
+		visited[nextID] = struct{}{}
+
+		nextAccount, err := s.getSchedulableAccount(ctx, nextID)
+		if err != nil || nextAccount == nil {
+			return result, err
+		}
+		if requiredPlatform != "" && nextAccount.Platform != requiredPlatform {
+			return result, nil
+		}
+
+		result = append(result, nextAccount)
+		currentID = nextID
+	}
+
+	return result, nil
+}
+
+func (s *GatewayService) isFallbackChainCandidateEligible(
+	ctx context.Context,
+	groupID *int64,
+	requestedModel string,
+	platform string,
+	useMixed bool,
+	excludedIDs map[int64]struct{},
+	schedGroup *Group,
+	account *Account,
+) bool {
+	if account == nil {
+		return false
+	}
+	if _, excluded := excludedIDs[account.ID]; excluded {
+		return false
+	}
+	if !s.isAccountInGroup(account, groupID) {
+		return false
+	}
+	if !s.isAccountAllowedForPlatform(account, platform, useMixed) {
+		return false
+	}
+	if !s.isAccountSchedulableForSelection(account) {
+		return false
+	}
+	if schedGroup != nil && schedGroup.RequirePrivacySet && !account.IsPrivacySet() {
+		_ = s.accountRepo.SetError(ctx, account.ID,
+			fmt.Sprintf("Privacy not set, required by group [%s]", schedGroup.Name))
+		return false
+	}
+	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
+		return false
+	}
+	if groupID != nil && s.needsUpstreamChannelRestrictionCheck(ctx, groupID) &&
+		s.isUpstreamModelRestrictedByChannel(ctx, *groupID, account, requestedModel) {
+		return false
+	}
+	if !s.isAccountSchedulableForModelSelection(ctx, account, requestedModel) {
+		return false
+	}
+	if !s.isAccountSchedulableForQuota(account) {
+		return false
+	}
+	if !s.isAccountSchedulableForWindowCost(ctx, account, false) {
+		return false
+	}
+	if !s.isAccountSchedulableForRPM(ctx, account, false) {
+		return false
+	}
+	return true
+}
+
+func (s *GatewayService) selectFallbackChainAccount(
+	ctx context.Context,
+	groupID *int64,
+	requestedModel string,
+	platform string,
+	useMixed bool,
+	excludedIDs map[int64]struct{},
+	schedGroup *Group,
+) (*Account, bool, error) {
+	sourceAccountID := failoverSourceAccountIDFromContext(ctx)
+	if sourceAccountID <= 0 {
+		return nil, false, nil
+	}
+
+	candidates, err := s.listFallbackChainAccounts(ctx, sourceAccountID, platform)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, candidate := range candidates {
+		if s.isFallbackChainCandidateEligible(ctx, groupID, requestedModel, platform, useMixed, excludedIDs, schedGroup, candidate) {
+			return candidate, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+func (s *GatewayService) trySelectFallbackChainWithLoadAwareness(
+	ctx context.Context,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	platform string,
+	useMixed bool,
+	excludedIDs map[int64]struct{},
+	schedGroup *Group,
+	cfg config.GatewaySchedulingConfig,
+) (*AccountSelectionResult, bool, error) {
+	sourceAccountID := failoverSourceAccountIDFromContext(ctx)
+	if sourceAccountID <= 0 {
+		return nil, false, nil
+	}
+
+	candidates, err := s.listFallbackChainAccounts(ctx, sourceAccountID, platform)
+	if err != nil {
+		return nil, false, err
+	}
+
+	waitCandidates := make([]*Account, 0, len(candidates))
+	for _, candidate := range candidates {
+		if !s.isFallbackChainCandidateEligible(ctx, groupID, requestedModel, platform, useMixed, excludedIDs, schedGroup, candidate) {
+			continue
+		}
+
+		result, acquireErr := s.tryAcquireAccountSlot(ctx, candidate.ID, candidate.Concurrency)
+		if acquireErr == nil && result.Acquired {
+			if !s.checkAndRegisterSession(ctx, candidate, sessionHash) {
+				result.ReleaseFunc()
+				continue
+			}
+			selection, err := s.newSelectionResult(ctx, candidate, true, result.ReleaseFunc, nil)
+			return selection, true, err
+		}
+
+		waitCandidates = append(waitCandidates, candidate)
+	}
+
+	for _, candidate := range waitCandidates {
+		if !s.checkAndRegisterSession(ctx, candidate, sessionHash) {
+			continue
+		}
+		selection, err := s.newSelectionResult(ctx, candidate, false, nil, &AccountWaitPlan{
+			AccountID:      candidate.ID,
+			MaxConcurrency: candidate.Concurrency,
+			Timeout:        cfg.FallbackWaitTimeout,
+			MaxWaiting:     cfg.FallbackMaxWaiting,
+		})
+		return selection, true, err
+	}
+
+	return nil, false, nil
 }
 
 type usageLogWindowStatsBatchProvider interface {

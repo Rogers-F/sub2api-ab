@@ -20,9 +20,9 @@ import (
 )
 
 const (
-	updateCacheKey = "update_check_cache"
+	updateCacheKey = "update_check_cache_v2"
 	updateCacheTTL = 1200 // 20 minutes
-	githubRepo     = "Wei-Shaw/sub2api"
+	githubRepo     = "Rogers-F/sub2api-ab"
 
 	// Security: allowed download domains for updates
 	allowedDownloadHost = "github.com"

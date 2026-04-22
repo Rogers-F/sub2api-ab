@@ -930,12 +930,56 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_UpstreamRequest
 	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{"model":"x"}`), "x", "x", false, time.Now())
 	require.Nil(t, result)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "upstream request failed")
-	require.Equal(t, http.StatusBadGateway, rec.Code)
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.False(t, c.Writer.Written(), "请求阶段错误应交给 handler 换号，而不是服务层直接写 502")
 	rawBody, ok := c.Get(OpsUpstreamRequestBodyKey)
 	require.True(t, ok)
 	_, ok = rawBody.([]byte)
 	require.True(t, ok)
+
+	eventsAny, ok := c.Get(OpsUpstreamErrorsKey)
+	require.True(t, ok)
+	events, ok := eventsAny.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.NotEmpty(t, events)
+	require.Equal(t, "failover", events[len(events)-1].Kind)
+	require.True(t, events[len(events)-1].Passthrough)
+	require.Contains(t, events[len(events)-1].Message, "dial tcp timeout")
+}
+
+func TestGatewayService_FailoverOnUpstreamRequestError_RecordsFailoverEvent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+
+	svc := &GatewayService{}
+	account := newAnthropicAPIKeyAccountForTest()
+
+	err := svc.failoverOnUpstreamRequestError(c, account, "https://api.anthropic.com/v1/messages", true, errors.New("context canceled"))
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+
+	statusAny, ok := c.Get(OpsUpstreamStatusCodeKey)
+	require.True(t, ok)
+	require.Equal(t, http.StatusBadGateway, statusAny)
+
+	msgAny, ok := c.Get(OpsUpstreamErrorMessageKey)
+	require.True(t, ok)
+	require.Equal(t, "context canceled", msgAny)
+
+	eventsAny, ok := c.Get(OpsUpstreamErrorsKey)
+	require.True(t, ok)
+	events, ok := eventsAny.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.Len(t, events, 1)
+	require.Equal(t, "failover", events[0].Kind)
+	require.True(t, events[0].Passthrough)
+	require.Equal(t, int64(account.ID), events[0].AccountID)
+	require.Equal(t, "context canceled", events[0].Message)
+	require.Equal(t, "https://api.anthropic.com/v1/messages", events[0].UpstreamURL)
 }
 
 func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_EmptyResponseBody(t *testing.T) {

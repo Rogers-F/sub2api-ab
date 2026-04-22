@@ -1199,7 +1199,13 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingTimeoutAfterClientDi
 	<-done
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "stream usage incomplete after timeout")
+	// 客户端断开后，这里可能先命中超时分支，也可能在 select 竞争中先观察到
+	// 上游 EOF，于是返回缺少终止事件。两种结果都符合当前实现语义。
+	require.True(t,
+		strings.Contains(err.Error(), "stream usage incomplete after timeout") ||
+			strings.Contains(err.Error(), "stream usage incomplete: missing terminal event"),
+		"unexpected error: %v", err,
+	)
 	require.NotNil(t, result)
 	require.True(t, result.clientDisconnect)
 	require.Equal(t, 9, result.usage.InputTokens)

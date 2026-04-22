@@ -127,6 +127,12 @@
           <Select v-model="filters.request_type" :options="requestTypeOptions" @change="emitChange" />
         </div>
 
+        <!-- Account Failover Filter -->
+        <div class="w-full sm:w-auto sm:min-w-[180px]">
+          <label class="input-label">{{ t('admin.usage.accountFailover') }}</label>
+          <Select v-model="filters.account_failover" :options="accountFailoverOptions" @change="emitChange" />
+        </div>
+
         <!-- Billing Type Filter -->
         <div class="w-full sm:w-auto sm:min-w-[200px]">
           <label class="input-label">{{ t('admin.usage.billingType') }}</label>
@@ -230,6 +236,12 @@ const requestTypeOptions = ref<SelectOption[]>([
   { value: 'ws_v2', label: t('usage.ws') },
   { value: 'stream', label: t('usage.stream') },
   { value: 'sync', label: t('usage.sync') }
+])
+
+const accountFailoverOptions = ref<SelectOption[]>([
+  { value: null, label: t('admin.usage.allAccountFailover') },
+  { value: true, label: t('admin.usage.onlyAccountFailover') },
+  { value: false, label: t('admin.usage.onlyNonAccountFailover') }
 ])
 
 const billingTypeOptions = ref<SelectOption[]>([

@@ -116,6 +116,7 @@ export async function getStats(params: {
   model?: string
   request_type?: UsageRequestType
   stream?: boolean
+  account_failover?: boolean | null
   period?: string
   start_date?: string
   end_date?: string

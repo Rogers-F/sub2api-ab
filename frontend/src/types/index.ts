@@ -1382,6 +1382,7 @@ export interface UsageQueryParams {
   model?: string
   request_type?: UsageRequestType
   stream?: boolean
+  account_failover?: boolean | null
   billing_type?: number | null
   start_date?: string
   end_date?: string

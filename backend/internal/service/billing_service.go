@@ -245,6 +245,13 @@ func (s *BillingService) initFallbackPricing() {
 		CacheReadPricePerTokenPriority: 0.3e-6,
 		SupportsCacheBreakdown:         false,
 	}
+	s.fallbackPrices["gpt-image-2"] = &ModelPricing{
+		InputPricePerToken:       5e-6,
+		OutputPricePerToken:      1e-5,
+		CacheReadPricePerToken:   1.25e-6,
+		ImageOutputPricePerToken: 3.2e-5,
+		SupportsCacheBreakdown:   false,
+	}
 }
 
 // getFallbackPricing 根据模型系列获取回退价格
@@ -282,6 +289,9 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	}
 	if strings.Contains(modelLower, "gemini-3.1-pro") || strings.Contains(modelLower, "gemini-3-1-pro") {
 		return s.fallbackPrices["gemini-3.1-pro"]
+	}
+	if strings.Contains(modelLower, "gpt-image-2") {
+		return s.fallbackPrices["gpt-image-2"]
 	}
 
 	// OpenAI 仅匹配已知 GPT-5/Codex 族，避免未知 OpenAI 型号误计价。

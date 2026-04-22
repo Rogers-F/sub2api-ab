@@ -1806,15 +1806,20 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 
 	// Handle OpenAI accounts
 	if account.IsOpenAI() {
+		defaultModels := openai.DefaultModels
+		if account.IsOAuth() {
+			defaultModels = filterOpenAIModelsForOAuth(defaultModels)
+		}
+
 		// OpenAI 自动透传会绕过常规模型改写，测试/模型列表也应回落到默认模型集。
 		if account.IsOpenAIPassthroughEnabled() {
-			response.Success(c, openai.DefaultModels)
+			response.Success(c, defaultModels)
 			return
 		}
 
 		mapping := account.GetModelMapping()
 		if len(mapping) == 0 {
-			response.Success(c, openai.DefaultModels)
+			response.Success(c, defaultModels)
 			return
 		}
 
@@ -1837,6 +1842,9 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 					DisplayName: requestedModel,
 				})
 			}
+		}
+		if account.IsOAuth() {
+			models = filterOpenAIModelsForOAuth(models)
 		}
 		response.Success(c, models)
 		return
@@ -1926,6 +1934,18 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	}
 
 	response.Success(c, models)
+}
+
+func filterOpenAIModelsForOAuth(models []openai.Model) []openai.Model {
+	filtered := make([]openai.Model, 0, len(models))
+	for _, model := range models {
+		modelID := strings.ToLower(strings.TrimSpace(model.ID))
+		if strings.HasPrefix(modelID, "gpt-image-") {
+			continue
+		}
+		filtered = append(filtered, model)
+	}
+	return filtered
 }
 
 // SetPrivacy handles setting privacy for a single OpenAI/Antigravity OAuth account

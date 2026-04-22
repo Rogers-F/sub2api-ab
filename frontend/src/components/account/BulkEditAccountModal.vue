@@ -31,6 +31,24 @@
         </p>
       </div>
 
+      <div
+        v-if="openAIImageNoticeKey"
+        :class="[
+          'rounded-lg p-4',
+          allOpenAIAPIKey ? 'bg-sky-50 dark:bg-sky-900/20' : 'bg-amber-50 dark:bg-amber-900/20'
+        ]"
+      >
+        <p
+          :class="[
+            'text-sm',
+            allOpenAIAPIKey ? 'text-sky-700 dark:text-sky-300' : 'text-amber-700 dark:text-amber-300'
+          ]"
+        >
+          <Icon name="infoCircle" size="sm" class="mr-1 inline" :stroke-width="2" />
+          {{ t(openAIImageNoticeKey) }}
+        </p>
+      </div>
+
       <!-- OpenAI passthrough -->
       <div
         v-if="allOpenAIPassthroughCapable"
@@ -958,13 +976,32 @@ const allOpenAIPassthroughCapable = computed(() => {
   )
 })
 
+const isOpenAIOnly = computed(() => (
+  props.selectedPlatforms.length === 1 &&
+  props.selectedPlatforms[0] === 'openai'
+))
+
+const allOpenAIAPIKey = computed(() => {
+  return (
+    isOpenAIOnly.value &&
+    props.selectedTypes.length > 0 &&
+    props.selectedTypes.every(t => t === 'apikey')
+  )
+})
+
 const allOpenAIOAuth = computed(() => {
   return (
-    props.selectedPlatforms.length === 1 &&
-    props.selectedPlatforms[0] === 'openai' &&
+    isOpenAIOnly.value &&
     props.selectedTypes.length > 0 &&
     props.selectedTypes.every(t => t === 'oauth')
   )
+})
+
+const openAIImageNoticeKey = computed(() => {
+  if (!isOpenAIOnly.value) return ''
+  if (allOpenAIAPIKey.value) return 'admin.accounts.openai.imageBatchApiKeyNotice'
+  if (allOpenAIOAuth.value) return 'admin.accounts.openai.imageBatchOAuthNotice'
+  return 'admin.accounts.openai.imageBatchMixedNotice'
 })
 
 // 是否全部为 Anthropic OAuth/SetupToken（RPM 配置仅在此条件下显示）

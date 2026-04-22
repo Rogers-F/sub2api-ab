@@ -176,6 +176,7 @@ describe('BulkEditAccountModal', () => {
     })
 
     expect(wrapper.find('#bulk-edit-openai-ws-mode-enabled').exists()).toBe(false)
+    expect(wrapper.text()).toContain('admin.accounts.openai.imageBatchApiKeyNotice')
   })
 
   it('OpenAI 账号批量编辑可关闭自动透传', async () => {
@@ -216,5 +217,23 @@ describe('BulkEditAccountModal', () => {
       }
     })
     expect(wrapper.text()).toContain('admin.accounts.openai.modelRestrictionDisabledByPassthrough')
+  })
+
+  it('OpenAI OAuth 批量编辑显示图片模型不支持提示', () => {
+    const wrapper = mountModal({
+      selectedPlatforms: ['openai'],
+      selectedTypes: ['oauth']
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.openai.imageBatchOAuthNotice')
+  })
+
+  it('OpenAI 混合类型批量编辑显示图片模型仅 API Key 可用提示', () => {
+    const wrapper = mountModal({
+      selectedPlatforms: ['openai'],
+      selectedTypes: ['oauth', 'apikey']
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.openai.imageBatchMixedNotice')
   })
 })

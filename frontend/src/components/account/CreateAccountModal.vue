@@ -303,6 +303,19 @@
             </div>
           </button>
         </div>
+
+        <div
+          v-if="accountCategory === 'apikey'"
+          class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800/40 dark:bg-sky-900/20 dark:text-sky-200"
+        >
+          {{ t('admin.accounts.openai.imageApiKeyNotice') }}
+        </div>
+        <div
+          v-else-if="accountCategory === 'oauth-based'"
+          class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-200"
+        >
+          {{ t('admin.accounts.openai.imageOAuthUnsupportedNotice') }}
+        </div>
       </div>
 
       <!-- Account Type Selection (Gemini) -->
@@ -1586,6 +1599,9 @@
         v-if="form.platform === 'openai' && accountCategory === 'oauth-based'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
+        <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-200">
+          {{ t('admin.accounts.openai.imageOAuthUnsupportedNotice') }}
+        </div>
         <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
 
         <div

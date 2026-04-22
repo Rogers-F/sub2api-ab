@@ -2533,6 +2533,20 @@ export default {
         codexCLIOnly: '仅允许 Codex 官方客户端',
         codexCLIOnlyDesc: '仅对 OpenAI OAuth 生效。开启后仅允许 Codex 官方客户端家族访问；关闭后完全绕过并保持原逻辑。',
         modelRestrictionDisabledByPassthrough: '已开启自动透传：模型白名单/映射不会生效。',
+        imageApiKeyNotice:
+          '本项目中的 `gpt-image-2` 走 OpenAI Images API（`/v1/images/generations`、`/v1/images/edits`），仅支持 OpenAI API Key 账号。',
+        imageOAuthUnsupportedNotice:
+          '本项目中的 OpenAI OAuth 账号不支持 `gpt-image-2` 或 Images API 路由；如需生图或编辑图片，请改用 API Key 账号。',
+        imageBatchApiKeyNotice:
+          '当前批量编辑的都是 OpenAI API Key 账号；`gpt-image-2` 使用 Images API 路由（`/v1/images/generations`、`/v1/images/edits`）。',
+        imageBatchOAuthNotice:
+          '当前选中的 OpenAI OAuth 账号不支持 `gpt-image-2` 或 Images API 路由；如需生图或编辑图片，请改用 API Key 账号。',
+        imageBatchMixedNotice:
+          '这批账号同时包含 OpenAI API Key 和 OAuth；`gpt-image-2` 只会在 API Key 账号上生效，OAuth 账号仍不支持 Images API 路由。',
+        imageTestNotice:
+          '选择 `gpt-image-2` 后，这里会真实发起一次 OpenAI Images API 请求，并在下方预览返回图片。',
+        imageTestOAuthHiddenNotice:
+          '`gpt-image-2` 在 OpenAI OAuth 账号测试中会被隐藏，因为 Images API 路由要求使用 API Key 账号。',
       },
       anthropic: {
         apiKeyPassthrough: '自动透传（仅替换认证）',
@@ -3059,6 +3073,13 @@ export default {
       selectTestModel: '选择测试模型',
       testModel: '测试模型',
       testPrompt: '提示词："hi"',
+      imagePromptLabel: '生图提示词',
+      imagePromptPlaceholder: '例如：生成一只戴宇航员头盔的橘猫，像素插画风格，纯色背景。',
+      imagePromptDefault: 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
+      imageTestHint: '选择图片模型后，这里会直接发起生图测试，并在下方展示返回图片。',
+      imageTestMode: '模式：生图测试',
+      imagePreview: '生成结果：',
+      imageReceived: '已收到第 {count} 张测试图片',
       geminiImagePromptLabel: '生图提示词',
       geminiImagePromptPlaceholder: '例如：生成一只戴宇航员头盔的橘猫，像素插画风格，纯色背景。',
       geminiImagePromptDefault: 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
@@ -3066,6 +3087,7 @@ export default {
       geminiImageTestMode: '模式：Gemini 生图测试',
       geminiImagePreview: '生成结果：',
       geminiImageReceived: '已收到第 {count} 张测试图片',
+      sendingOpenAIImageRequest: '发送 OpenAI 生图测试请求...',
       // Stats Modal
       viewStats: '查看统计',
       usageStatistics: '使用统计',

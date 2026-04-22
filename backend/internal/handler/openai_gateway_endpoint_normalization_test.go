@@ -37,6 +37,16 @@ func TestOpenAIUpstreamEndpoint_ViaGetUpstreamEndpoint(t *testing.T) {
 			want: "/v1/responses/compact/detail",
 		},
 		{
+			name: "images generations stays on native endpoint",
+			path: "/v1/images/generations",
+			want: EndpointImagesGenerations,
+		},
+		{
+			name: "images edits alias stays on native endpoint",
+			path: "/images/edits",
+			want: EndpointImagesEdits,
+		},
+		{
 			name: "non responses path uses platform fallback",
 			path: "/v1/messages",
 			want: EndpointResponses,

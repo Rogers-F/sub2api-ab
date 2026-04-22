@@ -69,6 +69,13 @@
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
         </div>
 
+        <div
+          v-if="account.platform === 'openai'"
+          class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800/40 dark:bg-sky-900/20 dark:text-sky-200"
+        >
+          {{ t('admin.accounts.openai.imageApiKeyNotice') }}
+        </div>
+
         <!-- Model Restriction Section (不适用于 Antigravity) -->
         <div v-if="account.platform !== 'antigravity'" class="border-t border-gray-200 pt-4 dark:border-dark-600">
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
@@ -412,6 +419,9 @@
         v-if="account.platform === 'openai' && account.type === 'oauth'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
+        <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-200">
+          {{ t('admin.accounts.openai.imageOAuthUnsupportedNotice') }}
+        </div>
         <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
 
         <div

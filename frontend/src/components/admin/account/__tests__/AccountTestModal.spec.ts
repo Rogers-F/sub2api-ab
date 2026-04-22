@@ -24,13 +24,13 @@ vi.mock('@/composables/useClipboard', () => ({
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
-    'admin.accounts.geminiImagePromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.'
+    'admin.accounts.imagePromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.'
   }
   return {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, string | number>) => {
-        if (key === 'admin.accounts.geminiImageReceived' && params?.count) {
+        if (key === 'admin.accounts.imageReceived' && params?.count) {
           return `received-${params.count}`
         }
         return messages[key] || key
@@ -59,7 +59,7 @@ function createStreamResponse(lines: string[]) {
   } as Response
 }
 
-function mountModal() {
+function mountModal(account?: Record<string, unknown>) {
   return mount(AccountTestModal, {
     props: {
       show: false,
@@ -68,7 +68,8 @@ function mountModal() {
         name: 'Gemini Image Test',
         platform: 'gemini',
         type: 'apikey',
-        status: 'active'
+        status: 'active',
+        ...account
       }
     } as any,
     global: {
@@ -140,8 +141,67 @@ describe('AccountTestModal', () => {
       prompt: 'draw a tiny orange cat astronaut'
     })
 
-    const preview = wrapper.find('img[alt="gemini-test-image-1"]')
+    const preview = wrapper.find('img[alt="test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('openai api key 图片模型测试会携带提示词', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'gpt-image-2', display_name: 'GPT Image 2' },
+      { id: 'gpt-5.4', display_name: 'GPT-5.4' }
+    ])
+    global.fetch = vi.fn().mockResolvedValueOnce(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"gpt-image-2"}\n',
+        'data: {"type":"image","image_url":"https://example.com/test.png","mime_type":"image/png"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mountModal({
+      name: 'OpenAI Image Test',
+      platform: 'openai',
+      type: 'apikey'
+    })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    expect(wrapper.text()).toContain('admin.accounts.openai.imageTestNotice')
+    await promptInput.setValue('draw a watercolor fox reading a map')
+
+    const buttons = wrapper.findAll('button')
+    const startButton = buttons.find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_id: 'gpt-image-2',
+      prompt: 'draw a watercolor fox reading a map'
+    })
+  })
+
+  it('openai oauth 测试弹窗隐藏 gpt-image-2 并显示说明', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'gpt-5.4', display_name: 'GPT-5.4' },
+      { id: 'gpt-image-2', display_name: 'GPT Image 2' }
+    ])
+
+    const wrapper = mountModal({
+      name: 'OpenAI OAuth Test',
+      platform: 'openai',
+      type: 'oauth'
+    })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.accounts.openai.imageTestOAuthHiddenNotice')
+    expect(wrapper.find('textarea.textarea-stub').exists()).toBe(false)
   })
 })

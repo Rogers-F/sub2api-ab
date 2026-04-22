@@ -233,6 +233,8 @@ type OpenAIForwardResult struct {
 	ResponseHeaders http.Header
 	Duration        time.Duration
 	FirstTokenMs    *int
+	ImageCount      int
+	ImageSize       string
 }
 
 type OpenAIWSRetryMetricsSnapshot struct {
@@ -4067,23 +4069,32 @@ func (s *OpenAIGatewayService) parseSSEUsageBytes(data []byte, usage *OpenAIUsag
 	usage.InputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens").Int())
 	usage.OutputTokens = int(gjson.GetBytes(data, "response.usage.output_tokens").Int())
 	usage.CacheReadInputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens_details.cached_tokens").Int())
+	usage.ImageOutputTokens = resolveOpenAIImageOutputTokensUsage(data, "response.usage")
 }
 
 func extractOpenAIUsageFromJSONBytes(body []byte) (OpenAIUsage, bool) {
 	if len(body) == 0 || !gjson.ValidBytes(body) {
 		return OpenAIUsage{}, false
 	}
-	values := gjson.GetManyBytes(
-		body,
-		"usage.input_tokens",
-		"usage.output_tokens",
-		"usage.input_tokens_details.cached_tokens",
-	)
 	return OpenAIUsage{
-		InputTokens:          int(values[0].Int()),
-		OutputTokens:         int(values[1].Int()),
-		CacheReadInputTokens: int(values[2].Int()),
+		InputTokens:          int(gjson.GetBytes(body, "usage.input_tokens").Int()),
+		OutputTokens:         int(gjson.GetBytes(body, "usage.output_tokens").Int()),
+		CacheReadInputTokens: int(gjson.GetBytes(body, "usage.input_tokens_details.cached_tokens").Int()),
+		ImageOutputTokens:    resolveOpenAIImageOutputTokensUsage(body, "usage"),
 	}, true
+}
+
+func resolveOpenAIImageOutputTokensUsage(body []byte, prefix string) int {
+	for _, path := range []string{
+		prefix + ".output_tokens_details.image_tokens",
+		prefix + ".output_tokens_details.image_output_tokens",
+		prefix + ".image_output_tokens",
+	} {
+		if value := int(gjson.GetBytes(body, path).Int()); value > 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, originalModel, mappedModel string) (*OpenAIUsage, error) {
@@ -4575,7 +4586,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// 跳过所有 token 均为零的用量记录——上游未返回 usage 时不应写入数据库
 	if result.Usage.InputTokens == 0 && result.Usage.OutputTokens == 0 &&
-		result.Usage.CacheCreationInputTokens == 0 && result.Usage.CacheReadInputTokens == 0 {
+		result.Usage.CacheCreationInputTokens == 0 && result.Usage.CacheReadInputTokens == 0 &&
+		result.ImageCount == 0 {
 		return nil
 	}
 
@@ -4629,7 +4641,48 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if result.ServiceTier != nil {
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
-	if s.resolver != nil && apiKey.Group != nil {
+	hasBillableUsageTokens := actualInputTokens > 0 ||
+		result.Usage.OutputTokens > 0 ||
+		result.Usage.ImageOutputTokens > 0 ||
+		result.Usage.CacheCreationInputTokens > 0 ||
+		result.Usage.CacheReadInputTokens > 0
+	resolveChannelPricing := func() *ResolvedPricing {
+		if s.resolver == nil || apiKey == nil || apiKey.Group == nil {
+			return nil
+		}
+		gid := apiKey.Group.ID
+		resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid})
+		if resolved.Source == PricingSourceChannel {
+			return resolved
+		}
+		return nil
+	}
+	if result.ImageCount > 0 && !hasBillableUsageTokens {
+		if resolved := resolveChannelPricing(); resolved != nil {
+			gid := apiKey.Group.ID
+			cost, err = s.billingService.CalculateCostUnified(CostInput{
+				Ctx:            ctx,
+				Model:          billingModel,
+				GroupID:        &gid,
+				Tokens:         tokens,
+				RequestCount:   result.ImageCount,
+				SizeTier:       result.ImageSize,
+				RateMultiplier: multiplier,
+				Resolver:       s.resolver,
+				Resolved:       resolved,
+			})
+		} else {
+			var groupConfig *ImagePriceConfig
+			if apiKey != nil && apiKey.Group != nil {
+				groupConfig = &ImagePriceConfig{
+					Price1K: apiKey.Group.ImagePrice1K,
+					Price2K: apiKey.Group.ImagePrice2K,
+					Price4K: apiKey.Group.ImagePrice4K,
+				}
+			}
+			cost = s.billingService.CalculateImageCost(billingModel, result.ImageSize, result.ImageCount, groupConfig, multiplier)
+		}
+	} else if s.resolver != nil && apiKey.Group != nil {
 		gid := apiKey.Group.ID
 		cost, err = s.billingService.CalculateCostUnified(CostInput{
 			Ctx:            ctx,
@@ -4683,6 +4736,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
 		CacheReadTokens:     result.Usage.CacheReadInputTokens,
 		ImageOutputTokens:   result.Usage.ImageOutputTokens,
+		ImageCount:          result.ImageCount,
+		ImageSize:           optionalTrimmedStringPtr(result.ImageSize),
 	}
 	if cost != nil {
 		usageLog.InputCost = cost.InputCost
@@ -4707,6 +4762,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// 设置计费模式
 	if cost != nil && cost.BillingMode != "" {
 		billingMode := cost.BillingMode
+		usageLog.BillingMode = &billingMode
+	} else if result.ImageCount > 0 {
+		billingMode := string(BillingModeImage)
 		usageLog.BillingMode = &billingMode
 	} else {
 		billingMode := string(BillingModeToken)

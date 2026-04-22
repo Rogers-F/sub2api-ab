@@ -2,10 +2,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount } from '@vue/test-utils'
 
-const { updateAccountMock, checkMixedChannelRiskMock } = vi.hoisted(() => ({
-  updateAccountMock: vi.fn(),
-  checkMixedChannelRiskMock: vi.fn()
-}))
+const { updateAccountMock, checkMixedChannelRiskMock } = vi.hoisted(() => {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn()
+    },
+    configurable: true
+  })
+
+  return {
+    updateAccountMock: vi.fn(),
+    checkMixedChannelRiskMock: vi.fn()
+  }
+})
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
@@ -26,6 +38,14 @@ vi.mock('@/api/admin', () => ({
     accounts: {
       update: updateAccountMock,
       checkMixedChannelRisk: checkMixedChannelRiskMock
+    },
+    settings: {
+      getSettings: vi.fn().mockResolvedValue({
+        account_quota_notify_enabled: false
+      }),
+      getWebSearchEmulationConfig: vi.fn().mockResolvedValue({
+        enabled: false
+      })
     }
   }
 }))
@@ -111,7 +131,7 @@ function buildAccount() {
 function mountModal(account = buildAccount()) {
   return mount(EditAccountModal, {
     props: {
-      show: true,
+      show: false,
       account,
       proxies: [],
       groups: []
@@ -138,7 +158,9 @@ describe('EditAccountModal', () => {
     updateAccountMock.mockResolvedValue(account)
 
     const wrapper = mountModal(account)
+    await wrapper.setProps({ show: true })
 
+    expect(wrapper.text()).toContain('admin.accounts.openai.imageApiKeyNotice')
     expect(wrapper.get('[data-testid="model-whitelist-value"]').text()).toBe('gpt-5.2')
 
     await wrapper.get('[data-testid="rewrite-to-snapshot"]').trigger('click')

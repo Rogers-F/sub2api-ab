@@ -55,12 +55,24 @@
         />
       </div>
 
-      <div v-if="supportsGeminiImageTest" class="space-y-1.5">
+      <div
+        v-if="openAIImageTestNoticeKey"
+        :class="[
+          'rounded-lg border px-3 py-2 text-xs',
+          account?.type === 'apikey'
+            ? 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800/40 dark:bg-sky-900/20 dark:text-sky-200'
+            : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-200'
+        ]"
+      >
+        {{ t(openAIImageTestNoticeKey) }}
+      </div>
+
+      <div v-if="supportsImageGenerationTest" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
-          :label="t('admin.accounts.geminiImagePromptLabel')"
-          :placeholder="t('admin.accounts.geminiImagePromptPlaceholder')"
-          :hint="t('admin.accounts.geminiImageTestHint')"
+          :label="t('admin.accounts.imagePromptLabel')"
+          :placeholder="t('admin.accounts.imagePromptPlaceholder')"
+          :hint="t('admin.accounts.imageTestHint')"
           :disabled="status === 'connecting'"
           rows="3"
         />
@@ -122,7 +134,7 @@
 
       <div v-if="generatedImages.length > 0" class="space-y-2">
         <div class="text-xs font-medium text-gray-600 dark:text-gray-300">
-          {{ t('admin.accounts.geminiImagePreview') }}
+          {{ t('admin.accounts.imagePreview') }}
         </div>
         <div class="grid gap-3 sm:grid-cols-2">
           <a
@@ -133,7 +145,7 @@
             rel="noopener noreferrer"
             class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-primary-300 hover:shadow-md dark:border-dark-500 dark:bg-dark-700"
           >
-            <img :src="image.url" :alt="`gemini-test-image-${index + 1}`" class="h-48 w-full object-cover" />
+            <img :src="image.url" :alt="`test-image-${index + 1}`" class="h-48 w-full object-cover" />
             <div class="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-dark-500 dark:text-gray-300">
               {{ image.mimeType || 'image/*' }}
             </div>
@@ -152,8 +164,8 @@
         <span class="flex items-center gap-1">
           <Icon name="chat" size="sm" :stroke-width="2" />
           {{
-            supportsGeminiImageTest
-              ? t('admin.accounts.geminiImageTestMode')
+            supportsImageGenerationTest
+              ? t('admin.accounts.imageTestMode')
               : t('admin.accounts.testPrompt')
           }}
         </span>
@@ -251,11 +263,39 @@ const loadingModels = ref(false)
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewImage[]>([])
 const prioritizedGeminiModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.0-flash']
+
+const isGeminiImageTestModel = (modelID: string) => {
+  const normalizedModelID = modelID.toLowerCase()
+  return normalizedModelID.startsWith('gemini-') && normalizedModelID.includes('-image')
+}
+
+const isOpenAIImageTestModel = (modelID: string) => {
+  return modelID.toLowerCase().startsWith('gpt-image-')
+}
+
 const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
-  if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
+  if (!isGeminiImageTestModel(modelID)) return false
 
   return props.account?.platform === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+})
+
+const supportsOpenAIImageTest = computed(() => {
+  const modelID = selectedModelId.value.toLowerCase()
+  if (!isOpenAIImageTestModel(modelID)) return false
+
+  return props.account?.platform === 'openai' && props.account?.type === 'apikey'
+})
+
+const supportsImageGenerationTest = computed(() => supportsGeminiImageTest.value || supportsOpenAIImageTest.value)
+
+const openAIImageTestNoticeKey = computed(() => {
+  if (props.account?.platform !== 'openai') return ''
+  if (props.account.type === 'oauth') return 'admin.accounts.openai.imageTestOAuthHiddenNotice'
+  if (props.account.type === 'apikey' && availableModels.value.some((model) => isOpenAIImageTestModel(model.id))) {
+    return 'admin.accounts.openai.imageTestNotice'
+  }
+  return ''
 })
 
 const sortTestModels = (models: ClaudeModel[]) => {
@@ -284,10 +324,17 @@ watch(
 )
 
 watch(selectedModelId, () => {
-  if (supportsGeminiImageTest.value && !testPrompt.value.trim()) {
-    testPrompt.value = t('admin.accounts.geminiImagePromptDefault')
+  if (supportsImageGenerationTest.value && !testPrompt.value.trim()) {
+    testPrompt.value = t('admin.accounts.imagePromptDefault')
   }
 })
+
+const filterAvailableModelsForAccount = (models: ClaudeModel[]) => {
+  if (props.account?.platform === 'openai' && props.account.type === 'oauth') {
+    return models.filter((model) => !isOpenAIImageTestModel(model.id))
+  }
+  return models
+}
 
 const loadAvailableModels = async () => {
   if (!props.account) return
@@ -295,7 +342,7 @@ const loadAvailableModels = async () => {
   loadingModels.value = true
   selectedModelId.value = '' // Reset selection before loading
   try {
-    const models = await adminAPI.accounts.getAvailableModels(props.account.id)
+    const models = filterAvailableModelsForAccount(await adminAPI.accounts.getAvailableModels(props.account.id))
     availableModels.value = props.account.platform === 'gemini' || props.account.platform === 'antigravity'
       ? sortTestModels(models)
       : models
@@ -377,7 +424,7 @@ const startTest = async () => {
       },
       body: JSON.stringify({
               model_id: selectedModelId.value,
-              prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
+              prompt: supportsImageGenerationTest.value ? testPrompt.value.trim() : ''
             }),
       signal: abortController.signal
     })
@@ -444,8 +491,10 @@ const handleEvent = (event: {
         addLine(t('admin.accounts.usingModel', { model: event.model }), 'text-cyan-400')
       }
       addLine(
-        supportsGeminiImageTest.value
-            ? t('admin.accounts.sendingGeminiImageRequest')
+        supportsOpenAIImageTest.value
+            ? t('admin.accounts.sendingOpenAIImageRequest')
+            : supportsGeminiImageTest.value
+              ? t('admin.accounts.sendingGeminiImageRequest')
             : t('admin.accounts.sendingTestMessage'),
         'text-gray-400'
       )
@@ -466,7 +515,7 @@ const handleEvent = (event: {
           url: event.image_url,
           mimeType: event.mime_type
         })
-        addLine(t('admin.accounts.geminiImageReceived', { count: generatedImages.value.length }), 'text-purple-300')
+        addLine(t('admin.accounts.imageReceived', { count: generatedImages.value.length }), 'text-purple-300')
       }
       break
 

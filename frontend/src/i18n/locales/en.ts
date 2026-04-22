@@ -2386,6 +2386,20 @@ export default {
         codexCLIOnlyDesc:
           'Only applies to OpenAI OAuth. When enabled, only Codex official client families are allowed; when disabled, the gateway bypasses this restriction and keeps existing behavior.',
         modelRestrictionDisabledByPassthrough: 'Automatic passthrough is enabled: model whitelist/mapping will not take effect.',
+        imageApiKeyNotice:
+          '`gpt-image-2` uses the OpenAI Images API (`/v1/images/generations`, `/v1/images/edits`) and is only supported on OpenAI API key accounts in this project.',
+        imageOAuthUnsupportedNotice:
+          'OpenAI OAuth accounts in this project do not support `gpt-image-2` or Images API routes. Use an API key account if you need generation or editing.',
+        imageBatchApiKeyNotice:
+          'This batch targets OpenAI API key accounts. `gpt-image-2` uses Images API routes (`/v1/images/generations`, `/v1/images/edits`).',
+        imageBatchOAuthNotice:
+          'The selected OpenAI OAuth accounts do not support `gpt-image-2` or Images API routes. Use API key accounts for generation or editing.',
+        imageBatchMixedNotice:
+          'This batch mixes OpenAI API key and OAuth accounts. `gpt-image-2` only works on the API key accounts; OAuth accounts still do not support Images API routes.',
+        imageTestNotice:
+          'If you select `gpt-image-2`, this test sends a real OpenAI Images API request and previews the returned image below.',
+        imageTestOAuthHiddenNotice:
+          '`gpt-image-2` is hidden here for OpenAI OAuth accounts because Images API routes require an API key account.',
       },
       anthropic: {
         apiKeyPassthrough: 'Auto passthrough (auth only)',
@@ -2929,6 +2943,13 @@ export default {
       selectTestModel: 'Select Test Model',
       testModel: 'Test model',
       testPrompt: 'Prompt: "hi"',
+      imagePromptLabel: 'Image prompt',
+      imagePromptPlaceholder: 'Example: Generate an orange cat astronaut sticker in pixel-art style on a solid background.',
+      imagePromptDefault: 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
+      imageTestHint: 'When an image model is selected, this test sends a real image-generation request and previews the returned image below.',
+      imageTestMode: 'Mode: image generation test',
+      imagePreview: 'Generated images:',
+      imageReceived: 'Received test image #{count}',
       geminiImagePromptLabel: 'Image prompt',
       geminiImagePromptPlaceholder: 'Example: Generate an orange cat astronaut sticker in pixel-art style on a solid background.',
       geminiImagePromptDefault: 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
@@ -2936,6 +2957,7 @@ export default {
       geminiImageTestMode: 'Mode: Gemini image generation test',
       geminiImagePreview: 'Generated images:',
       geminiImageReceived: 'Received test image #{count}',
+      sendingOpenAIImageRequest: 'Sending OpenAI image generation test request...',
       // Stats Modal
       viewStats: 'View Stats',
       usageStatistics: 'Usage Statistics',

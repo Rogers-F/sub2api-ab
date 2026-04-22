@@ -48,3 +48,43 @@ func TestGatewayRoutesOpenAIResponsesCompactPathIsRegistered(t *testing.T) {
 		require.NotEqual(t, http.StatusNotFound, w.Code, "path=%s should hit OpenAI responses handler", path)
 	}
 }
+
+func TestGatewayRoutesOpenAIImagesPathsAreRegistered(t *testing.T) {
+	router := newGatewayRoutesTestRouter()
+
+	tests := []struct {
+		path        string
+		contentType string
+		body        string
+	}{
+		{
+			path:        "/v1/images/generations",
+			contentType: "application/json",
+			body:        `{"model":"gpt-image-2","prompt":"cat"}`,
+		},
+		{
+			path:        "/images/generations",
+			contentType: "application/json",
+			body:        `{"model":"gpt-image-2","prompt":"cat"}`,
+		},
+		{
+			path:        "/v1/images/edits",
+			contentType: "multipart/form-data; boundary=boundary",
+			body:        "--boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-image-2\r\n--boundary--\r\n",
+		},
+		{
+			path:        "/images/edits",
+			contentType: "multipart/form-data; boundary=boundary",
+			body:        "--boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-image-2\r\n--boundary--\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		req := httptest.NewRequest(http.MethodPost, tt.path, strings.NewReader(tt.body))
+		req.Header.Set("Content-Type", tt.contentType)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+		require.NotEqual(t, http.StatusNotFound, w.Code, "path=%s should hit OpenAI image handler", tt.path)
+	}
+}

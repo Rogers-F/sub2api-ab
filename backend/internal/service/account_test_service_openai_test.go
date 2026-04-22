@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
@@ -103,7 +104,7 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 42.0, repo.updatedExtra["codex_5h_used_percent"])
@@ -134,11 +135,64 @@ func TestAccountTestService_OpenAI429PersistsSnapshotWithoutRateLimit(t *testing
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 100.0, repo.updatedExtra["codex_5h_used_percent"])
 	require.Zero(t, repo.rateLimitedID)
 	require.Nil(t, repo.rateLimitedAt)
 	require.Nil(t, account.RateLimitResetAt)
+}
+
+func TestAccountTestService_OpenAIImageModelUsesImagesAPI(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, `{"data":[{"b64_json":"ZmFrZQ==","revised_prompt":"orange cat astronaut"}]}`)
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{},
+			},
+		},
+	}
+	account := &Account{
+		ID:          90,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://api.openai.com"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-image-2", "draw a tiny orange cat astronaut")
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "https://api.openai.com/v1/images/generations", upstream.requests[0].URL.String())
+	body, err := io.ReadAll(upstream.requests[0].Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), `"prompt":"draw a tiny orange cat astronaut"`)
+	require.Contains(t, recorder.Body.String(), `"type":"image"`)
+	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
+}
+
+func TestAccountTestService_OpenAIImageModelRejectsOAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	svc := &AccountTestService{}
+	account := &Account{
+		ID:          91,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-image-2", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "only supported on API key accounts")
+	require.Contains(t, recorder.Body.String(), `"type":"error"`)
 }

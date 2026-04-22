@@ -2084,7 +2084,7 @@ export default {
       notesPlaceholder: 'Enter notes',
       notesHint: 'Notes are optional',
       fallbackAccount: 'Fallback Account',
-      fallbackAccountHint: 'When this account hits an upstream error, try this account first. Only same-platform accounts are listed; leave empty to disable.',
+      fallbackAccountHint: 'When this account hits an upstream error, this account is the highest-priority fallback target. Only same-platform accounts are listed; leave empty to disable.',
       noFallbackAccount: 'No fallback account',
       allPlatforms: 'All Platforms',
       allTypes: 'All Types',

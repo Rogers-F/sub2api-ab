@@ -2164,7 +2164,7 @@ export default {
       notesPlaceholder: '请输入备注',
       notesHint: '备注可选',
       fallbackAccount: '兜底账号',
-      fallbackAccountHint: '当当前账号上游报错时，优先切换到此账号；仅显示同平台账号，留空表示不启用。',
+      fallbackAccountHint: '当当前账号上游报错时，会最高优先级切换到此账号；仅显示同平台账号，留空表示不启用。',
       noFallbackAccount: '不设置兜底账号',
       // Filter options
       allPlatforms: '全部平台',

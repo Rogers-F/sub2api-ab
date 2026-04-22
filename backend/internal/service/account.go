@@ -1174,6 +1174,19 @@ func (a *Account) IsAnthropicAPIKeyPassthroughEnabled() bool {
 	return ok && enabled
 }
 
+// IsAnthropicInvalidParamRectifierEnabled 返回 Anthropic API Key 账号是否启用
+// “泛化参数错误兼容重试”。
+// 字段：accounts.extra.anthropic_invalid_param_rectifier。
+// 仅用于个别 Anthropic 兼容上游把签名/历史工具块错误统一压成
+// “参数值无效”之类泛化 400 的场景。
+func (a *Account) IsAnthropicInvalidParamRectifierEnabled() bool {
+	if a == nil || a.Platform != PlatformAnthropic || a.Type != AccountTypeAPIKey || a.Extra == nil {
+		return false
+	}
+	enabled, ok := a.Extra["anthropic_invalid_param_rectifier"].(bool)
+	return ok && enabled
+}
+
 // WebSearch 模拟三态常量
 const (
 	WebSearchModeDefault  = "default"  // 跟随渠道配置

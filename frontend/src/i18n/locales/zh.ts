@@ -2552,6 +2552,9 @@ export default {
         apiKeyPassthrough: '自动透传（仅替换认证）',
         apiKeyPassthroughDesc:
           '仅对 Anthropic API Key 生效。开启后，messages/count_tokens 请求将透传上游并仅替换认证，保留计费/并发/审计及必要安全过滤；关闭即可回滚到现有兼容链路。',
+        invalidParamRectifier: '兼容重试（参数值无效）',
+        invalidParamRectifierDesc:
+          '仅对 Anthropic API Key 生效。用于少数 Anthropic 兼容上游把历史工具块 / thinking 签名问题统一返回为“参数值无效”时，自动移除顶层 thinking 后重试一次。只建议对确认有问题的兼容账号开启。',
         webSearchEmulation: 'Web Search 模拟',
         webSearchEmulationDesc:
           '为该 API Key 账号启用 web search 模拟。客户端发送纯 web_search 请求时，由网关调用第三方搜索 API 并构造响应返回。默认跟随渠道配置。',

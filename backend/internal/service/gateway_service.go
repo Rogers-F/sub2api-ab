@@ -4336,7 +4336,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			if readErr == nil {
 				_ = resp.Body.Close()
 
-				if s.shouldRectifySignatureError(ctx, account, respBody) {
+				if s.shouldRectifySignatureError(ctx, account, body, respBody) {
 					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 						Platform:           account.Platform,
 						AccountID:          account.ID,
@@ -6334,21 +6334,34 @@ func truncateForLog(b []byte, maxBytes int) string {
 
 // shouldRectifySignatureError 统一判断是否应触发签名整流（strip thinking blocks 并重试）。
 // 根据账号类型检查对应的开关和匹配模式。
-func (s *GatewayService) shouldRectifySignatureError(ctx context.Context, account *Account, respBody []byte) bool {
+func (s *GatewayService) shouldRectifySignatureError(ctx context.Context, account *Account, requestBody, respBody []byte) bool {
 	if account.Type == AccountTypeAPIKey {
-		// API Key 账号：独立开关，一次读取配置
-		settings, err := s.settingService.GetRectifierSettings(ctx)
-		if err != nil || !settings.Enabled || !settings.APIKeySignatureEnabled {
+		settings := DefaultRectifierSettings()
+		if s.settingService != nil {
+			loaded, err := s.settingService.GetRectifierSettings(ctx)
+			if err == nil && loaded != nil {
+				settings = loaded
+			}
+		}
+		if settings == nil || !settings.Enabled {
 			return false
 		}
-		// 先检查内置模式（同 OAuth），再检查自定义关键词
-		if s.isThinkingBlockSignatureError(respBody) {
+		// 显式 signature 错误仍受 API key 子开关控制；兼容上游把此类错误压成
+		// "参数值无效" 时，按请求体结构触发一次安全的 thinking 整流重试。
+		if settings.APIKeySignatureEnabled && s.isThinkingBlockSignatureError(respBody) {
 			return true
 		}
-		return matchSignaturePatterns(respBody, settings.APIKeySignaturePatterns)
+		if account.IsAnthropicInvalidParamRectifierEnabled() &&
+			shouldRetryGenericAPIKeySignatureCompat(requestBody, respBody) {
+			return true
+		}
+		if settings.APIKeySignatureEnabled {
+			return matchSignaturePatterns(respBody, settings.APIKeySignaturePatterns)
+		}
+		return false
 	}
 	// OAuth/SetupToken/Upstream/Bedrock 等：保持原有行为（内置模式 + 原开关）
-	return s.isThinkingBlockSignatureError(respBody) && s.settingService.IsSignatureRectifierEnabled(ctx)
+	return s.isThinkingBlockSignatureError(respBody) && (s.settingService == nil || s.settingService.IsSignatureRectifierEnabled(ctx))
 }
 
 // isSignatureErrorPattern 仅做模式匹配，不检查开关。
@@ -6383,6 +6396,41 @@ func matchSignaturePatterns(respBody []byte, patterns []string) bool {
 		}
 	}
 	return false
+}
+
+func shouldRetryGenericAPIKeySignatureCompat(requestBody, respBody []byte) bool {
+	if !isGenericInvalidParameterMessage(respBody) {
+		return false
+	}
+	return requestHasSignatureSensitiveThinkingHistory(requestBody)
+}
+
+func isGenericInvalidParameterMessage(respBody []byte) bool {
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	if msg == "" {
+		return false
+	}
+	if strings.Contains(msg, "参数值无效") {
+		return true
+	}
+	if strings.Contains(msg, "invalid parameter") {
+		return true
+	}
+	return strings.Contains(msg, "parameter value is invalid")
+}
+
+func requestHasSignatureSensitiveThinkingHistory(body []byte) bool {
+	if len(body) == 0 || !gjson.GetBytes(body, "thinking").Exists() {
+		return false
+	}
+	return bytes.Contains(body, []byte(`"type":"tool_use"`)) ||
+		bytes.Contains(body, []byte(`"type": "tool_use"`)) ||
+		bytes.Contains(body, []byte(`"type":"tool_result"`)) ||
+		bytes.Contains(body, []byte(`"type": "tool_result"`)) ||
+		bytes.Contains(body, []byte(`"type":"thinking"`)) ||
+		bytes.Contains(body, []byte(`"type": "thinking"`)) ||
+		bytes.Contains(body, []byte(`"type":"redacted_thinking"`)) ||
+		bytes.Contains(body, []byte(`"type": "redacted_thinking"`))
 }
 
 // isThinkingBlockSignatureError 检测是否是thinking block相关错误
@@ -8502,7 +8550,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	}
 
 	// 检测 thinking block 签名错误（400）并重试一次（过滤 thinking blocks）
-	if resp.StatusCode == 400 && s.shouldRectifySignatureError(ctx, account, respBody) {
+	if resp.StatusCode == 400 && s.shouldRectifySignatureError(ctx, account, body, respBody) {
 		logger.LegacyPrintf("service.gateway", "Account %d: detected thinking block signature error on count_tokens, retrying with filtered thinking blocks", account.ID)
 
 		filteredBody := FilterThinkingBlocksForRetry(body)

@@ -60,3 +60,58 @@ func TestAccount_IsAnthropicAPIKeyPassthroughEnabled(t *testing.T) {
 		require.False(t, openai.IsAnthropicAPIKeyPassthroughEnabled())
 	})
 }
+
+func TestAccount_IsAnthropicInvalidParamRectifierEnabled(t *testing.T) {
+	t.Run("Anthropic API Key 开启", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAnthropic,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"anthropic_invalid_param_rectifier": true,
+			},
+		}
+		require.True(t, account.IsAnthropicInvalidParamRectifierEnabled())
+	})
+
+	t.Run("Anthropic API Key 关闭", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAnthropic,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"anthropic_invalid_param_rectifier": false,
+			},
+		}
+		require.False(t, account.IsAnthropicInvalidParamRectifierEnabled())
+	})
+
+	t.Run("字段类型非法默认关闭", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAnthropic,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"anthropic_invalid_param_rectifier": "true",
+			},
+		}
+		require.False(t, account.IsAnthropicInvalidParamRectifierEnabled())
+	})
+
+	t.Run("非 Anthropic API Key 账号始终关闭", func(t *testing.T) {
+		oauth := &Account{
+			Platform: PlatformAnthropic,
+			Type:     AccountTypeOAuth,
+			Extra: map[string]any{
+				"anthropic_invalid_param_rectifier": true,
+			},
+		}
+		require.False(t, oauth.IsAnthropicInvalidParamRectifierEnabled())
+
+		openai := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"anthropic_invalid_param_rectifier": true,
+			},
+		}
+		require.False(t, openai.IsAnthropicInvalidParamRectifierEnabled())
+	})
+}

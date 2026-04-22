@@ -31,12 +31,15 @@
 
         <template #cell-account="{ row }">
           <div class="space-y-0.5">
-            <div class="text-sm text-gray-900 dark:text-white">{{ row.account?.name || '-' }}</div>
+            <div class="text-sm font-mono text-gray-900 dark:text-white">
+              {{ getAccountIdDisplay(row) }}
+            </div>
             <div
-              v-if="row.failover_source_account?.name"
-              class="text-[11px] text-gray-500 dark:text-gray-400"
+              v-if="getAccountNameDisplay(row) !== '-'"
+              class="truncate text-[11px] text-gray-500 dark:text-gray-400"
+              :title="getAccountNameDisplay(row)"
             >
-              {{ t('admin.usage.fallbackFromAccount', { name: row.failover_source_account.name }) }}
+              {{ getAccountNameDisplay(row) }}
             </div>
           </div>
         </template>
@@ -419,6 +422,33 @@ const getRequestTypeBadgeClass = (row: AdminUsageLog): string => {
   if (requestType === 'stream') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
   if (requestType === 'sync') return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
   return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+}
+
+const formatAccountName = (account?: AdminUsageLog['account'] | null): string => {
+  if (!account) return '-'
+  if (account.name?.trim()) return account.name.trim()
+  if (account.id != null) return String(account.id)
+  return '-'
+}
+
+const getAccountIdDisplay = (row: AdminUsageLog): string => {
+  const targetID = row.account?.id
+  const sourceID = row.failover_source_account?.id
+
+  if (sourceID != null && targetID != null) return `${sourceID} -> ${targetID}`
+  if (targetID != null) return String(targetID)
+  if (sourceID != null) return String(sourceID)
+  return '-'
+}
+
+const getAccountNameDisplay = (row: AdminUsageLog): string => {
+  const target = formatAccountName(row.account)
+  const source = formatAccountName(row.failover_source_account)
+
+  if (row.failover_source_account?.id != null && row.account?.id != null) {
+    return `${source} -> ${target}`
+  }
+  return target
 }
 
 

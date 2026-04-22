@@ -4566,17 +4566,18 @@ func (s *OpenAIGatewayService) replaceModelInResponseBody(body []byte, fromModel
 
 // OpenAIRecordUsageInput input for recording usage
 type OpenAIRecordUsageInput struct {
-	Result             *OpenAIForwardResult
-	APIKey             *APIKey
-	User               *User
-	Account            *Account
-	Subscription       *UserSubscription
-	InboundEndpoint    string
-	UpstreamEndpoint   string
-	UserAgent          string // 请求的 User-Agent
-	IPAddress          string // 请求的客户端 IP 地址
-	RequestPayloadHash string
-	APIKeyService      APIKeyQuotaUpdater
+	Result                  *OpenAIForwardResult
+	APIKey                  *APIKey
+	User                    *User
+	Account                 *Account
+	FailoverSourceAccountID *int64
+	Subscription            *UserSubscription
+	InboundEndpoint         string
+	UpstreamEndpoint        string
+	UserAgent               string // 请求的 User-Agent
+	IPAddress               string // 请求的客户端 IP 地址
+	RequestPayloadHash      string
+	APIKeyService           APIKeyQuotaUpdater
 	ChannelUsageFields
 }
 
@@ -4720,24 +4721,25 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	usageLog := &UsageLog{
-		UserID:              user.ID,
-		APIKeyID:            apiKey.ID,
-		AccountID:           account.ID,
-		RequestID:           requestID,
-		Model:               result.Model,
-		RequestedModel:      requestedModel,
-		UpstreamModel:       optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
-		ServiceTier:         result.ServiceTier,
-		ReasoningEffort:     result.ReasoningEffort,
-		InboundEndpoint:     optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:    optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		InputTokens:         actualInputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		ImageOutputTokens:   result.Usage.ImageOutputTokens,
-		ImageCount:          result.ImageCount,
-		ImageSize:           optionalTrimmedStringPtr(result.ImageSize),
+		UserID:                  user.ID,
+		APIKeyID:                apiKey.ID,
+		AccountID:               account.ID,
+		FailoverSourceAccountID: resolveUsageFailoverSourceAccountID(ctx, input.FailoverSourceAccountID, account.ID),
+		RequestID:               requestID,
+		Model:                   result.Model,
+		RequestedModel:          requestedModel,
+		UpstreamModel:           optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
+		ServiceTier:             result.ServiceTier,
+		ReasoningEffort:         result.ReasoningEffort,
+		InboundEndpoint:         optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:        optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		InputTokens:             actualInputTokens,
+		OutputTokens:            result.Usage.OutputTokens,
+		CacheCreationTokens:     result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:         result.Usage.CacheReadInputTokens,
+		ImageOutputTokens:       result.Usage.ImageOutputTokens,
+		ImageCount:              result.ImageCount,
+		ImageSize:               optionalTrimmedStringPtr(result.ImageSize),
 	}
 	if cost != nil {
 		usageLog.InputCost = cost.InputCost

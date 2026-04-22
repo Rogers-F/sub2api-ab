@@ -3466,6 +3466,7 @@ export default {
       billingModeImage: 'Image',
       allBillingModes: 'All Billing Modes',
       ipAddress: 'IP',
+      fallbackFromAccount: 'Fallback from {name}',
       clickToViewBalance: 'Click to view balance history',
       failedToLoadUser: 'Failed to load user info',
       cleanup: {

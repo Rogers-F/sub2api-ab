@@ -45,6 +45,20 @@ func (_c *UsageLogCreate) SetAccountID(v int64) *UsageLogCreate {
 	return _c
 }
 
+// SetFailoverSourceAccountID sets the "failover_source_account_id" field.
+func (_c *UsageLogCreate) SetFailoverSourceAccountID(v int64) *UsageLogCreate {
+	_c.mutation.SetFailoverSourceAccountID(v)
+	return _c
+}
+
+// SetNillableFailoverSourceAccountID sets the "failover_source_account_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableFailoverSourceAccountID(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetFailoverSourceAccountID(*v)
+	}
+	return _c
+}
+
 // SetRequestID sets the "request_id" field.
 func (_c *UsageLogCreate) SetRequestID(v string) *UsageLogCreate {
 	_c.mutation.SetRequestID(v)
@@ -796,6 +810,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec = sqlgraph.NewCreateSpec(usagelog.Table, sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64))
 	)
 	_spec.OnConflict = _c.conflict
+	if value, ok := _c.mutation.FailoverSourceAccountID(); ok {
+		_spec.SetField(usagelog.FieldFailoverSourceAccountID, field.TypeInt64, value)
+		_node.FailoverSourceAccountID = &value
+	}
 	if value, ok := _c.mutation.RequestID(); ok {
 		_spec.SetField(usagelog.FieldRequestID, field.TypeString, value)
 		_node.RequestID = value
@@ -1094,6 +1112,30 @@ func (u *UsageLogUpsert) SetAccountID(v int64) *UsageLogUpsert {
 // UpdateAccountID sets the "account_id" field to the value that was provided on create.
 func (u *UsageLogUpsert) UpdateAccountID() *UsageLogUpsert {
 	u.SetExcluded(usagelog.FieldAccountID)
+	return u
+}
+
+// SetFailoverSourceAccountID sets the "failover_source_account_id" field.
+func (u *UsageLogUpsert) SetFailoverSourceAccountID(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldFailoverSourceAccountID, v)
+	return u
+}
+
+// UpdateFailoverSourceAccountID sets the "failover_source_account_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateFailoverSourceAccountID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldFailoverSourceAccountID)
+	return u
+}
+
+// AddFailoverSourceAccountID adds v to the "failover_source_account_id" field.
+func (u *UsageLogUpsert) AddFailoverSourceAccountID(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldFailoverSourceAccountID, v)
+	return u
+}
+
+// ClearFailoverSourceAccountID clears the value of the "failover_source_account_id" field.
+func (u *UsageLogUpsert) ClearFailoverSourceAccountID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldFailoverSourceAccountID)
 	return u
 }
 
@@ -1775,6 +1817,34 @@ func (u *UsageLogUpsertOne) SetAccountID(v int64) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateAccountID() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateAccountID()
+	})
+}
+
+// SetFailoverSourceAccountID sets the "failover_source_account_id" field.
+func (u *UsageLogUpsertOne) SetFailoverSourceAccountID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFailoverSourceAccountID(v)
+	})
+}
+
+// AddFailoverSourceAccountID adds v to the "failover_source_account_id" field.
+func (u *UsageLogUpsertOne) AddFailoverSourceAccountID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddFailoverSourceAccountID(v)
+	})
+}
+
+// UpdateFailoverSourceAccountID sets the "failover_source_account_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateFailoverSourceAccountID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFailoverSourceAccountID()
+	})
+}
+
+// ClearFailoverSourceAccountID clears the value of the "failover_source_account_id" field.
+func (u *UsageLogUpsertOne) ClearFailoverSourceAccountID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearFailoverSourceAccountID()
 	})
 }
 
@@ -2721,6 +2791,34 @@ func (u *UsageLogUpsertBulk) SetAccountID(v int64) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateAccountID() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateAccountID()
+	})
+}
+
+// SetFailoverSourceAccountID sets the "failover_source_account_id" field.
+func (u *UsageLogUpsertBulk) SetFailoverSourceAccountID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFailoverSourceAccountID(v)
+	})
+}
+
+// AddFailoverSourceAccountID adds v to the "failover_source_account_id" field.
+func (u *UsageLogUpsertBulk) AddFailoverSourceAccountID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddFailoverSourceAccountID(v)
+	})
+}
+
+// UpdateFailoverSourceAccountID sets the "failover_source_account_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateFailoverSourceAccountID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFailoverSourceAccountID()
+	})
+}
+
+// ClearFailoverSourceAccountID clears the value of the "failover_source_account_id" field.
+func (u *UsageLogUpsertBulk) ClearFailoverSourceAccountID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearFailoverSourceAccountID()
 	})
 }
 

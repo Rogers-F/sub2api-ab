@@ -44,6 +44,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.UserID,
 			log.APIKeyID,
 			log.AccountID,
+			sqlmock.AnyArg(), // failover_source_account_id
 			log.RequestID,
 			log.Model,
 			log.RequestedModel,
@@ -123,6 +124,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.UserID,
 			log.APIKeyID,
 			log.AccountID,
+			sqlmock.AnyArg(), // failover_source_account_id
 			log.RequestID,
 			log.Model,
 			log.RequestedModel,
@@ -190,7 +192,7 @@ func TestBuildUsageLogBestEffortInsertQuery_IncludesRequestedModelColumn(t *test
 
 	require.Contains(t, query, "INSERT INTO usage_logs (")
 	require.Contains(t, query, "\n\t\t\tmodel,\n\t\t\trequested_model,\n\t\t\tupstream_model,")
-	require.Contains(t, query, "\n\t\t\trequest_id,\n\t\t\tmodel,\n\t\t\trequested_model,\n\t\t\tupstream_model,")
+	require.Contains(t, query, "\n\t\t\taccount_id,\n\t\t\tfailover_source_account_id,\n\t\t\trequest_id,\n\t\t\tmodel,\n\t\t\trequested_model,\n\t\t\tupstream_model,")
 	require.Len(t, args, len(prepared.args))
 	require.Equal(t, prepared.args[5], args[5])
 }
@@ -535,6 +537,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(10), // user_id
 			int64(20), // api_key_id
 			int64(30), // account_id
+			sql.NullInt64{},
 			sql.NullString{Valid: true, String: "req-1"},
 			"gpt-5", // model
 			sql.NullString{Valid: true, String: "gpt-5"}, // requested_model
@@ -594,6 +597,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(11),
 			int64(21),
 			int64(31),
+			sql.NullInt64{},
 			sql.NullString{Valid: true, String: "req-2"},
 			"gpt-5",
 			sql.NullString{Valid: true, String: "gpt-5"},
@@ -642,6 +646,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(12),
 			int64(22),
 			int64(32),
+			sql.NullInt64{},
 			sql.NullString{Valid: true, String: "req-3"},
 			"gpt-5.4",
 			sql.NullString{Valid: true, String: "gpt-5.4"},
@@ -678,6 +683,52 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
 		require.Equal(t, "priority", *log.ServiceTier)
+	})
+
+	t.Run("failover_source_account_id_is_scanned", func(t *testing.T) {
+		now := time.Now().UTC()
+		log, err := scanUsageLog(usageLogScannerStub{values: []any{
+			int64(4),
+			int64(13),
+			int64(23),
+			int64(33),
+			sql.NullInt64{Valid: true, Int64: 99},
+			sql.NullString{Valid: true, String: "req-4"},
+			"gpt-5.4",
+			sql.NullString{Valid: true, String: "gpt-5.4"},
+			sql.NullString{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			1, 2, 3, 4, 5, 6,
+			0, 0.0,
+			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			1.0,
+			sql.NullFloat64{},
+			int16(service.BillingTypeBalance),
+			int16(service.RequestTypeSync),
+			false,
+			false,
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
+			0,
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			false,
+			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullFloat64{},
+			now,
+		}})
+		require.NoError(t, err)
+		require.NotNil(t, log.FailoverSourceAccountID)
+		require.Equal(t, int64(99), *log.FailoverSourceAccountID)
 	})
 
 }

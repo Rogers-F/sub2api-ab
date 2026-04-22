@@ -96,8 +96,11 @@ type UsageLog struct {
 	UserID    int64
 	APIKeyID  int64
 	AccountID int64
-	RequestID string
-	Model     string
+	// FailoverSourceAccountID records the account that failed immediately before
+	// this request succeeded on AccountID. Nil means no account-level failover.
+	FailoverSourceAccountID *int64
+	RequestID               string
+	Model                   string
 	// RequestedModel is the client-requested model name recorded for stable user/admin display.
 	// Empty should be treated as Model for backward compatibility with historical rows.
 	RequestedModel string
@@ -168,11 +171,12 @@ type UsageLog struct {
 
 	CreatedAt time.Time
 
-	User         *User
-	APIKey       *APIKey
-	Account      *Account
-	Group        *Group
-	Subscription *UserSubscription
+	User                  *User
+	APIKey                *APIKey
+	Account               *Account
+	FailoverSourceAccount *Account
+	Group                 *Group
+	Subscription          *UserSubscription
 }
 
 func (u *UsageLog) TotalTokens() int {

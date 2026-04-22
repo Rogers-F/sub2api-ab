@@ -24941,74 +24941,76 @@ func (m *UsageCleanupTaskMutation) ResetEdge(name string) error {
 // UsageLogMutation represents an operation that mutates the UsageLog nodes in the graph.
 type UsageLogMutation struct {
 	config
-	op                          Op
-	typ                         string
-	id                          *int64
-	request_id                  *string
-	model                       *string
-	requested_model             *string
-	upstream_model              *string
-	channel_id                  *int64
-	addchannel_id               *int64
-	model_mapping_chain         *string
-	billing_tier                *string
-	billing_mode                *string
-	input_tokens                *int
-	addinput_tokens             *int
-	output_tokens               *int
-	addoutput_tokens            *int
-	cache_creation_tokens       *int
-	addcache_creation_tokens    *int
-	cache_read_tokens           *int
-	addcache_read_tokens        *int
-	cache_creation_5m_tokens    *int
-	addcache_creation_5m_tokens *int
-	cache_creation_1h_tokens    *int
-	addcache_creation_1h_tokens *int
-	input_cost                  *float64
-	addinput_cost               *float64
-	output_cost                 *float64
-	addoutput_cost              *float64
-	cache_creation_cost         *float64
-	addcache_creation_cost      *float64
-	cache_read_cost             *float64
-	addcache_read_cost          *float64
-	total_cost                  *float64
-	addtotal_cost               *float64
-	actual_cost                 *float64
-	addactual_cost              *float64
-	rate_multiplier             *float64
-	addrate_multiplier          *float64
-	account_rate_multiplier     *float64
-	addaccount_rate_multiplier  *float64
-	billing_type                *int8
-	addbilling_type             *int8
-	stream                      *bool
-	duration_ms                 *int
-	addduration_ms              *int
-	first_token_ms              *int
-	addfirst_token_ms           *int
-	user_agent                  *string
-	ip_address                  *string
-	image_count                 *int
-	addimage_count              *int
-	image_size                  *string
-	cache_ttl_overridden        *bool
-	created_at                  *time.Time
-	clearedFields               map[string]struct{}
-	user                        *int64
-	cleareduser                 bool
-	api_key                     *int64
-	clearedapi_key              bool
-	account                     *int64
-	clearedaccount              bool
-	group                       *int64
-	clearedgroup                bool
-	subscription                *int64
-	clearedsubscription         bool
-	done                        bool
-	oldValue                    func(context.Context) (*UsageLog, error)
-	predicates                  []predicate.UsageLog
+	op                            Op
+	typ                           string
+	id                            *int64
+	failover_source_account_id    *int64
+	addfailover_source_account_id *int64
+	request_id                    *string
+	model                         *string
+	requested_model               *string
+	upstream_model                *string
+	channel_id                    *int64
+	addchannel_id                 *int64
+	model_mapping_chain           *string
+	billing_tier                  *string
+	billing_mode                  *string
+	input_tokens                  *int
+	addinput_tokens               *int
+	output_tokens                 *int
+	addoutput_tokens              *int
+	cache_creation_tokens         *int
+	addcache_creation_tokens      *int
+	cache_read_tokens             *int
+	addcache_read_tokens          *int
+	cache_creation_5m_tokens      *int
+	addcache_creation_5m_tokens   *int
+	cache_creation_1h_tokens      *int
+	addcache_creation_1h_tokens   *int
+	input_cost                    *float64
+	addinput_cost                 *float64
+	output_cost                   *float64
+	addoutput_cost                *float64
+	cache_creation_cost           *float64
+	addcache_creation_cost        *float64
+	cache_read_cost               *float64
+	addcache_read_cost            *float64
+	total_cost                    *float64
+	addtotal_cost                 *float64
+	actual_cost                   *float64
+	addactual_cost                *float64
+	rate_multiplier               *float64
+	addrate_multiplier            *float64
+	account_rate_multiplier       *float64
+	addaccount_rate_multiplier    *float64
+	billing_type                  *int8
+	addbilling_type               *int8
+	stream                        *bool
+	duration_ms                   *int
+	addduration_ms                *int
+	first_token_ms                *int
+	addfirst_token_ms             *int
+	user_agent                    *string
+	ip_address                    *string
+	image_count                   *int
+	addimage_count                *int
+	image_size                    *string
+	cache_ttl_overridden          *bool
+	created_at                    *time.Time
+	clearedFields                 map[string]struct{}
+	user                          *int64
+	cleareduser                   bool
+	api_key                       *int64
+	clearedapi_key                bool
+	account                       *int64
+	clearedaccount                bool
+	group                         *int64
+	clearedgroup                  bool
+	subscription                  *int64
+	clearedsubscription           bool
+	done                          bool
+	oldValue                      func(context.Context) (*UsageLog, error)
+	predicates                    []predicate.UsageLog
 }
 
 var _ ent.Mutation = (*UsageLogMutation)(nil)
@@ -25215,6 +25217,76 @@ func (m *UsageLogMutation) OldAccountID(ctx context.Context) (v int64, err error
 // ResetAccountID resets all changes to the "account_id" field.
 func (m *UsageLogMutation) ResetAccountID() {
 	m.account = nil
+}
+
+// SetFailoverSourceAccountID sets the "failover_source_account_id" field.
+func (m *UsageLogMutation) SetFailoverSourceAccountID(i int64) {
+	m.failover_source_account_id = &i
+	m.addfailover_source_account_id = nil
+}
+
+// FailoverSourceAccountID returns the value of the "failover_source_account_id" field in the mutation.
+func (m *UsageLogMutation) FailoverSourceAccountID() (r int64, exists bool) {
+	v := m.failover_source_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailoverSourceAccountID returns the old "failover_source_account_id" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldFailoverSourceAccountID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailoverSourceAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailoverSourceAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailoverSourceAccountID: %w", err)
+	}
+	return oldValue.FailoverSourceAccountID, nil
+}
+
+// AddFailoverSourceAccountID adds i to the "failover_source_account_id" field.
+func (m *UsageLogMutation) AddFailoverSourceAccountID(i int64) {
+	if m.addfailover_source_account_id != nil {
+		*m.addfailover_source_account_id += i
+	} else {
+		m.addfailover_source_account_id = &i
+	}
+}
+
+// AddedFailoverSourceAccountID returns the value that was added to the "failover_source_account_id" field in this mutation.
+func (m *UsageLogMutation) AddedFailoverSourceAccountID() (r int64, exists bool) {
+	v := m.addfailover_source_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFailoverSourceAccountID clears the value of the "failover_source_account_id" field.
+func (m *UsageLogMutation) ClearFailoverSourceAccountID() {
+	m.failover_source_account_id = nil
+	m.addfailover_source_account_id = nil
+	m.clearedFields[usagelog.FieldFailoverSourceAccountID] = struct{}{}
+}
+
+// FailoverSourceAccountIDCleared returns if the "failover_source_account_id" field was cleared in this mutation.
+func (m *UsageLogMutation) FailoverSourceAccountIDCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldFailoverSourceAccountID]
+	return ok
+}
+
+// ResetFailoverSourceAccountID resets all changes to the "failover_source_account_id" field.
+func (m *UsageLogMutation) ResetFailoverSourceAccountID() {
+	m.failover_source_account_id = nil
+	m.addfailover_source_account_id = nil
+	delete(m.clearedFields, usagelog.FieldFailoverSourceAccountID)
 }
 
 // SetRequestID sets the "request_id" field.
@@ -27176,7 +27248,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 37)
+	fields := make([]string, 0, 38)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -27185,6 +27257,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.account != nil {
 		fields = append(fields, usagelog.FieldAccountID)
+	}
+	if m.failover_source_account_id != nil {
+		fields = append(fields, usagelog.FieldFailoverSourceAccountID)
 	}
 	if m.request_id != nil {
 		fields = append(fields, usagelog.FieldRequestID)
@@ -27302,6 +27377,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.APIKeyID()
 	case usagelog.FieldAccountID:
 		return m.AccountID()
+	case usagelog.FieldFailoverSourceAccountID:
+		return m.FailoverSourceAccountID()
 	case usagelog.FieldRequestID:
 		return m.RequestID()
 	case usagelog.FieldModel:
@@ -27385,6 +27462,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldAPIKeyID(ctx)
 	case usagelog.FieldAccountID:
 		return m.OldAccountID(ctx)
+	case usagelog.FieldFailoverSourceAccountID:
+		return m.OldFailoverSourceAccountID(ctx)
 	case usagelog.FieldRequestID:
 		return m.OldRequestID(ctx)
 	case usagelog.FieldModel:
@@ -27482,6 +27561,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAccountID(v)
+		return nil
+	case usagelog.FieldFailoverSourceAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailoverSourceAccountID(v)
 		return nil
 	case usagelog.FieldRequestID:
 		v, ok := value.(string)
@@ -27729,6 +27815,9 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *UsageLogMutation) AddedFields() []string {
 	var fields []string
+	if m.addfailover_source_account_id != nil {
+		fields = append(fields, usagelog.FieldFailoverSourceAccountID)
+	}
 	if m.addchannel_id != nil {
 		fields = append(fields, usagelog.FieldChannelID)
 	}
@@ -27794,6 +27883,8 @@ func (m *UsageLogMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case usagelog.FieldFailoverSourceAccountID:
+		return m.AddedFailoverSourceAccountID()
 	case usagelog.FieldChannelID:
 		return m.AddedChannelID()
 	case usagelog.FieldInputTokens:
@@ -27841,6 +27932,13 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case usagelog.FieldFailoverSourceAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFailoverSourceAccountID(v)
+		return nil
 	case usagelog.FieldChannelID:
 		v, ok := value.(int64)
 		if !ok {
@@ -27982,6 +28080,9 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *UsageLogMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(usagelog.FieldFailoverSourceAccountID) {
+		fields = append(fields, usagelog.FieldFailoverSourceAccountID)
+	}
 	if m.FieldCleared(usagelog.FieldRequestedModel) {
 		fields = append(fields, usagelog.FieldRequestedModel)
 	}
@@ -28038,6 +28139,9 @@ func (m *UsageLogMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *UsageLogMutation) ClearField(name string) error {
 	switch name {
+	case usagelog.FieldFailoverSourceAccountID:
+		m.ClearFailoverSourceAccountID()
+		return nil
 	case usagelog.FieldRequestedModel:
 		m.ClearRequestedModel()
 		return nil
@@ -28096,6 +28200,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldAccountID:
 		m.ResetAccountID()
+		return nil
+	case usagelog.FieldFailoverSourceAccountID:
+		m.ResetFailoverSourceAccountID()
 		return nil
 	case usagelog.FieldRequestID:
 		m.ResetRequestID()

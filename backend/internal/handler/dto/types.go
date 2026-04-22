@@ -436,6 +436,8 @@ type AdminUsageLog struct {
 
 	// Account 最小账号信息（避免泄露敏感字段）
 	Account *AccountSummary `json:"account,omitempty"`
+	// FailoverSourceAccount records the failed account when account-level fallback was used.
+	FailoverSourceAccount *AccountSummary `json:"failover_source_account,omitempty"`
 }
 
 type UsageCleanupFilters struct {

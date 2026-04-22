@@ -70,6 +70,11 @@ func AccountID(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldAccountID, v))
 }
 
+// FailoverSourceAccountID applies equality check predicate on the "failover_source_account_id" field. It's identical to FailoverSourceAccountIDEQ.
+func FailoverSourceAccountID(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFailoverSourceAccountID, v))
+}
+
 // RequestID applies equality check predicate on the "request_id" field. It's identical to RequestIDEQ.
 func RequestID(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldRequestID, v))
@@ -298,6 +303,56 @@ func AccountIDIn(vs ...int64) predicate.UsageLog {
 // AccountIDNotIn applies the NotIn predicate on the "account_id" field.
 func AccountIDNotIn(vs ...int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldNotIn(FieldAccountID, vs...))
+}
+
+// FailoverSourceAccountIDEQ applies the EQ predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFailoverSourceAccountID, v))
+}
+
+// FailoverSourceAccountIDNEQ applies the NEQ predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldFailoverSourceAccountID, v))
+}
+
+// FailoverSourceAccountIDIn applies the In predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldFailoverSourceAccountID, vs...))
+}
+
+// FailoverSourceAccountIDNotIn applies the NotIn predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldFailoverSourceAccountID, vs...))
+}
+
+// FailoverSourceAccountIDGT applies the GT predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDGT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldFailoverSourceAccountID, v))
+}
+
+// FailoverSourceAccountIDGTE applies the GTE predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDGTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldFailoverSourceAccountID, v))
+}
+
+// FailoverSourceAccountIDLT applies the LT predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDLT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldFailoverSourceAccountID, v))
+}
+
+// FailoverSourceAccountIDLTE applies the LTE predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDLTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldFailoverSourceAccountID, v))
+}
+
+// FailoverSourceAccountIDIsNil applies the IsNil predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldFailoverSourceAccountID))
+}
+
+// FailoverSourceAccountIDNotNil applies the NotNil predicate on the "failover_source_account_id" field.
+func FailoverSourceAccountIDNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldFailoverSourceAccountID))
 }
 
 // RequestIDEQ applies the EQ predicate on the "request_id" field.

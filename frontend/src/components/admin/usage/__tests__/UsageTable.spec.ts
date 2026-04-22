@@ -4,12 +4,21 @@ import { nextTick } from 'vue'
 
 import UsageTable from '../UsageTable.vue'
 
+vi.hoisted(() => {
+  vi.stubGlobal('localStorage', {
+    getItem: vi.fn(() => null),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+  })
+})
+
 const messages: Record<string, string> = {
   'usage.costDetails': 'Cost Breakdown',
   'admin.usage.inputCost': 'Input Cost',
   'admin.usage.outputCost': 'Output Cost',
   'admin.usage.cacheCreationCost': 'Cache Creation Cost',
   'admin.usage.cacheReadCost': 'Cache Read Cost',
+  'admin.usage.fallbackFromAccount': 'Fallback from {name}',
   'usage.inputTokenPrice': 'Input price',
   'usage.outputTokenPrice': 'Output price',
   'usage.perMillionTokens': '/ 1M tokens',
@@ -29,7 +38,16 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => messages[key] ?? key,
+      t: (key: string, params?: Record<string, string>) => {
+        const template = messages[key] ?? key
+        if (!params) {
+          return template
+        }
+        return Object.entries(params).reduce(
+          (result, [name, value]) => result.replace(`{${name}}`, String(value)),
+          template,
+        )
+      },
     }),
   }
 })
@@ -39,6 +57,7 @@ const DataTableStub = {
   template: `
     <div>
       <div v-for="row in data" :key="row.request_id">
+        <slot name="cell-account" :row="row" :value="row.account" />
         <slot name="cell-model" :row="row" :value="row.model" />
         <slot name="cell-cost" :row="row" />
       </div>
@@ -146,5 +165,43 @@ describe('admin UsageTable tooltip', () => {
     const text = wrapper.text()
     expect(text).toContain('claude-sonnet-4')
     expect(text).toContain('claude-sonnet-4-20250514')
+  })
+
+  it('shows fallback source account in the account cell', () => {
+    const row = {
+      request_id: 'req-admin-account-1',
+      account: { id: 2, name: 'account-b' },
+      failover_source_account: { id: 1, name: 'account-a' },
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('account-b')
+    expect(text).toContain('Fallback from account-a')
   })
 })

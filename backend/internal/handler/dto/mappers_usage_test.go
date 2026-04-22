@@ -148,6 +148,36 @@ func TestUsageLogFromService_FallsBackToLegacyModelWhenRequestedModelMissing(t *
 	require.Equal(t, "claude-3", adminDTO.Model)
 }
 
+func TestUsageLogFromServiceAdmin_IncludesFailoverSourceAccount(t *testing.T) {
+	t.Parallel()
+
+	log := &service.UsageLog{
+		RequestID: "req_failover_account",
+		Model:     "gpt-5.4",
+		Account: &service.Account{
+			ID:   10,
+			Name: "account-b",
+		},
+		FailoverSourceAccount: &service.Account{
+			ID:   9,
+			Name: "account-a",
+		},
+	}
+
+	adminDTO := UsageLogFromServiceAdmin(log)
+	require.NotNil(t, adminDTO)
+	require.NotNil(t, adminDTO.Account)
+	require.Equal(t, int64(10), adminDTO.Account.ID)
+	require.Equal(t, "account-b", adminDTO.Account.Name)
+	require.NotNil(t, adminDTO.FailoverSourceAccount)
+	require.Equal(t, int64(9), adminDTO.FailoverSourceAccount.ID)
+	require.Equal(t, "account-a", adminDTO.FailoverSourceAccount.Name)
+
+	adminJSON, err := json.Marshal(adminDTO)
+	require.NoError(t, err)
+	require.Contains(t, string(adminJSON), `"failover_source_account":{"id":9,"name":"account-a"}`)
+}
+
 func f64Ptr(value float64) *float64 {
 	return &value
 }

@@ -270,21 +270,23 @@ func (h *OpenAIGatewayHandler) handleImages(c *gin.Context, endpoint string, com
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)
+		failoverSourceAccountID := captureUsageFailoverSourceAccountID(c.Request.Context(), account.ID)
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
-				InboundEndpoint:    GetInboundEndpoint(c),
-				UpstreamEndpoint:   GetUpstreamEndpoint(c, account.Platform),
-				UserAgent:          userAgent,
-				IPAddress:          clientIP,
-				RequestPayloadHash: requestPayloadHash,
-				APIKeyService:      h.apiKeyService,
-				ChannelUsageFields: channelMapping.ToUsageFields(reqModel, result.UpstreamModel),
+				Result:                  result,
+				APIKey:                  apiKey,
+				User:                    apiKey.User,
+				Account:                 account,
+				FailoverSourceAccountID: failoverSourceAccountID,
+				Subscription:            subscription,
+				InboundEndpoint:         GetInboundEndpoint(c),
+				UpstreamEndpoint:        GetUpstreamEndpoint(c, account.Platform),
+				UserAgent:               userAgent,
+				IPAddress:               clientIP,
+				RequestPayloadHash:      requestPayloadHash,
+				APIKeyService:           h.apiKeyService,
+				ChannelUsageFields:      channelMapping.ToUsageFields(reqModel, result.UpstreamModel),
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", component),

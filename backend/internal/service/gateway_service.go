@@ -441,6 +441,20 @@ func failoverSourceAccountIDFromContext(ctx context.Context) int64 {
 	return 0
 }
 
+func resolveUsageFailoverSourceAccountID(ctx context.Context, explicit *int64, selectedAccountID int64) *int64 {
+	var candidate int64
+	if explicit != nil {
+		candidate = *explicit
+	} else {
+		candidate = failoverSourceAccountIDFromContext(ctx)
+	}
+	if candidate <= 0 || candidate == selectedAccountID {
+		return nil
+	}
+	value := candidate
+	return &value
+}
+
 // shouldClearStickySession 检查账号是否处于不可调度状态，需要清理粘性会话绑定。
 // 委托 IsSchedulable() 判断账号级可调度性（状态、配额、过载、限流等），
 // 额外检查模型级限流。
@@ -7447,19 +7461,20 @@ func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID,
 
 // RecordUsageInput 记录使用量的输入参数
 type RecordUsageInput struct {
-	Result             *ForwardResult
-	ParsedRequest      *ParsedRequest
-	APIKey             *APIKey
-	User               *User
-	Account            *Account
-	Subscription       *UserSubscription  // 可选：订阅信息
-	InboundEndpoint    string             // 入站端点（客户端请求路径）
-	UpstreamEndpoint   string             // 上游端点（标准化后的上游路径）
-	UserAgent          string             // 请求的 User-Agent
-	IPAddress          string             // 请求的客户端 IP 地址
-	RequestPayloadHash string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
-	ForceCacheBilling  bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
-	APIKeyService      APIKeyQuotaUpdater // 可选：用于更新API Key配额
+	Result                  *ForwardResult
+	ParsedRequest           *ParsedRequest
+	APIKey                  *APIKey
+	User                    *User
+	Account                 *Account
+	FailoverSourceAccountID *int64
+	Subscription            *UserSubscription  // 可选：订阅信息
+	InboundEndpoint         string             // 入站端点（客户端请求路径）
+	UpstreamEndpoint        string             // 上游端点（标准化后的上游路径）
+	UserAgent               string             // 请求的 User-Agent
+	IPAddress               string             // 请求的客户端 IP 地址
+	RequestPayloadHash      string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
+	ForceCacheBilling       bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
+	APIKeyService           APIKeyQuotaUpdater // 可选：用于更新API Key配额
 
 	ChannelUsageFields // 渠道映射信息（由 handler 在 Forward 前解析）
 }
@@ -7852,19 +7867,20 @@ type recordUsageOpts struct {
 // RecordUsage 记录使用量并扣费（或更新订阅用量）
 func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInput) error {
 	return s.recordUsageCore(ctx, &recordUsageCoreInput{
-		Result:             input.Result,
-		APIKey:             input.APIKey,
-		User:               input.User,
-		Account:            input.Account,
-		Subscription:       input.Subscription,
-		InboundEndpoint:    input.InboundEndpoint,
-		UpstreamEndpoint:   input.UpstreamEndpoint,
-		UserAgent:          input.UserAgent,
-		IPAddress:          input.IPAddress,
-		RequestPayloadHash: input.RequestPayloadHash,
-		ForceCacheBilling:  input.ForceCacheBilling,
-		APIKeyService:      input.APIKeyService,
-		ChannelUsageFields: input.ChannelUsageFields,
+		Result:                  input.Result,
+		APIKey:                  input.APIKey,
+		User:                    input.User,
+		Account:                 input.Account,
+		FailoverSourceAccountID: input.FailoverSourceAccountID,
+		Subscription:            input.Subscription,
+		InboundEndpoint:         input.InboundEndpoint,
+		UpstreamEndpoint:        input.UpstreamEndpoint,
+		UserAgent:               input.UserAgent,
+		IPAddress:               input.IPAddress,
+		RequestPayloadHash:      input.RequestPayloadHash,
+		ForceCacheBilling:       input.ForceCacheBilling,
+		APIKeyService:           input.APIKeyService,
+		ChannelUsageFields:      input.ChannelUsageFields,
 	}, &recordUsageOpts{
 		EnableClaudePath: true,
 	})
@@ -7872,20 +7888,21 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 
 // RecordUsageLongContextInput 记录使用量的输入参数（支持长上下文双倍计费）
 type RecordUsageLongContextInput struct {
-	Result                *ForwardResult
-	APIKey                *APIKey
-	User                  *User
-	Account               *Account
-	Subscription          *UserSubscription  // 可选：订阅信息
-	InboundEndpoint       string             // 入站端点（客户端请求路径）
-	UpstreamEndpoint      string             // 上游端点（标准化后的上游路径）
-	UserAgent             string             // 请求的 User-Agent
-	IPAddress             string             // 请求的客户端 IP 地址
-	RequestPayloadHash    string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
-	LongContextThreshold  int                // 长上下文阈值（如 200000）
-	LongContextMultiplier float64            // 超出阈值部分的倍率（如 2.0）
-	ForceCacheBilling     bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
-	APIKeyService         APIKeyQuotaUpdater // API Key 配额服务（可选）
+	Result                  *ForwardResult
+	APIKey                  *APIKey
+	User                    *User
+	Account                 *Account
+	FailoverSourceAccountID *int64
+	Subscription            *UserSubscription  // 可选：订阅信息
+	InboundEndpoint         string             // 入站端点（客户端请求路径）
+	UpstreamEndpoint        string             // 上游端点（标准化后的上游路径）
+	UserAgent               string             // 请求的 User-Agent
+	IPAddress               string             // 请求的客户端 IP 地址
+	RequestPayloadHash      string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
+	LongContextThreshold    int                // 长上下文阈值（如 200000）
+	LongContextMultiplier   float64            // 超出阈值部分的倍率（如 2.0）
+	ForceCacheBilling       bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
+	APIKeyService           APIKeyQuotaUpdater // API Key 配额服务（可选）
 
 	ChannelUsageFields // 渠道映射信息（由 handler 在 Forward 前解析）
 }
@@ -7893,19 +7910,20 @@ type RecordUsageLongContextInput struct {
 // RecordUsageWithLongContext 记录使用量并扣费，支持长上下文双倍计费（用于 Gemini）
 func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *RecordUsageLongContextInput) error {
 	return s.recordUsageCore(ctx, &recordUsageCoreInput{
-		Result:             input.Result,
-		APIKey:             input.APIKey,
-		User:               input.User,
-		Account:            input.Account,
-		Subscription:       input.Subscription,
-		InboundEndpoint:    input.InboundEndpoint,
-		UpstreamEndpoint:   input.UpstreamEndpoint,
-		UserAgent:          input.UserAgent,
-		IPAddress:          input.IPAddress,
-		RequestPayloadHash: input.RequestPayloadHash,
-		ForceCacheBilling:  input.ForceCacheBilling,
-		APIKeyService:      input.APIKeyService,
-		ChannelUsageFields: input.ChannelUsageFields,
+		Result:                  input.Result,
+		APIKey:                  input.APIKey,
+		User:                    input.User,
+		Account:                 input.Account,
+		FailoverSourceAccountID: input.FailoverSourceAccountID,
+		Subscription:            input.Subscription,
+		InboundEndpoint:         input.InboundEndpoint,
+		UpstreamEndpoint:        input.UpstreamEndpoint,
+		UserAgent:               input.UserAgent,
+		IPAddress:               input.IPAddress,
+		RequestPayloadHash:      input.RequestPayloadHash,
+		ForceCacheBilling:       input.ForceCacheBilling,
+		APIKeyService:           input.APIKeyService,
+		ChannelUsageFields:      input.ChannelUsageFields,
 	}, &recordUsageOpts{
 		LongContextThreshold:  input.LongContextThreshold,
 		LongContextMultiplier: input.LongContextMultiplier,
@@ -7914,18 +7932,19 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 
 // recordUsageCoreInput 是 recordUsageCore 的公共输入字段，从两种输入结构体中提取。
 type recordUsageCoreInput struct {
-	Result             *ForwardResult
-	APIKey             *APIKey
-	User               *User
-	Account            *Account
-	Subscription       *UserSubscription
-	InboundEndpoint    string
-	UpstreamEndpoint   string
-	UserAgent          string
-	IPAddress          string
-	RequestPayloadHash string
-	ForceCacheBilling  bool
-	APIKeyService      APIKeyQuotaUpdater
+	Result                  *ForwardResult
+	APIKey                  *APIKey
+	User                    *User
+	Account                 *Account
+	FailoverSourceAccountID *int64
+	Subscription            *UserSubscription
+	InboundEndpoint         string
+	UpstreamEndpoint        string
+	UserAgent               string
+	IPAddress               string
+	RequestPayloadHash      string
+	ForceCacheBilling       bool
+	APIKeyService           APIKeyQuotaUpdater
 	ChannelUsageFields
 }
 
@@ -8187,40 +8206,41 @@ func (s *GatewayService) buildRecordUsageLog(
 	durationMs := int(result.Duration.Milliseconds())
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	usageLog := &UsageLog{
-		UserID:                user.ID,
-		APIKeyID:              apiKey.ID,
-		AccountID:             account.ID,
-		RequestID:             requestID,
-		Model:                 result.Model,
-		RequestedModel:        requestedModel,
-		UpstreamModel:         optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
-		ReasoningEffort:       result.ReasoningEffort,
-		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		InputTokens:           result.Usage.InputTokens,
-		OutputTokens:          result.Usage.OutputTokens,
-		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:       result.Usage.CacheReadInputTokens,
-		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
-		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
-		ImageOutputTokens:     result.Usage.ImageOutputTokens,
-		RateMultiplier:        multiplier,
-		AccountRateMultiplier: &accountRateMultiplier,
-		BillingType:           billingType,
-		BillingMode:           resolveBillingMode(result, cost),
-		Stream:                result.Stream,
-		DurationMs:            &durationMs,
-		FirstTokenMs:          result.FirstTokenMs,
-		ImageCount:            result.ImageCount,
-		ImageSize:             optionalTrimmedStringPtr(result.ImageSize),
-		CacheTTLOverridden:    cacheTTLOverridden,
-		ChannelID:             optionalInt64Ptr(input.ChannelID),
-		ModelMappingChain:     optionalTrimmedStringPtr(input.ModelMappingChain),
-		UserAgent:             optionalTrimmedStringPtr(input.UserAgent),
-		IPAddress:             optionalTrimmedStringPtr(input.IPAddress),
-		GroupID:               apiKey.GroupID,
-		SubscriptionID:        optionalSubscriptionID(subscription),
-		CreatedAt:             time.Now(),
+		UserID:                  user.ID,
+		APIKeyID:                apiKey.ID,
+		AccountID:               account.ID,
+		FailoverSourceAccountID: resolveUsageFailoverSourceAccountID(ctx, input.FailoverSourceAccountID, account.ID),
+		RequestID:               requestID,
+		Model:                   result.Model,
+		RequestedModel:          requestedModel,
+		UpstreamModel:           optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
+		ReasoningEffort:         result.ReasoningEffort,
+		InboundEndpoint:         optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:        optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		InputTokens:             result.Usage.InputTokens,
+		OutputTokens:            result.Usage.OutputTokens,
+		CacheCreationTokens:     result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:         result.Usage.CacheReadInputTokens,
+		CacheCreation5mTokens:   result.Usage.CacheCreation5mTokens,
+		CacheCreation1hTokens:   result.Usage.CacheCreation1hTokens,
+		ImageOutputTokens:       result.Usage.ImageOutputTokens,
+		RateMultiplier:          multiplier,
+		AccountRateMultiplier:   &accountRateMultiplier,
+		BillingType:             billingType,
+		BillingMode:             resolveBillingMode(result, cost),
+		Stream:                  result.Stream,
+		DurationMs:              &durationMs,
+		FirstTokenMs:            result.FirstTokenMs,
+		ImageCount:              result.ImageCount,
+		ImageSize:               optionalTrimmedStringPtr(result.ImageSize),
+		CacheTTLOverridden:      cacheTTLOverridden,
+		ChannelID:               optionalInt64Ptr(input.ChannelID),
+		ModelMappingChain:       optionalTrimmedStringPtr(input.ModelMappingChain),
+		UserAgent:               optionalTrimmedStringPtr(input.UserAgent),
+		IPAddress:               optionalTrimmedStringPtr(input.IPAddress),
+		GroupID:                 apiKey.GroupID,
+		SubscriptionID:          optionalSubscriptionID(subscription),
+		CreatedAt:               time.Now(),
 	}
 	if cost != nil {
 		usageLog.InputCost = cost.InputCost

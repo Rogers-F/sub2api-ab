@@ -30,7 +30,15 @@
         </template>
 
         <template #cell-account="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">{{ row.account?.name || '-' }}</span>
+          <div class="space-y-0.5">
+            <div class="text-sm text-gray-900 dark:text-white">{{ row.account?.name || '-' }}</div>
+            <div
+              v-if="row.failover_source_account?.name"
+              class="text-[11px] text-gray-500 dark:text-gray-400"
+            >
+              {{ t('admin.usage.fallbackFromAccount', { name: row.failover_source_account.name }) }}
+            </div>
+          </div>
         </template>
 
         <template #cell-model="{ row }">

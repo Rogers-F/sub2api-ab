@@ -1072,6 +1072,7 @@ export interface AdminUsageLog extends UsageLog {
 
   // 最小账号信息（仅管理员接口返回）
   account?: UsageLogAccountSummary
+  failover_source_account?: UsageLogAccountSummary | null
 }
 
 export interface UsageCleanupFilters {

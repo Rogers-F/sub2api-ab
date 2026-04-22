@@ -20,6 +20,8 @@ const (
 	FieldAPIKeyID = "api_key_id"
 	// FieldAccountID holds the string denoting the account_id field in the database.
 	FieldAccountID = "account_id"
+	// FieldFailoverSourceAccountID holds the string denoting the failover_source_account_id field in the database.
+	FieldFailoverSourceAccountID = "failover_source_account_id"
 	// FieldRequestID holds the string denoting the request_id field in the database.
 	FieldRequestID = "request_id"
 	// FieldModel holds the string denoting the model field in the database.
@@ -143,6 +145,7 @@ var Columns = []string{
 	FieldUserID,
 	FieldAPIKeyID,
 	FieldAccountID,
+	FieldFailoverSourceAccountID,
 	FieldRequestID,
 	FieldModel,
 	FieldRequestedModel,
@@ -269,6 +272,11 @@ func ByAPIKeyID(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountID orders the results by the account_id field.
 func ByAccountID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountID, opts...).ToFunc()
+}
+
+// ByFailoverSourceAccountID orders the results by the failover_source_account_id field.
+func ByFailoverSourceAccountID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFailoverSourceAccountID, opts...).ToFunc()
 }
 
 // ByRequestID orders the results by the request_id field.

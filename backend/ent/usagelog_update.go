@@ -74,6 +74,33 @@ func (_u *UsageLogUpdate) SetNillableAccountID(v *int64) *UsageLogUpdate {
 	return _u
 }
 
+// SetFailoverSourceAccountID sets the "failover_source_account_id" field.
+func (_u *UsageLogUpdate) SetFailoverSourceAccountID(v int64) *UsageLogUpdate {
+	_u.mutation.ResetFailoverSourceAccountID()
+	_u.mutation.SetFailoverSourceAccountID(v)
+	return _u
+}
+
+// SetNillableFailoverSourceAccountID sets the "failover_source_account_id" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableFailoverSourceAccountID(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetFailoverSourceAccountID(*v)
+	}
+	return _u
+}
+
+// AddFailoverSourceAccountID adds value to the "failover_source_account_id" field.
+func (_u *UsageLogUpdate) AddFailoverSourceAccountID(v int64) *UsageLogUpdate {
+	_u.mutation.AddFailoverSourceAccountID(v)
+	return _u
+}
+
+// ClearFailoverSourceAccountID clears the value of the "failover_source_account_id" field.
+func (_u *UsageLogUpdate) ClearFailoverSourceAccountID() *UsageLogUpdate {
+	_u.mutation.ClearFailoverSourceAccountID()
+	return _u
+}
+
 // SetRequestID sets the "request_id" field.
 func (_u *UsageLogUpdate) SetRequestID(v string) *UsageLogUpdate {
 	_u.mutation.SetRequestID(v)
@@ -916,6 +943,15 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	if value, ok := _u.mutation.FailoverSourceAccountID(); ok {
+		_spec.SetField(usagelog.FieldFailoverSourceAccountID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedFailoverSourceAccountID(); ok {
+		_spec.AddField(usagelog.FieldFailoverSourceAccountID, field.TypeInt64, value)
+	}
+	if _u.mutation.FailoverSourceAccountIDCleared() {
+		_spec.ClearField(usagelog.FieldFailoverSourceAccountID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.RequestID(); ok {
 		_spec.SetField(usagelog.FieldRequestID, field.TypeString, value)
 	}
@@ -1306,6 +1342,33 @@ func (_u *UsageLogUpdateOne) SetNillableAccountID(v *int64) *UsageLogUpdateOne {
 	if v != nil {
 		_u.SetAccountID(*v)
 	}
+	return _u
+}
+
+// SetFailoverSourceAccountID sets the "failover_source_account_id" field.
+func (_u *UsageLogUpdateOne) SetFailoverSourceAccountID(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetFailoverSourceAccountID()
+	_u.mutation.SetFailoverSourceAccountID(v)
+	return _u
+}
+
+// SetNillableFailoverSourceAccountID sets the "failover_source_account_id" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableFailoverSourceAccountID(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetFailoverSourceAccountID(*v)
+	}
+	return _u
+}
+
+// AddFailoverSourceAccountID adds value to the "failover_source_account_id" field.
+func (_u *UsageLogUpdateOne) AddFailoverSourceAccountID(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddFailoverSourceAccountID(v)
+	return _u
+}
+
+// ClearFailoverSourceAccountID clears the value of the "failover_source_account_id" field.
+func (_u *UsageLogUpdateOne) ClearFailoverSourceAccountID() *UsageLogUpdateOne {
+	_u.mutation.ClearFailoverSourceAccountID()
 	return _u
 }
 
@@ -2180,6 +2243,15 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.FailoverSourceAccountID(); ok {
+		_spec.SetField(usagelog.FieldFailoverSourceAccountID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedFailoverSourceAccountID(); ok {
+		_spec.AddField(usagelog.FieldFailoverSourceAccountID, field.TypeInt64, value)
+	}
+	if _u.mutation.FailoverSourceAccountIDCleared() {
+		_spec.ClearField(usagelog.FieldFailoverSourceAccountID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.RequestID(); ok {
 		_spec.SetField(usagelog.FieldRequestID, field.TypeString, value)

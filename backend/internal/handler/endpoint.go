@@ -50,6 +50,10 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointChatCompletions
 	case strings.Contains(path, EndpointMessages):
 		return EndpointMessages
+	case strings.Contains(path, EndpointImagesGenerations) || strings.Contains(path, "/images/generations"):
+		return EndpointImagesGenerations
+	case strings.Contains(path, EndpointImagesEdits) || strings.Contains(path, "/images/edits"):
+		return EndpointImagesEdits
 	case strings.Contains(path, EndpointResponses):
 		return EndpointResponses
 	case strings.Contains(path, EndpointGeminiModels):

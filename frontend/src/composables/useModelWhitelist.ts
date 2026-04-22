@@ -22,7 +22,9 @@ const openaiModels = [
   'gpt-5.3-codex', 'gpt-5.3-codex-spark',
   'gpt-image-2',
   'chatgpt-4o-latest',
-  'gpt-4o-audio-preview', 'gpt-4o-realtime-preview'
+  'gpt-4o-audio-preview', 'gpt-4o-realtime-preview',
+  // GPT Image 系列
+  'gpt-image-1', 'gpt-image-1.5', 'gpt-image-2'
 ]
 
 // Anthropic Claude

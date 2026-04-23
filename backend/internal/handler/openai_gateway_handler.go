@@ -241,6 +241,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var lastFailedAccountID int64
 
 	for {
 		// Select account supporting the requested model
@@ -344,6 +345,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
+				lastFailedAccountID = account.ID
 				if switchCount >= maxAccountSwitches {
 					h.handleFailoverExhausted(c, failoverErr, streamStarted)
 					return
@@ -384,7 +386,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)
-		failoverSourceAccountID := captureUsageFailoverSourceAccountID(c.Request.Context(), account.ID)
+		failoverSourceAccountID := captureUsageFailoverSourceAccountIDFromID(lastFailedAccountID, account.ID)
 
 		// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 		h.submitUsageRecordTask(func(ctx context.Context) {
@@ -624,6 +626,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var lastFailedAccountID int64
 	effectiveMappedModel := preferredMappedModel
 
 	for {
@@ -725,6 +728,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
+				lastFailedAccountID = account.ID
 				if switchCount >= maxAccountSwitches {
 					h.handleAnthropicFailoverExhausted(c, failoverErr, streamStarted)
 					return
@@ -756,7 +760,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)
-		failoverSourceAccountID := captureUsageFailoverSourceAccountID(c.Request.Context(), account.ID)
+		failoverSourceAccountID := captureUsageFailoverSourceAccountIDFromID(lastFailedAccountID, account.ID)
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{

@@ -125,6 +125,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var lastFailedAccountID int64
 
 	for {
 		reqLog.Debug("openai.images.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
@@ -217,6 +218,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
+				lastFailedAccountID = account.ID
 				if switchCount >= maxAccountSwitches {
 					h.handleFailoverExhausted(c, failoverErr, streamStarted)
 					return
@@ -257,24 +259,26 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)
+		failoverSourceAccountID := captureUsageFailoverSourceAccountIDFromID(lastFailedAccountID, account.ID)
 		if parsed.Multipart {
 			requestPayloadHash = service.HashUsageRequestPayload([]byte(parsed.StickySessionSeed()))
 		}
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
-				InboundEndpoint:    GetInboundEndpoint(c),
-				UpstreamEndpoint:   GetUpstreamEndpoint(c, account.Platform),
-				UserAgent:          userAgent,
-				IPAddress:          clientIP,
-				RequestPayloadHash: requestPayloadHash,
-				APIKeyService:      h.apiKeyService,
-				ChannelUsageFields: channelMapping.ToUsageFields(parsed.Model, result.UpstreamModel),
+				Result:                  result,
+				APIKey:                  apiKey,
+				User:                    apiKey.User,
+				Account:                 account,
+				FailoverSourceAccountID: failoverSourceAccountID,
+				Subscription:            subscription,
+				InboundEndpoint:         GetInboundEndpoint(c),
+				UpstreamEndpoint:        GetUpstreamEndpoint(c, account.Platform),
+				UserAgent:               userAgent,
+				IPAddress:               clientIP,
+				RequestPayloadHash:      requestPayloadHash,
+				APIKeyService:           h.apiKeyService,
+				ChannelUsageFields:      channelMapping.ToUsageFields(parsed.Model, result.UpstreamModel),
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.images"),

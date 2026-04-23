@@ -249,7 +249,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		requestPayloadHash := service.HashUsageRequestPayload(body)
 		inboundEndpoint := GetInboundEndpoint(c)
 		upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
-		failoverSourceAccountID := captureUsageFailoverSourceAccountID(c.Request.Context(), account.ID)
+		failoverSourceAccountID := captureUsageFailoverSourceAccountIDFromID(fs.LastFailedAccountID, account.ID)
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{

@@ -114,6 +114,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var lastFailedAccountID int64
 
 	for {
 		c.Set("openai_chat_completions_fallback_model", "")
@@ -231,6 +232,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
+				lastFailedAccountID = account.ID
 				if switchCount >= maxAccountSwitches {
 					h.handleFailoverExhausted(c, failoverErr, streamStarted)
 					return
@@ -261,7 +263,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
-		failoverSourceAccountID := captureUsageFailoverSourceAccountID(c.Request.Context(), account.ID)
+		failoverSourceAccountID := captureUsageFailoverSourceAccountIDFromID(lastFailedAccountID, account.ID)
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{

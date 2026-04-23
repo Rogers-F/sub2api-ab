@@ -465,7 +465,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			inboundEndpoint := GetInboundEndpoint(c)
 			upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
-			failoverSourceAccountID := captureUsageFailoverSourceAccountID(c.Request.Context(), account.ID)
+			failoverSourceAccountID := captureUsageFailoverSourceAccountIDFromID(fs.LastFailedAccountID, account.ID)
 
 			if result.ReasoningEffort == nil {
 				result.ReasoningEffort = service.NormalizeClaudeOutputEffort(parsedReq.OutputEffort)
@@ -810,7 +810,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			inboundEndpoint := GetInboundEndpoint(c)
 			upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
-			failoverSourceAccountID := captureUsageFailoverSourceAccountID(c.Request.Context(), account.ID)
+			failoverSourceAccountID := captureUsageFailoverSourceAccountIDFromID(fs.LastFailedAccountID, account.ID)
 
 			if result.ReasoningEffort == nil {
 				result.ReasoningEffort = service.NormalizeClaudeOutputEffort(parsedReq.OutputEffort)

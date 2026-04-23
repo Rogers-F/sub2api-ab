@@ -14,6 +14,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
+	"github.com/imroc/req/v3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
@@ -178,9 +179,66 @@ func TestAccountTestService_OpenAIImageModelUsesImagesAPI(t *testing.T) {
 	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
 }
 
-func TestAccountTestService_OpenAIImageModelRejectsOAuth(t *testing.T) {
+func TestAccountTestService_OpenAIImageModelOAuthUsesChatGPTBackend(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()
+
+	origNewClient := newOpenAIBackendAPIClientForAccountTest
+	origBootstrap := bootstrapOpenAIBackendAPIForAccountTest
+	origFetchReqs := fetchOpenAIChatRequirementsForAccountTest
+	origInitConversation := initializeOpenAIImageConversationForAccountTest
+	origPrepareConversation := prepareOpenAIImageConversationForAccountTest
+	origPostConversation := postOpenAIImageConversationForAccountTest
+	origReadStream := readOpenAIImageConversationStreamForAccountTest
+	origFetchDownloadURL := fetchOpenAIImageDownloadURLForAccountTest
+	origDownloadBytes := downloadOpenAIImageBytesForAccountTest
+	t.Cleanup(func() {
+		newOpenAIBackendAPIClientForAccountTest = origNewClient
+		bootstrapOpenAIBackendAPIForAccountTest = origBootstrap
+		fetchOpenAIChatRequirementsForAccountTest = origFetchReqs
+		initializeOpenAIImageConversationForAccountTest = origInitConversation
+		prepareOpenAIImageConversationForAccountTest = origPrepareConversation
+		postOpenAIImageConversationForAccountTest = origPostConversation
+		readOpenAIImageConversationStreamForAccountTest = origReadStream
+		fetchOpenAIImageDownloadURLForAccountTest = origFetchDownloadURL
+		downloadOpenAIImageBytesForAccountTest = origDownloadBytes
+	})
+
+	newOpenAIBackendAPIClientForAccountTest = func(string) (*req.Client, error) {
+		return req.C(), nil
+	}
+	bootstrapOpenAIBackendAPIForAccountTest = func(context.Context, *req.Client, http.Header) error {
+		return nil
+	}
+	fetchOpenAIChatRequirementsForAccountTest = func(context.Context, *req.Client, http.Header) (*openAIChatRequirements, error) {
+		return &openAIChatRequirements{Token: "chat-token"}, nil
+	}
+	initializeOpenAIImageConversationForAccountTest = func(context.Context, *req.Client, http.Header) error {
+		return nil
+	}
+	prepareOpenAIImageConversationForAccountTest = func(context.Context, *req.Client, http.Header, string, string, string, string) (string, error) {
+		return "conduit-token", nil
+	}
+	postOpenAIImageConversationForAccountTest = func(context.Context, *req.Client, http.Header, any) (*req.Response, error) {
+		return &req.Response{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+			},
+		}, nil
+	}
+	readOpenAIImageConversationStreamForAccountTest = func(*req.Response, time.Time) (string, []openAIImagePointerInfo, OpenAIUsage, *int, error) {
+		return "conv-1", []openAIImagePointerInfo{{
+			Pointer: "file-service://image-1",
+			Prompt:  "orange cat astronaut",
+		}}, OpenAIUsage{}, nil, nil
+	}
+	fetchOpenAIImageDownloadURLForAccountTest = func(context.Context, *req.Client, http.Header, string, string) (string, error) {
+		return "https://files.example/image.png", nil
+	}
+	downloadOpenAIImageBytesForAccountTest = func(context.Context, *req.Client, http.Header, string) ([]byte, error) {
+		return []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}, nil
+	}
 
 	svc := &AccountTestService{}
 	account := &Account{
@@ -192,7 +250,8 @@ func TestAccountTestService_OpenAIImageModelRejectsOAuth(t *testing.T) {
 	}
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-image-2", "")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "only supported on API key accounts")
-	require.Contains(t, recorder.Body.String(), `"type":"error"`)
+	require.NoError(t, err)
+	require.Contains(t, recorder.Body.String(), `"type":"image"`)
+	require.Contains(t, recorder.Body.String(), `"mime_type":"image/png"`)
+	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
 }

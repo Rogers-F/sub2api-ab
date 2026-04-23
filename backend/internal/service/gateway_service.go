@@ -2213,9 +2213,8 @@ func (s *GatewayService) isFallbackChainCandidateEligible(
 	if _, excluded := excludedIDs[account.ID]; excluded {
 		return false
 	}
-	if !s.isAccountInGroup(account, groupID) {
-		return false
-	}
+	// Explicit account-level fallback chains may cross groups. The original
+	// request group still governs downstream policy checks below.
 	if !s.isAccountAllowedForPlatform(account, platform, useMixed) {
 		return false
 	}

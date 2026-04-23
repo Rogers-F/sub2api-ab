@@ -809,6 +809,58 @@ func TestGatewayService_SelectAccountWithLoadAwareness_FallbackChainUsesSourcePl
 	}
 }
 
+func TestGatewayService_SelectFallbackChainAccount_AllowsCrossGroupCandidate(t *testing.T) {
+	ctx := WithFailoverSourceAccountID(context.Background(), 1, false)
+	groupID := int64(88)
+	otherGroupID := int64(99)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:                1,
+				Platform:          PlatformAnthropic,
+				Priority:          50,
+				Status:            StatusActive,
+				Schedulable:       true,
+				AccountGroups:     []AccountGroup{{GroupID: groupID}},
+				FallbackAccountID: ptr(int64(2)),
+			},
+			{
+				ID:            2,
+				Platform:      PlatformAnthropic,
+				Priority:      100,
+				Status:        StatusActive,
+				Schedulable:   true,
+				AccountGroups: []AccountGroup{{GroupID: otherGroupID}},
+			},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	for i := range repo.accounts {
+		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+	}
+
+	svc := &GatewayService{
+		accountRepo: repo,
+		cache:       &mockGatewayCacheForPlatform{},
+		cfg:         testConfig(),
+	}
+
+	account, ok, err := svc.selectFallbackChainAccount(
+		ctx,
+		&groupID,
+		"claude-3-5-sonnet-20241022",
+		PlatformAnthropic,
+		true,
+		map[int64]struct{}{1: {}},
+		&Group{ID: groupID, Platform: PlatformAnthropic, Status: StatusActive, Hydrated: true},
+	)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NotNil(t, account)
+	require.Equal(t, int64(2), account.ID, "显式兜底链应允许同平台跨分组账号")
+}
+
 func TestGatewayService_SelectAccountForModelWithPlatform_RoutedStickySessionClears(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(10)

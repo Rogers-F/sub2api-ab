@@ -1734,9 +1734,6 @@ func (s *OpenAIGatewayService) resolveFallbackChainCandidate(
 	if _, excluded := excludedIDs[account.ID]; excluded {
 		return nil
 	}
-	if !s.isAccountInScope(account, groupID) {
-		return nil
-	}
 	if !account.IsSchedulable() || !account.IsOpenAI() {
 		return nil
 	}
@@ -1745,7 +1742,9 @@ func (s *OpenAIGatewayService) resolveFallbackChainCandidate(
 	}
 
 	fresh := s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
-	if fresh == nil || !s.isAccountInScope(fresh, groupID) {
+	// Explicit account-level fallback chains may cross groups. The original
+	// request group still governs downstream policy checks below.
+	if fresh == nil {
 		return nil
 	}
 	if groupID != nil && s.needsUpstreamChannelRestrictionCheck(ctx, groupID) &&

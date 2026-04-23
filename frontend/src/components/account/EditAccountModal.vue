@@ -2175,6 +2175,25 @@ const mixedChannelWarningMessageText = computed(() => {
   return mixedChannelWarningRawMessage.value
 })
 
+function formatFallbackAccountOptionLabel(account: Account): string {
+  const groupNames = Array.from(new Set(
+    (account.groups ?? [])
+      .map(group => group?.name?.trim() ?? '')
+      .filter(name => name.length > 0)
+  ))
+  const fallbackGroupIDs = Array.from(new Set(
+    (account.group_ids ?? [])
+      .filter((groupID): groupID is number => Number.isFinite(groupID))
+      .map(groupID => `#${groupID}`)
+  ))
+  const groupLabel = groupNames.length > 0
+    ? groupNames.join(', ')
+    : fallbackGroupIDs.length > 0
+      ? fallbackGroupIDs.join(', ')
+      : t('admin.accounts.ungroupedGroup')
+  return `${account.name} (#${account.id}) [${groupLabel}]`
+}
+
 const fallbackAccountOptions = computed(() => {
   const currentAccount = props.account
   const options = [{ value: null, label: t('admin.accounts.noFallbackAccount') }]
@@ -2187,7 +2206,7 @@ const fallbackAccountOptions = computed(() => {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(account => ({
       value: account.id,
-      label: `${account.name} (#${account.id})`
+      label: formatFallbackAccountOptionLabel(account)
     }))
   return [...options, ...filtered]
 })

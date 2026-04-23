@@ -1038,10 +1038,45 @@ func TestOpenAISelectAccountWithLoadAwareness_FallbackChainSkipsIneligibleCandid
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(5), selection.Account.ID, "应跳过不可调度/模型不匹配/分组不可见的兜底账号后继续链式兜底")
+	require.Equal(t, int64(4), selection.Account.ID, "显式兜底链应允许使用未分组账号，原分组限制仍沿用到渠道和模型检查")
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
 	}
+}
+
+func TestOpenAISelectFallbackChainAccount_AllowsCrossGroupCandidate(t *testing.T) {
+	groupID := int64(10)
+	otherGroupID := int64(20)
+	repo := stubOpenAIAccountRepo{
+		accounts: []Account{
+			{
+				ID:                1,
+				Platform:          PlatformOpenAI,
+				Type:              AccountTypeAPIKey,
+				Status:            StatusActive,
+				Schedulable:       true,
+				AccountGroups:     []AccountGroup{{GroupID: groupID}},
+				FallbackAccountID: func(v int64) *int64 { return &v }(2),
+			},
+			{
+				ID:            2,
+				Platform:      PlatformOpenAI,
+				Type:          AccountTypeAPIKey,
+				Status:        StatusActive,
+				Schedulable:   true,
+				AccountGroups: []AccountGroup{{GroupID: otherGroupID}},
+			},
+		},
+	}
+
+	svc := &OpenAIGatewayService{accountRepo: repo}
+	ctx := WithFailoverSourceAccountID(context.Background(), 1, false)
+
+	account, ok, err := svc.selectFallbackChainAccount(ctx, &groupID, "gpt-4", map[int64]struct{}{1: {}})
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NotNil(t, account)
+	require.Equal(t, int64(2), account.ID, "显式兜底链应允许同平台跨分组账号")
 }
 
 func TestOpenAIStreamingTimeout(t *testing.T) {

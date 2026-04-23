@@ -191,7 +191,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
-		result, err := h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, promptCacheKey, defaultMappedModel)
+		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, 0, false)
+		result, err := h.gatewayService.ForwardAsChatCompletions(requestCtx, c, account, forwardBody, promptCacheKey, defaultMappedModel)
+		cleanupAttemptCtx()
 
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		if accountReleaseFunc != nil {
@@ -207,6 +209,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
 		if err != nil {
+			if service.ShouldFailoverOnAttemptTimeout(requestCtx, err) {
+				err = &service.UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+			}
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)

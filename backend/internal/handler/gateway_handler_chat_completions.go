@@ -211,13 +211,18 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
-		result, err := h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, fs.SwitchCount, h.metadataBridgeEnabled())
+		result, err := h.gatewayService.ForwardAsChatCompletions(requestCtx, c, account, forwardBody, parsedReq)
+		cleanupAttemptCtx()
 
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
 		}
 
 		if err != nil {
+			if service.ShouldFailoverOnAttemptTimeout(requestCtx, err) {
+				err = &service.UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+			}
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				if c.Writer.Size() != writerSizeBeforeForward {

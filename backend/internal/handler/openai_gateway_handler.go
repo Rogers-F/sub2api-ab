@@ -305,7 +305,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
-		result, err := h.gatewayService.Forward(c.Request.Context(), c, account, forwardBody)
+		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, 0, false)
+		result, err := h.gatewayService.Forward(requestCtx, c, account, forwardBody)
+		cleanupAttemptCtx()
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
@@ -320,6 +322,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
 		if err != nil {
+			if service.ShouldFailoverOnAttemptTimeout(requestCtx, err) {
+				err = &service.UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+			}
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
@@ -687,7 +692,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		if channelMappingMsg.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMappingMsg.MappedModel)
 		}
-		result, err := h.gatewayService.ForwardAsAnthropic(c.Request.Context(), c, account, forwardBody, promptCacheKey, defaultMappedModel)
+		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, 0, false)
+		result, err := h.gatewayService.ForwardAsAnthropic(requestCtx, c, account, forwardBody, promptCacheKey, defaultMappedModel)
+		cleanupAttemptCtx()
 
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		if accountReleaseFunc != nil {
@@ -703,6 +710,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
 		if err != nil {
+			if service.ShouldFailoverOnAttemptTimeout(requestCtx, err) {
+				err = &service.UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+			}
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)

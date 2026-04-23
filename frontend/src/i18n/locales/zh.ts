@@ -2165,6 +2165,8 @@ export default {
       notesHint: '备注可选',
       fallbackAccount: '兜底账号',
       fallbackAccountHint: '当当前账号上游报错时，会最高优先级切换到此账号；仅显示同平台账号，留空表示不启用。',
+      nonStreamForceFailover: '非流式 45 秒强切兜底',
+      nonStreamForceFailoverHint: '仅对非流式请求生效。开启后，如果当前账号 45 秒内仍未返回，就取消这一次上游请求并切到兜底账号；只影响当前请求。',
       noFallbackAccount: '不设置兜底账号',
       // Filter options
       allPlatforms: '全部平台',

@@ -1362,6 +1362,15 @@ func (a *Account) IsSessionIDMaskingEnabled() bool {
 	return false
 }
 
+// IsNonStreamForceFailoverEnabled reports whether the account enables the
+// account-level non-stream forced failover timer.
+func (a *Account) IsNonStreamForceFailoverEnabled() bool {
+	if a == nil || a.Extra == nil {
+		return false
+	}
+	return a.getExtraBool("non_stream_force_failover_enabled")
+}
+
 // IsCustomBaseURLEnabled 检查是否启用自定义 base URL 中继转发
 // 仅适用于 Anthropic OAuth/SetupToken 类型账号
 func (a *Account) IsCustomBaseURLEnabled() bool {

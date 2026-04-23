@@ -741,14 +741,22 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 		if err != nil {
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
+			kind := "request_error"
+			if ShouldFailoverOnAttemptTimeout(ctx, err) {
+				kind = "failover"
+			}
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
 				AccountName:        account.Name,
 				UpstreamStatusCode: 0,
-				Kind:               "request_error",
+				Kind:               kind,
 				Message:            safeErr,
 			})
+			if ShouldFailoverOnAttemptTimeout(ctx, err) {
+				setOpsUpstreamError(c, 0, safeErr, "")
+				return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+			}
 			if attempt < geminiMaxRetries {
 				logger.LegacyPrintf("service.gemini_messages_compat", "Gemini account %d: upstream request failed, retry %d/%d: %v", account.ID, attempt, geminiMaxRetries, err)
 				sleepGeminiBackoff(attempt)
@@ -1241,14 +1249,22 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 		if err != nil {
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
+			kind := "request_error"
+			if ShouldFailoverOnAttemptTimeout(ctx, err) {
+				kind = "failover"
+			}
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
 				AccountName:        account.Name,
 				UpstreamStatusCode: 0,
-				Kind:               "request_error",
+				Kind:               kind,
 				Message:            safeErr,
 			})
+			if ShouldFailoverOnAttemptTimeout(ctx, err) {
+				setOpsUpstreamError(c, 0, safeErr, "")
+				return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+			}
 			if attempt < geminiMaxRetries {
 				logger.LegacyPrintf("service.gemini_messages_compat", "Gemini account %d: upstream request failed, retry %d/%d: %v", account.ID, attempt, geminiMaxRetries, err)
 				sleepGeminiBackoff(attempt)

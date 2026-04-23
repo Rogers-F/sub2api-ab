@@ -427,6 +427,10 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
+		kind := "request_error"
+		if ShouldFailoverOnAttemptTimeout(ctx, err) {
+			kind = "failover"
+		}
 		setOpsUpstreamError(c, 0, safeErr, "")
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
@@ -434,9 +438,12 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			AccountName:        account.Name,
 			UpstreamStatusCode: 0,
 			UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
-			Kind:               "request_error",
+			Kind:               kind,
 			Message:            safeErr,
 		})
+		if ShouldFailoverOnAttemptTimeout(ctx, err) {
+			return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+		}
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	if resp.StatusCode >= 400 {

@@ -618,6 +618,20 @@ urlFallbackLoop:
 		for attempt := 1; attempt <= antigravityMaxRetries; attempt++ {
 			select {
 			case <-p.ctx.Done():
+				if AccountAttemptTimedOut(p.ctx) {
+					safeErr := sanitizeUpstreamErrorMessage(p.ctx.Err().Error())
+					setOpsUpstreamError(p.c, 0, safeErr, "")
+					appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
+						Platform:           p.account.Platform,
+						AccountID:          p.account.ID,
+						AccountName:        p.account.Name,
+						UpstreamStatusCode: 0,
+						UpstreamURL:        safeUpstreamURL(baseURL),
+						Kind:               "failover",
+						Message:            safeErr,
+					})
+					return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+				}
 				logger.LegacyPrintf("service.antigravity_gateway", "%s status=context_canceled error=%v", p.prefix, p.ctx.Err())
 				return nil, p.ctx.Err()
 			default:
@@ -639,15 +653,23 @@ urlFallbackLoop:
 			}
 			if err != nil {
 				safeErr := sanitizeUpstreamErrorMessage(err.Error())
+				kind := "request_error"
+				if ShouldFailoverOnAttemptTimeout(p.ctx, err) {
+					kind = "failover"
+				}
 				appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
 					Platform:           p.account.Platform,
 					AccountID:          p.account.ID,
 					AccountName:        p.account.Name,
 					UpstreamStatusCode: 0,
 					UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
-					Kind:               "request_error",
+					Kind:               kind,
 					Message:            safeErr,
 				})
+				if ShouldFailoverOnAttemptTimeout(p.ctx, err) {
+					setOpsUpstreamError(p.c, 0, safeErr, "")
+					return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+				}
 				if shouldAntigravityFallbackToNextURL(err, 0) && urlIdx < len(availableURLs)-1 {
 					logger.LegacyPrintf("service.antigravity_gateway", "%s URL fallback (connection error): %s -> %s", p.prefix, baseURL, availableURLs[urlIdx+1])
 					continue urlFallbackLoop
@@ -655,6 +677,20 @@ urlFallbackLoop:
 				if attempt < antigravityMaxRetries {
 					logger.LegacyPrintf("service.antigravity_gateway", "%s status=request_failed retry=%d/%d error=%v", p.prefix, attempt, antigravityMaxRetries, err)
 					if !sleepAntigravityBackoffWithContext(p.ctx, attempt) {
+						if AccountAttemptTimedOut(p.ctx) {
+							safeErr := sanitizeUpstreamErrorMessage(p.ctx.Err().Error())
+							setOpsUpstreamError(p.c, 0, safeErr, "")
+							appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
+								Platform:           p.account.Platform,
+								AccountID:          p.account.ID,
+								AccountName:        p.account.Name,
+								UpstreamStatusCode: 0,
+								UpstreamURL:        safeUpstreamURL(baseURL),
+								Kind:               "failover",
+								Message:            safeErr,
+							})
+							return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway}
+						}
 						logger.LegacyPrintf("service.antigravity_gateway", "%s status=context_canceled_during_backoff", p.prefix)
 						return nil, p.ctx.Err()
 					}

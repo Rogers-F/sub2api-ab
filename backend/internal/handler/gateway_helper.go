@@ -127,6 +127,8 @@ const (
 	maxBackoff = 2 * time.Second
 )
 
+var nonStreamForceFailoverTimeout = 45 * time.Second
+
 // SSEPingFormat defines the format of SSE ping events for different platforms
 type SSEPingFormat string
 
@@ -193,6 +195,46 @@ func wrapReleaseOnDone(ctx context.Context, releaseFunc func()) func() {
 	stop = context.AfterFunc(ctx, release)
 
 	return release
+}
+
+func withAccountAttemptContext(
+	ctx context.Context,
+	account *service.Account,
+	isStream bool,
+	switchCount int,
+	bridgeOldKeys bool,
+) (context.Context, func()) {
+	if ctx == nil {
+		return nil, func() {}
+	}
+
+	attemptCtx := ctx
+	if switchCount > 0 {
+		attemptCtx = service.WithAccountSwitchCount(attemptCtx, switchCount, bridgeOldKeys)
+	}
+
+	if account == nil ||
+		isStream ||
+		!account.IsNonStreamForceFailoverEnabled() ||
+		account.FallbackAccountID == nil ||
+		*account.FallbackAccountID <= 0 {
+		return attemptCtx, func() {}
+	}
+
+	timeoutState := &service.AccountAttemptTimeoutState{}
+	attemptCtx = service.WithAccountAttemptTimeoutState(attemptCtx, timeoutState)
+	attemptCtx, cancel := context.WithCancel(attemptCtx)
+	timer := time.AfterFunc(nonStreamForceFailoverTimeout, func() {
+		timeoutState.MarkTimedOut()
+		cancel()
+	})
+
+	cleanup := func() {
+		_ = timer.Stop()
+		cancel()
+	}
+
+	return attemptCtx, cleanup
 }
 
 // IncrementWaitCount increments the wait count for a user

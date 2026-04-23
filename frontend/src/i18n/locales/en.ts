@@ -2085,6 +2085,8 @@ export default {
       notesHint: 'Notes are optional',
       fallbackAccount: 'Fallback Account',
       fallbackAccountHint: 'When this account hits an upstream error, this account is the highest-priority fallback target. Only same-platform accounts are listed; leave empty to disable.',
+      nonStreamForceFailover: '45s Non-Stream Forced Failover',
+      nonStreamForceFailoverHint: 'Only applies to non-stream requests. When enabled, if the current account has not returned within 45 seconds, the current upstream attempt is canceled and the request switches to the fallback account. This only affects the current request.',
       noFallbackAccount: 'No fallback account',
       allPlatforms: 'All Platforms',
       allTypes: 'All Types',

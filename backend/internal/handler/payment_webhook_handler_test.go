@@ -4,16 +4,24 @@ package handler
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/enttest"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
 func TestWriteSuccessResponse(t *testing.T) {
@@ -175,13 +183,57 @@ func TestVerifyNotificationWithProvidersFailsWhenAllProvidersReject(t *testing.T
 	require.Error(t, err)
 }
 
+func TestPaymentWebhookHandlerAcksUnknownOrderToStopProviderRetries(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := newPaymentWebhookHandlerTestClient(t)
+	registry := payment.NewRegistry()
+	registry.Register(webhookHandlerProviderStub{
+		key: payment.TypeStripe,
+		notification: &payment.PaymentNotification{
+			OrderID: "foreign-order",
+			TradeNo: "stripe-trade-no",
+			Status:  payment.NotificationStatusSuccess,
+			Amount:  12.34,
+		},
+	})
+	paymentSvc := service.NewPaymentService(client, registry, nil, nil, nil, nil, nil, nil)
+	handler := NewPaymentWebhookHandler(paymentSvc, registry)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/payment/webhook/stripe", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+
+	handler.StripeWebhook(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Empty(t, rec.Body.String())
+}
+
+func newPaymentWebhookHandlerTestClient(t *testing.T) *dbent.Client {
+	t.Helper()
+
+	db, err := sql.Open("sqlite", "file:payment_webhook_handler?mode=memory&cache=shared&_fk=1")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	_, err = db.Exec("PRAGMA foreign_keys = ON")
+	require.NoError(t, err)
+
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
+	t.Cleanup(func() { _ = client.Close() })
+	return client
+}
+
 type webhookHandlerProviderStub struct {
 	key          string
 	notification *payment.PaymentNotification
 	verifyErr    error
 }
 
-func (p webhookHandlerProviderStub) Name() string { return p.key }
+func (p webhookHandlerProviderStub) Name() string        { return p.key }
 func (p webhookHandlerProviderStub) ProviderKey() string { return p.key }
 func (p webhookHandlerProviderStub) SupportedTypes() []payment.PaymentType {
 	return []payment.PaymentType{payment.PaymentType(p.key)}

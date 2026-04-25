@@ -45,8 +45,11 @@ const (
 	openAIChatGPTConversationPrepareURL = "https://chatgpt.com/backend-api/f/conversation/prepare"
 	openAIChatGPTChatRequirementsURL    = "https://chatgpt.com/backend-api/sentinel/chat-requirements"
 
-	openAIImageBackendUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-	openAIImageRequirementsDiff = "0fffff"
+	openAIImageBackendUserAgent    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+	openAIImageRequirementsDiff    = "0fffff"
+	openAIImageMaxDownloadBytes    = 20 << 20 // 20MB per image download
+	openAIImageMaxUploadPartSize   = 20 << 20 // 20MB per multipart upload part
+	openAIImagesResponsesMainModel = "gpt-5.4-mini"
 )
 
 type OpenAIImagesCapability string
@@ -78,10 +81,21 @@ type OpenAIImagesRequest struct {
 	ExplicitSize       bool
 	SizeTier           string
 	ResponseFormat     string
+	Quality            string
+	Background         string
+	OutputFormat       string
+	Moderation         string
+	InputFidelity      string
+	Style              string
+	OutputCompression  *int
+	PartialImages      *int
 	HasMask            bool
 	HasNativeOptions   bool
 	RequiredCapability OpenAIImagesCapability
+	InputImageURLs     []string
+	MaskImageURL       string
 	Uploads            []OpenAIImagesUpload
+	MaskUpload         *OpenAIImagesUpload
 	Body               []byte
 	bodyHash           string
 }
@@ -182,7 +196,54 @@ func parseOpenAIImagesJSONRequest(body []byte, req *OpenAIImagesRequest) error {
 		req.ExplicitSize = req.Size != ""
 	}
 	req.ResponseFormat = strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "response_format").String()))
+	req.Quality = strings.TrimSpace(gjson.GetBytes(body, "quality").String())
+	req.Background = strings.TrimSpace(gjson.GetBytes(body, "background").String())
+	req.OutputFormat = strings.TrimSpace(gjson.GetBytes(body, "output_format").String())
+	req.Moderation = strings.TrimSpace(gjson.GetBytes(body, "moderation").String())
+	req.InputFidelity = strings.TrimSpace(gjson.GetBytes(body, "input_fidelity").String())
+	req.Style = strings.TrimSpace(gjson.GetBytes(body, "style").String())
 	req.HasMask = gjson.GetBytes(body, "mask").Exists()
+	if outputCompression := gjson.GetBytes(body, "output_compression"); outputCompression.Exists() {
+		if outputCompression.Type != gjson.Number {
+			return fmt.Errorf("invalid output_compression field type")
+		}
+		v := int(outputCompression.Int())
+		req.OutputCompression = &v
+	}
+	if partialImages := gjson.GetBytes(body, "partial_images"); partialImages.Exists() {
+		if partialImages.Type != gjson.Number {
+			return fmt.Errorf("invalid partial_images field type")
+		}
+		v := int(partialImages.Int())
+		req.PartialImages = &v
+	}
+	if req.IsEdits() {
+		images := gjson.GetBytes(body, "images")
+		if images.Exists() {
+			if !images.IsArray() {
+				return fmt.Errorf("invalid images field type")
+			}
+			for _, item := range images.Array() {
+				if imageURL := strings.TrimSpace(item.Get("image_url").String()); imageURL != "" {
+					req.InputImageURLs = append(req.InputImageURLs, imageURL)
+					continue
+				}
+				if item.Get("file_id").Exists() {
+					return fmt.Errorf("images[].file_id is not supported (use images[].image_url instead)")
+				}
+			}
+		}
+		if maskImageURL := strings.TrimSpace(gjson.GetBytes(body, "mask.image_url").String()); maskImageURL != "" {
+			req.MaskImageURL = maskImageURL
+			req.HasMask = true
+		}
+		if gjson.GetBytes(body, "mask.file_id").Exists() {
+			return fmt.Errorf("mask.file_id is not supported (use mask.image_url instead)")
+		}
+		if len(req.InputImageURLs) == 0 {
+			return fmt.Errorf("images[].image_url is required")
+		}
+	}
 	req.HasNativeOptions = hasOpenAINativeImageOptions(func(path string) bool {
 		return gjson.GetBytes(body, path).Exists()
 	})
@@ -214,7 +275,7 @@ func parseOpenAIImagesMultipartRequest(body []byte, contentType string, req *Ope
 			continue
 		}
 
-		data, err := io.ReadAll(part)
+		data, err := io.ReadAll(io.LimitReader(part, openAIImageMaxUploadPartSize))
 		_ = part.Close()
 		if err != nil {
 			return fmt.Errorf("read multipart field %s: %w", name, err)
@@ -225,6 +286,16 @@ func parseOpenAIImagesMultipartRequest(body []byte, contentType string, req *Ope
 			partContentType := strings.TrimSpace(part.Header.Get("Content-Type"))
 			if name == "mask" && len(data) > 0 {
 				req.HasMask = true
+				width, height := parseOpenAIImageDimensions(part.Header)
+				maskUpload := OpenAIImagesUpload{
+					FieldName:   name,
+					FileName:    fileName,
+					ContentType: partContentType,
+					Data:        data,
+					Width:       width,
+					Height:      height,
+				}
+				req.MaskUpload = &maskUpload
 			}
 			if name == "image" || strings.HasPrefix(name, "image[") {
 				width, height := parseOpenAIImageDimensions(part.Header)
@@ -264,6 +335,38 @@ func parseOpenAIImagesMultipartRequest(body []byte, contentType string, req *Ope
 				return fmt.Errorf("n must be a positive integer")
 			}
 			req.N = n
+		case "quality":
+			req.Quality = value
+			req.HasNativeOptions = true
+		case "background":
+			req.Background = value
+			req.HasNativeOptions = true
+		case "output_format":
+			req.OutputFormat = value
+			req.HasNativeOptions = true
+		case "moderation":
+			req.Moderation = value
+			req.HasNativeOptions = true
+		case "input_fidelity":
+			req.InputFidelity = value
+			req.HasNativeOptions = true
+		case "style":
+			req.Style = value
+			req.HasNativeOptions = true
+		case "output_compression":
+			n, err := strconv.Atoi(value)
+			if err != nil {
+				return fmt.Errorf("invalid output_compression field value")
+			}
+			req.OutputCompression = &n
+			req.HasNativeOptions = true
+		case "partial_images":
+			n, err := strconv.Atoi(value)
+			if err != nil {
+				return fmt.Errorf("invalid partial_images field value")
+			}
+			req.PartialImages = &n
+			req.HasNativeOptions = true
 		default:
 			if isOpenAINativeImageOption(name) && value != "" {
 				req.HasNativeOptions = true
@@ -293,6 +396,21 @@ func applyOpenAIImagesDefaults(req *OpenAIImagesRequest) {
 		return
 	}
 	req.Model = "gpt-image-2"
+}
+
+func isOpenAIImageGenerationModel(model string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "gpt-image-")
+}
+
+func validateOpenAIImagesModel(model string) error {
+	model = strings.TrimSpace(model)
+	if isOpenAIImageGenerationModel(model) {
+		return nil
+	}
+	if model == "" {
+		return fmt.Errorf("images endpoint requires an image model")
+	}
+	return fmt.Errorf("images endpoint requires an image model, got %q", model)
 }
 
 func normalizeOpenAIImagesEndpointPath(path string) string {
@@ -338,6 +456,8 @@ func hasOpenAINativeImageOptions(exists func(path string) bool) bool {
 		"output_format",
 		"output_compression",
 		"moderation",
+		"input_fidelity",
+		"partial_images",
 	} {
 		if exists(path) {
 			return true
@@ -348,7 +468,7 @@ func hasOpenAINativeImageOptions(exists func(path string) bool) bool {
 
 func isOpenAINativeImageOption(name string) bool {
 	switch strings.TrimSpace(strings.ToLower(name)) {
-	case "background", "quality", "style", "output_format", "output_compression", "moderation":
+	case "background", "quality", "style", "output_format", "output_compression", "moderation", "input_fidelity", "partial_images":
 		return true
 	default:
 		return false
@@ -754,7 +874,7 @@ func extractOpenAIImageResponseCountFromJSONBytes(body []byte) int {
 	return 0
 }
 
-func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
+func (s *OpenAIGatewayService) forwardOpenAIImagesOAuthLegacy(
 	ctx context.Context,
 	c *gin.Context,
 	account *Account,
@@ -1713,7 +1833,7 @@ func downloadOpenAIImageBytes(ctx context.Context, client *req.Client, headers h
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, newOpenAIImageStatusError(resp, "download image bytes failed")
 	}
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, openAIImageMaxDownloadBytes))
 }
 
 func handleOpenAIImageBackendError(resp *req.Response) error {

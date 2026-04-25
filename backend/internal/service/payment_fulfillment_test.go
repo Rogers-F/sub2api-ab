@@ -11,6 +11,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type paymentFulfillmentTestProvider struct {
@@ -202,6 +203,23 @@ func TestExpectedNotificationProviderKeyPrefersOrderInstanceProvider(t *testing.
 		payment.TypeEasyPay,
 		expectedNotificationProviderKey(registry, payment.TypeAlipay, "", payment.TypeEasyPay),
 	)
+}
+
+func TestHandlePaymentNotificationReturnsErrOrderNotFoundForMissingOutTradeNo(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := &PaymentService{entClient: client}
+
+	err := svc.HandlePaymentNotification(ctx, &payment.PaymentNotification{
+		OrderID: "missing-out-trade-no",
+		TradeNo: "provider-trade-no",
+		Status:  payment.NotificationStatusSuccess,
+		Amount:  12.34,
+	}, payment.TypeStripe)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrOrderNotFound)
+	require.Contains(t, err.Error(), "out_trade_no=missing-out-trade-no")
 }
 
 func TestExpectedNotificationProviderKeyUsesRegistryMappingForLegacyOrders(t *testing.T) {

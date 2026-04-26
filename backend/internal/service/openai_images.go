@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyurl"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -874,141 +873,6 @@ func extractOpenAIImageResponseCountFromJSONBytes(body []byte) int {
 	return 0
 }
 
-func (s *OpenAIGatewayService) forwardOpenAIImagesOAuthLegacy(
-	ctx context.Context,
-	c *gin.Context,
-	account *Account,
-	parsed *OpenAIImagesRequest,
-	channelMappedModel string,
-) (*OpenAIForwardResult, error) {
-	startTime := time.Now()
-	requestModel := strings.TrimSpace(parsed.Model)
-	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
-		requestModel = mapped
-	}
-
-	token, _, err := s.GetAccessToken(ctx, account)
-	if err != nil {
-		return nil, err
-	}
-	client, err := newOpenAIBackendAPIClient(resolveOpenAIProxyURL(account))
-	if err != nil {
-		return nil, err
-	}
-	headers, err := s.buildOpenAIBackendAPIHeaders(account, token)
-	if err != nil {
-		return nil, err
-	}
-	if bootstrapErr := bootstrapOpenAIBackendAPI(ctx, client, headers); bootstrapErr != nil {
-		logger.LegacyPrintf("service.openai_gateway", "OpenAI image bootstrap failed: %v", bootstrapErr)
-	}
-
-	chatReqs, err := fetchOpenAIChatRequirements(ctx, client, headers)
-	if err != nil {
-		return nil, s.wrapOpenAIImageBackendError(ctx, c, account, err)
-	}
-	if chatReqs.Arkose.Required {
-		return nil, s.wrapOpenAIImageBackendError(
-			ctx,
-			c,
-			account,
-			newOpenAIImageSyntheticStatusError(
-				http.StatusForbidden,
-				"chat-requirements requires unsupported challenge (arkose)",
-				openAIChatGPTChatRequirementsURL,
-			),
-		)
-	}
-
-	parentMessageID := uuid.NewString()
-	proofToken := generateOpenAIProofToken(chatReqs.ProofOfWork.Required, chatReqs.ProofOfWork.Seed, chatReqs.ProofOfWork.Difficulty, headers.Get("User-Agent"))
-	_ = initializeOpenAIImageConversation(ctx, client, headers)
-	conduitToken, err := prepareOpenAIImageConversation(ctx, client, headers, parsed.Prompt, parentMessageID, chatReqs.Token, proofToken)
-	if err != nil {
-		return nil, s.wrapOpenAIImageBackendError(ctx, c, account, err)
-	}
-
-	uploads, err := uploadOpenAIImageFiles(ctx, client, headers, parsed.Uploads)
-	if err != nil {
-		return nil, s.wrapOpenAIImageBackendError(ctx, c, account, err)
-	}
-
-	convReq := buildOpenAIImageConversationRequest(parsed, parentMessageID, uploads)
-	if parsedContent, err := json.Marshal(convReq); err == nil {
-		setOpsUpstreamRequestBody(c, parsedContent)
-	}
-	convHeaders := cloneHTTPHeader(headers)
-	convHeaders.Set("Accept", "text/event-stream")
-	convHeaders.Set("Content-Type", "application/json")
-	convHeaders.Set("openai-sentinel-chat-requirements-token", chatReqs.Token)
-	if conduitToken != "" {
-		convHeaders.Set("x-conduit-token", conduitToken)
-	}
-	if proofToken != "" {
-		convHeaders.Set("openai-sentinel-proof-token", proofToken)
-	}
-
-	resp, err := client.R().
-		SetContext(ctx).
-		DisableAutoReadResponse().
-		SetHeaders(headerToMap(convHeaders)).
-		SetBodyJsonMarshal(convReq).
-		Post(openAIChatGPTConversationURL)
-	if err != nil {
-		return nil, fmt.Errorf("openai image conversation request failed: %w", err)
-	}
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			_ = resp.Body.Close()
-		}
-	}()
-	if resp.StatusCode >= 400 {
-		return nil, s.wrapOpenAIImageBackendError(ctx, c, account, handleOpenAIImageBackendError(resp))
-	}
-
-	conversationID, pointerInfos, usage, firstTokenMs, err := readOpenAIImageConversationStream(resp, startTime)
-	if err != nil {
-		return nil, err
-	}
-	pointerInfos = mergeOpenAIImagePointerInfos(pointerInfos, nil)
-	if conversationID != "" && !hasOpenAIFileServicePointerInfos(pointerInfos) {
-		polledPointers, pollErr := pollOpenAIImageConversation(ctx, client, headers, conversationID)
-		if pollErr != nil {
-			return nil, s.wrapOpenAIImageBackendError(ctx, c, account, pollErr)
-		}
-		pointerInfos = mergeOpenAIImagePointerInfos(pointerInfos, polledPointers)
-	}
-	pointerInfos = preferOpenAIFileServicePointerInfos(pointerInfos)
-	if len(pointerInfos) == 0 {
-		return nil, fmt.Errorf("openai image conversation returned no downloadable images")
-	}
-
-	responseBody, imageCount, err := buildOpenAIImageResponse(ctx, client, headers, conversationID, pointerInfos)
-	if err != nil {
-		return nil, s.wrapOpenAIImageBackendError(ctx, c, account, err)
-	}
-
-	c.Data(http.StatusOK, "application/json; charset=utf-8", responseBody)
-	return &OpenAIForwardResult{
-		RequestID:     resp.Header.Get("x-request-id"),
-		Usage:         usage,
-		Model:         requestModel,
-		UpstreamModel: requestModel,
-		Stream:        false,
-		Duration:      time.Since(startTime),
-		FirstTokenMs:  firstTokenMs,
-		ImageCount:    imageCount,
-		ImageSize:     parsed.SizeTier,
-	}, nil
-}
-
-func resolveOpenAIProxyURL(account *Account) string {
-	if account != nil && account.ProxyID != nil && account.Proxy != nil {
-		return account.Proxy.URL()
-	}
-	return ""
-}
-
 func newOpenAIBackendAPIClient(proxyURL string) (*req.Client, error) {
 	client := req.C().
 		SetTimeout(180 * time.Second).
@@ -1021,70 +885,6 @@ func newOpenAIBackendAPIClient(proxyURL string) (*req.Client, error) {
 		client.SetProxyURL(trimmed)
 	}
 	return client, nil
-}
-
-func (s *OpenAIGatewayService) buildOpenAIBackendAPIHeaders(account *Account, token string) (http.Header, error) {
-	deviceID, sessionID := s.ensureOpenAIImageSessionCredentials(context.Background(), account)
-	headers := make(http.Header)
-	headers.Set("Authorization", "Bearer "+token)
-	headers.Set("Accept", "application/json")
-	headers.Set("Origin", "https://chatgpt.com")
-	headers.Set("Referer", "https://chatgpt.com/")
-	headers.Set("Sec-Fetch-Dest", "empty")
-	headers.Set("Sec-Fetch-Mode", "cors")
-	headers.Set("Sec-Fetch-Site", "same-origin")
-	headers.Set("User-Agent", openAIImageBackendUserAgent)
-	if customUA := strings.TrimSpace(account.GetOpenAIUserAgent()); customUA != "" {
-		headers.Set("User-Agent", customUA)
-	}
-	if chatgptAccountID := strings.TrimSpace(account.GetChatGPTAccountID()); chatgptAccountID != "" {
-		headers.Set("chatgpt-account-id", chatgptAccountID)
-	}
-	if deviceID != "" {
-		headers.Set("oai-device-id", deviceID)
-		headers.Set("Cookie", "oai-did="+deviceID)
-	}
-	if sessionID != "" {
-		headers.Set("oai-session-id", sessionID)
-	}
-	return headers, nil
-}
-
-func (s *OpenAIGatewayService) ensureOpenAIImageSessionCredentials(ctx context.Context, account *Account) (string, string) {
-	if account == nil {
-		return "", ""
-	}
-	deviceID := account.GetOpenAIDeviceID()
-	sessionID := account.GetOpenAISessionID()
-	if deviceID != "" && sessionID != "" {
-		return deviceID, sessionID
-	}
-
-	updates := map[string]any{}
-	if deviceID == "" {
-		deviceID = uuid.NewString()
-		updates["openai_device_id"] = deviceID
-	}
-	if sessionID == "" {
-		sessionID = uuid.NewString()
-		updates["openai_session_id"] = sessionID
-	}
-	if account.Extra == nil {
-		account.Extra = map[string]any{}
-	}
-	for key, value := range updates {
-		account.Extra[key] = value
-	}
-	if len(updates) == 0 || s == nil || s.accountRepo == nil {
-		return deviceID, sessionID
-	}
-
-	updateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err := s.accountRepo.UpdateExtra(updateCtx, account.ID, updates); err != nil {
-		logger.LegacyPrintf("service.openai_gateway", "persist openai image session creds failed: account=%d err=%v", account.ID, err)
-	}
-	return deviceID, sessionID
 }
 
 func bootstrapOpenAIBackendAPI(ctx context.Context, client *req.Client, headers http.Header) error {
@@ -1229,184 +1029,12 @@ func prepareOpenAIImageConversation(
 	return strings.TrimSpace(result.ConduitToken), nil
 }
 
-type openAIUploadedImage struct {
-	FileID   string
-	FileName string
-	FileSize int
-	MimeType string
-	Width    int
-	Height   int
-}
-
-func uploadOpenAIImageFiles(ctx context.Context, client *req.Client, headers http.Header, uploads []OpenAIImagesUpload) ([]openAIUploadedImage, error) {
-	if len(uploads) == 0 {
-		return nil, nil
-	}
-	results := make([]openAIUploadedImage, 0, len(uploads))
-	for i := range uploads {
-		item := uploads[i]
-		fileName := coalesceOpenAIFileName(item.FileName, "image.png")
-		payload := map[string]any{
-			"file_name": fileName,
-			"file_size": len(item.Data),
-			"use_case":  "multimodal",
-		}
-		var created struct {
-			FileID    string `json:"file_id"`
-			UploadURL string `json:"upload_url"`
-		}
-		resp, err := client.R().
-			SetContext(ctx).
-			SetHeaders(headerToMap(headers)).
-			SetBodyJsonMarshal(payload).
-			SetSuccessResult(&created).
-			Post(openAIChatGPTFilesURL)
-		if err != nil {
-			return nil, err
-		}
-		if !resp.IsSuccessState() || strings.TrimSpace(created.FileID) == "" || strings.TrimSpace(created.UploadURL) == "" {
-			return nil, newOpenAIImageStatusError(resp, "create upload slot failed")
-		}
-
-		uploadHeaders := map[string]string{
-			"Content-Type":   coalesceOpenAIFileName(item.ContentType, "application/octet-stream"),
-			"Origin":         "https://chatgpt.com",
-			"x-ms-blob-type": "BlockBlob",
-			"x-ms-version":   "2020-04-08",
-			"User-Agent":     headers.Get("User-Agent"),
-		}
-		putResp, err := client.R().
-			SetContext(ctx).
-			SetHeaders(uploadHeaders).
-			SetBody(item.Data).
-			DisableAutoReadResponse().
-			Put(created.UploadURL)
-		if err != nil {
-			return nil, err
-		}
-		if putResp.Response != nil && putResp.Body != nil {
-			_, _ = io.Copy(io.Discard, putResp.Body)
-			_ = putResp.Body.Close()
-		}
-		if putResp.StatusCode < 200 || putResp.StatusCode >= 300 {
-			return nil, newOpenAIImageStatusError(putResp, "upload image bytes failed")
-		}
-
-		uploadedResp, err := client.R().
-			SetContext(ctx).
-			SetHeaders(headerToMap(headers)).
-			SetBodyJsonMarshal(map[string]any{}).
-			Post(fmt.Sprintf("%s/%s/uploaded", openAIChatGPTFilesURL, created.FileID))
-		if err != nil {
-			return nil, err
-		}
-		if !uploadedResp.IsSuccessState() {
-			return nil, newOpenAIImageStatusError(uploadedResp, "mark upload complete failed")
-		}
-
-		results = append(results, openAIUploadedImage{
-			FileID:   created.FileID,
-			FileName: fileName,
-			FileSize: len(item.Data),
-			MimeType: coalesceOpenAIFileName(item.ContentType, "application/octet-stream"),
-			Width:    item.Width,
-			Height:   item.Height,
-		})
-	}
-	return results, nil
-}
-
 func coalesceOpenAIFileName(value string, fallback string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return fallback
 	}
 	return value
-}
-
-func buildOpenAIImageConversationRequest(parsed *OpenAIImagesRequest, parentMessageID string, uploads []openAIUploadedImage) map[string]any {
-	parts := []any{coalesceOpenAIFileName(parsed.Prompt, "Generate an image.")}
-	attachments := make([]map[string]any, 0, len(uploads))
-	if len(uploads) > 0 {
-		parts = make([]any, 0, len(uploads)+1)
-		for _, upload := range uploads {
-			parts = append(parts, map[string]any{
-				"content_type":  "image_asset_pointer",
-				"asset_pointer": "file-service://" + upload.FileID,
-				"size_bytes":    upload.FileSize,
-				"width":         upload.Width,
-				"height":        upload.Height,
-			})
-			attachment := map[string]any{
-				"id":       upload.FileID,
-				"mimeType": upload.MimeType,
-				"name":     upload.FileName,
-				"size":     upload.FileSize,
-			}
-			if upload.Width > 0 {
-				attachment["width"] = upload.Width
-			}
-			if upload.Height > 0 {
-				attachment["height"] = upload.Height
-			}
-			attachments = append(attachments, attachment)
-		}
-		parts = append(parts, coalesceOpenAIFileName(parsed.Prompt, "Edit this image."))
-	}
-
-	contentType := "text"
-	if len(uploads) > 0 {
-		contentType = "multimodal_text"
-	}
-	metadata := map[string]any{
-		"developer_mode_connector_ids": []any{},
-		"selected_github_repos":        []any{},
-		"selected_all_github_repos":    false,
-		"system_hints":                 []string{"picture_v2"},
-		"serialization_metadata": map[string]any{
-			"custom_symbol_offsets": []any{},
-		},
-	}
-	message := map[string]any{
-		"id":     uuid.NewString(),
-		"author": map[string]any{"role": "user"},
-		"content": map[string]any{
-			"content_type": contentType,
-			"parts":        parts,
-		},
-		"metadata":    metadata,
-		"create_time": float64(time.Now().UnixMilli()) / 1000,
-	}
-	if len(attachments) > 0 {
-		metadata["attachments"] = attachments
-	}
-
-	return map[string]any{
-		"action":                               "next",
-		"client_prepare_state":                 "sent",
-		"parent_message_id":                    parentMessageID,
-		"model":                                "auto",
-		"timezone_offset_min":                  openAITimezoneOffsetMinutes(),
-		"timezone":                             openAITimezoneName(),
-		"conversation_mode":                    map[string]any{"kind": "primary_assistant"},
-		"enable_message_followups":             true,
-		"system_hints":                         []string{"picture_v2"},
-		"supports_buffering":                   true,
-		"supported_encodings":                  []string{"v1"},
-		"paragen_cot_summary_display_override": "allow",
-		"force_parallel_switch":                "auto",
-		"client_contextual_info": map[string]any{
-			"is_dark_mode":      false,
-			"time_since_loaded": 200,
-			"page_height":       900,
-			"page_width":        1440,
-			"pixel_ratio":       1,
-			"screen_height":     1080,
-			"screen_width":      1920,
-			"app_name":          "chatgpt.com",
-		},
-		"messages": []any{message},
-	}
 }
 
 type openAIImagePointerInfo struct {
@@ -1705,43 +1333,6 @@ func pollOpenAIImageConversation(ctx context.Context, client *req.Client, header
 	return nil, lastErr
 }
 
-func buildOpenAIImageResponse(
-	ctx context.Context,
-	client *req.Client,
-	headers http.Header,
-	conversationID string,
-	pointers []openAIImagePointerInfo,
-) ([]byte, int, error) {
-	type responseItem struct {
-		B64JSON       string `json:"b64_json"`
-		RevisedPrompt string `json:"revised_prompt,omitempty"`
-	}
-	items := make([]responseItem, 0, len(pointers))
-	for _, pointer := range pointers {
-		downloadURL, err := fetchOpenAIImageDownloadURL(ctx, client, headers, conversationID, pointer.Pointer)
-		if err != nil {
-			return nil, 0, err
-		}
-		data, err := downloadOpenAIImageBytes(ctx, client, headers, downloadURL)
-		if err != nil {
-			return nil, 0, err
-		}
-		items = append(items, responseItem{
-			B64JSON:       base64.StdEncoding.EncodeToString(data),
-			RevisedPrompt: pointer.Prompt,
-		})
-	}
-	payload := map[string]any{
-		"created": time.Now().Unix(),
-		"data":    items,
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, 0, err
-	}
-	return body, len(items), nil
-}
-
 func fetchOpenAIImageDownloadURL(
 	ctx context.Context,
 	client *req.Client,
@@ -1834,10 +1425,6 @@ func downloadOpenAIImageBytes(ctx context.Context, client *req.Client, headers h
 		return nil, newOpenAIImageStatusError(resp, "download image bytes failed")
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, openAIImageMaxDownloadBytes))
-}
-
-func handleOpenAIImageBackendError(resp *req.Response) error {
-	return newOpenAIImageStatusError(resp, "backend-api request failed")
 }
 
 type openAIImageStatusError struct {

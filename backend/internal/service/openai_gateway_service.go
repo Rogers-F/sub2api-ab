@@ -1663,24 +1663,6 @@ func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accoun
 	return s.concurrencyService.AcquireAccountSlot(ctx, accountID, maxConcurrency)
 }
 
-func (s *OpenAIGatewayService) isAccountInScope(account *Account, groupID *int64) bool {
-	if account == nil {
-		return false
-	}
-	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
-		return true
-	}
-	if groupID == nil {
-		return len(account.AccountGroups) == 0
-	}
-	for _, ag := range account.AccountGroups {
-		if ag.GroupID == *groupID {
-			return true
-		}
-	}
-	return false
-}
-
 func (s *OpenAIGatewayService) listFallbackChainAccounts(ctx context.Context, sourceAccountID int64) ([]*Account, error) {
 	if sourceAccountID <= 0 {
 		return nil, nil

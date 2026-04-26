@@ -1169,7 +1169,7 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: modelID})
 	s.sendEvent(c, TestEvent{Type: "content", Text: "Initializing ChatGPT backend...\n"})
 
-	// Build headers (replicating buildOpenAIBackendAPIHeaders logic)
+	// Build headers for the legacy ChatGPT backend API image test path.
 	headers := buildOpenAIBackendAPIHeadersForTest(ctx, account, authToken, s.accountRepo)
 
 	proxyURL := ""
@@ -1293,8 +1293,6 @@ func postOpenAIImageConversation(ctx context.Context, client *req.Client, header
 }
 
 // buildOpenAIBackendAPIHeadersForTest builds ChatGPT backend API headers for test purposes.
-// Replicates the logic from OpenAIGatewayService.buildOpenAIBackendAPIHeaders without
-// requiring the full gateway service dependency.
 func buildOpenAIBackendAPIHeadersForTest(ctx context.Context, account *Account, token string, repo AccountRepository) http.Header {
 	// Ensure device and session IDs exist
 	deviceID := account.GetOpenAIDeviceID()

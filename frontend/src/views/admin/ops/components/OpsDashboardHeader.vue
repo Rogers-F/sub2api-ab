@@ -279,6 +279,7 @@ const totalTokensLabel = computed(() => formatNumber(overview.value?.token_consu
 
 const realtimeTrafficSummary = ref<OpsRealtimeTrafficSummary | null>(null)
 const realtimeTrafficLoading = ref(false)
+const SECONDS_PER_MINUTE = 60
 
 function makeZeroRealtimeTrafficSummary(): OpsRealtimeTrafficSummary {
   const now = new Date().toISOString()
@@ -360,6 +361,20 @@ const displayRealTimeTps = computed(() => {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0
 })
 
+function formatRealtimeRate(value: number): string {
+  if (!Number.isFinite(value)) return '-'
+  if (Math.abs(value) >= 1000) return formatNumber(Math.round(value))
+  return value.toFixed(1)
+}
+
+function formatPerMinuteRate(value: unknown): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  return formatRealtimeRate(value * SECONDS_PER_MINUTE)
+}
+
+const realtimeRpmCurrentLabel = computed(() => formatRealtimeRate(displayRealTimeQps.value * SECONDS_PER_MINUTE))
+const realtimeTpmCurrentLabel = computed(() => formatRealtimeRate(displayRealTimeTps.value * SECONDS_PER_MINUTE))
+
 const realtimeQpsPeakLabel = computed(() => {
   const v = realtimeTrafficSummary.value?.qps?.peak
   return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(1) : '-'
@@ -376,6 +391,10 @@ const realtimeTpsAvgLabel = computed(() => {
   const v = realtimeTrafficSummary.value?.tps?.avg
   return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(1) : '-'
 })
+const realtimeRpmPeakLabel = computed(() => formatPerMinuteRate(realtimeTrafficSummary.value?.qps?.peak))
+const realtimeTpmPeakLabel = computed(() => formatPerMinuteRate(realtimeTrafficSummary.value?.tps?.peak))
+const realtimeRpmAvgLabel = computed(() => formatPerMinuteRate(realtimeTrafficSummary.value?.qps?.avg))
+const realtimeTpmAvgLabel = computed(() => formatPerMinuteRate(realtimeTrafficSummary.value?.tps?.avg))
 
 const qpsAvgLabel = computed(() => {
   const v = overview.value?.qps?.avg
@@ -1174,6 +1193,52 @@ function handleToolbarRefresh() {
                     <div class="flex items-baseline gap-1.5">
                       <span class="font-black text-gray-900 dark:text-white">{{ realtimeTpsAvgLabel }}</span>
                       <span class="text-xs">{{ t('admin.ops.tps') }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 3: Performance Metrics -->
+              <div class="rounded-xl border border-violet-100 bg-violet-50/70 p-3 dark:border-violet-900/40 dark:bg-violet-950/20">
+                <div :class="[props.fullscreen ? 'text-xs' : 'text-[10px]', 'font-bold uppercase text-violet-500 dark:text-violet-300']">
+                  {{ t('admin.ops.performanceMetrics') }}
+                </div>
+                <div class="mt-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <div :class="[props.fullscreen ? 'text-[11px]' : 'text-[9px]', 'font-bold uppercase text-gray-400']">{{ t('admin.ops.current') }}</div>
+                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                      <div class="flex items-baseline gap-1.5">
+                        <span :class="[props.fullscreen ? 'text-2xl' : 'text-lg', 'font-black text-gray-900 dark:text-white']">{{ realtimeRpmCurrentLabel }}</span>
+                        <span class="text-xs font-bold text-gray-500">RPM</span>
+                      </div>
+                      <div class="flex items-baseline gap-1.5">
+                        <span :class="[props.fullscreen ? 'text-2xl' : 'text-lg', 'font-black text-violet-600 dark:text-violet-300']">{{ realtimeTpmCurrentLabel }}</span>
+                        <span class="text-xs font-bold text-gray-500">TPM</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
+                    <div>
+                      <div :class="[props.fullscreen ? 'text-[11px]' : 'text-[9px]', 'font-bold uppercase text-gray-400']">{{ t('admin.ops.peak') }}</div>
+                      <div class="mt-1 flex items-baseline gap-1">
+                        <span class="font-black text-gray-900 dark:text-white">{{ realtimeRpmPeakLabel }}</span>
+                        <span>RPM</span>
+                      </div>
+                      <div class="flex items-baseline gap-1">
+                        <span class="font-black text-violet-600 dark:text-violet-300">{{ realtimeTpmPeakLabel }}</span>
+                        <span>TPM</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div :class="[props.fullscreen ? 'text-[11px]' : 'text-[9px]', 'font-bold uppercase text-gray-400']">{{ t('admin.ops.average') }}</div>
+                      <div class="mt-1 flex items-baseline gap-1">
+                        <span class="font-black text-gray-900 dark:text-white">{{ realtimeRpmAvgLabel }}</span>
+                        <span>RPM</span>
+                      </div>
+                      <div class="flex items-baseline gap-1">
+                        <span class="font-black text-violet-600 dark:text-violet-300">{{ realtimeTpmAvgLabel }}</span>
+                        <span>TPM</span>
+                      </div>
                     </div>
                   </div>
                 </div>

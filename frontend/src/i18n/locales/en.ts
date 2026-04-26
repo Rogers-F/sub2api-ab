@@ -3544,6 +3544,7 @@ export default {
       slaScope: 'SLA scope:',
       tokens: 'Tokens',
       tps: 'TPS:',
+      performanceMetrics: 'Performance Metrics',
       current: 'current',
       peak: 'peak',
       average: 'average',

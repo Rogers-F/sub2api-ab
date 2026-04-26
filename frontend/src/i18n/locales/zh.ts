@@ -3703,6 +3703,7 @@ export default {
       slaScope: 'SLA 范围：',
       tokens: 'Token数',
       tps: 'TPS',
+      performanceMetrics: '性能指标',
       current: '当前',
       peak: '峰值',
       average: '平均',

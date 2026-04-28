@@ -1290,7 +1290,11 @@ func (h *GatewayHandler) mapUpstreamError(statusCode int) (int, string, string) 
 		return http.StatusTooManyRequests, "rate_limit_error", "Upstream rate limit exceeded, please retry later"
 	case 529:
 		return http.StatusServiceUnavailable, "overloaded_error", "Upstream service overloaded, please retry later"
-	case 500, 502, 503, 504:
+	case 503:
+		return http.StatusServiceUnavailable, "upstream_error", "Upstream service temporarily unavailable"
+	case 504:
+		return http.StatusGatewayTimeout, "upstream_error", "Upstream request timed out, please retry later"
+	case 500, 502:
 		return http.StatusBadGateway, "upstream_error", "Upstream service temporarily unavailable"
 	default:
 		return http.StatusBadGateway, "upstream_error", "Upstream request failed"

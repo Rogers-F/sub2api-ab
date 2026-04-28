@@ -1643,12 +1643,21 @@ func sleepGeminiBackoff(attempt int) {
 var (
 	sensitiveQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:key|client_secret|access_token|refresh_token)=)[^&"\s]+`)
 	retryInRegex             = regexp.MustCompile(`Please retry in ([0-9.]+)s`)
+	upstreamErrorTypoFixer   = strings.NewReplacer(
+		"faliled", "failed",
+		"Faliled", "Failed",
+		"linkconnection", "link connection",
+		"Linkconnection", "Link connection",
+		"voapil error", "upstream error",
+		"Voapil error", "Upstream error",
+	)
 )
 
 func sanitizeUpstreamErrorMessage(msg string) string {
 	if msg == "" {
 		return msg
 	}
+	msg = upstreamErrorTypoFixer.Replace(msg)
 	return sensitiveQueryParamRegex.ReplaceAllString(msg, `$1***`)
 }
 

@@ -5307,6 +5307,144 @@ func parseClaudeUsageFromResponseBody(body []byte) *ClaudeUsage {
 	return usage
 }
 
+type upstreamSuccessErrorBody struct {
+	Message   string
+	Type      string
+	RequestID string
+}
+
+func detectUpstreamSuccessErrorBody(body []byte) (upstreamSuccessErrorBody, bool) {
+	var out upstreamSuccessErrorBody
+	if len(bytes.TrimSpace(body)) == 0 {
+		return out, false
+	}
+
+	parsed := gjson.ParseBytes(body)
+	if !parsed.IsObject() {
+		return out, false
+	}
+
+	errNode := parsed.Get("error")
+	if !errNode.Exists() {
+		return out, false
+	}
+
+	if errNode.IsObject() {
+		out.Message = strings.TrimSpace(errNode.Get("message").String())
+		out.Type = strings.TrimSpace(errNode.Get("type").String())
+		out.RequestID = strings.TrimSpace(errNode.Get("rid").String())
+		if out.RequestID == "" {
+			out.RequestID = strings.TrimSpace(errNode.Get("request_id").String())
+		}
+	} else {
+		out.Message = strings.TrimSpace(errNode.String())
+	}
+
+	if out.Message == "" {
+		out.Message = strings.TrimSpace(parsed.Get("message").String())
+	}
+	if out.RequestID == "" {
+		out.RequestID = strings.TrimSpace(parsed.Get("rid").String())
+	}
+	if out.RequestID == "" {
+		out.RequestID = strings.TrimSpace(parsed.Get("request_id").String())
+	}
+	if out.Message == "" && out.Type == "" {
+		return out, false
+	}
+	if out.Message == "" {
+		out.Message = "Upstream request failed"
+	}
+	out.Message = sanitizeUpstreamErrorMessage(out.Message)
+	return out, true
+}
+
+func statusForUpstreamSuccessErrorBody(errBody upstreamSuccessErrorBody) int {
+	msg := strings.ToLower(errBody.Message + " " + errBody.Type)
+	switch {
+	case strings.Contains(msg, "timeout"),
+		strings.Contains(msg, "timed out"),
+		strings.Contains(msg, "times out"),
+		strings.Contains(msg, "deadline exceeded"):
+		return http.StatusGatewayTimeout
+	case strings.Contains(msg, "rate limit"),
+		strings.Contains(msg, "too many requests"):
+		return http.StatusTooManyRequests
+	case strings.Contains(msg, "overload"),
+		strings.Contains(msg, "unavailable"):
+		return http.StatusServiceUnavailable
+	default:
+		return http.StatusBadGateway
+	}
+}
+
+func (s *GatewayService) handleUpstreamSuccessErrorBody(
+	ctx context.Context,
+	c *gin.Context,
+	account *Account,
+	resp *http.Response,
+	body []byte,
+	passthrough bool,
+) error {
+	errBody, ok := detectUpstreamSuccessErrorBody(body)
+	if !ok {
+		return nil
+	}
+
+	statusCode := statusForUpstreamSuccessErrorBody(errBody)
+	upstreamRequestID := strings.TrimSpace(resp.Header.Get("x-request-id"))
+	if upstreamRequestID == "" {
+		upstreamRequestID = errBody.RequestID
+	}
+
+	upstreamDetail := ""
+	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
+		maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
+		if maxBytes <= 0 {
+			maxBytes = 2048
+		}
+		upstreamDetail = truncateString(string(body), maxBytes)
+	}
+
+	accountID := int64(0)
+	accountName := ""
+	platform := ""
+	retryableOnSameAccount := false
+	if account != nil {
+		accountID = account.ID
+		accountName = account.Name
+		platform = account.Platform
+		retryableOnSameAccount = account.IsPoolMode() && isPoolModeRetryableStatus(statusCode)
+	}
+
+	logger.LegacyPrintf("service.gateway", "[Forward] Upstream returned HTTP 200 with error body: Account=%d(%s) SyntheticStatus=%d RequestID=%s Body=%s",
+		accountID, accountName, statusCode, upstreamRequestID, truncateString(string(body), 1000))
+
+	setOpsUpstreamError(c, statusCode, errBody.Message, upstreamDetail)
+	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		Platform:           platform,
+		AccountID:          accountID,
+		AccountName:        accountName,
+		UpstreamStatusCode: statusCode,
+		UpstreamRequestID:  upstreamRequestID,
+		Passthrough:        passthrough,
+		Kind:               "http_200_error_body",
+		Message:            errBody.Message,
+		Detail:             upstreamDetail,
+	})
+
+	if s.rateLimitService != nil && account != nil {
+		_ = s.rateLimitService.HandleUpstreamError(ctx, account, statusCode, resp.Header, body)
+	}
+
+	return &UpstreamFailoverError{
+		StatusCode:             statusCode,
+		ResponseBody:           body,
+		ResponseHeaders:        resp.Header,
+		RetryableOnSameAccount: retryableOnSameAccount,
+	}
+}
+
 func (s *GatewayService) handleNonStreamingResponseAnthropicAPIKeyPassthrough(
 	ctx context.Context,
 	resp *http.Response,
@@ -5319,6 +5457,10 @@ func (s *GatewayService) handleNonStreamingResponseAnthropicAPIKeyPassthrough(
 
 	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, anthropicTooLargeError)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := s.handleUpstreamSuccessErrorBody(ctx, c, account, resp, body, true); err != nil {
 		return nil, err
 	}
 
@@ -6676,7 +6818,15 @@ func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Res
 		statusCode = http.StatusServiceUnavailable
 		errType = "overloaded_error"
 		errMsg = "Upstream service overloaded, please retry later"
-	case 500, 502, 503, 504:
+	case 503:
+		statusCode = http.StatusServiceUnavailable
+		errType = "upstream_error"
+		errMsg = "Upstream service temporarily unavailable"
+	case 504:
+		statusCode = http.StatusGatewayTimeout
+		errType = "upstream_error"
+		errMsg = "Upstream request timed out, please retry later"
+	case 500, 502:
 		statusCode = http.StatusBadGateway
 		errType = "upstream_error"
 		errMsg = "Upstream service temporarily unavailable"
@@ -7400,6 +7550,10 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 
 	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, anthropicTooLargeError)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := s.handleUpstreamSuccessErrorBody(ctx, c, account, resp, body, false); err != nil {
 		return nil, err
 	}
 

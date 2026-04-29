@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -1494,23 +1493,6 @@ func newOpenAIImageStatusError(resp *req.Response, fallback string) error {
 	}
 }
 
-func newOpenAIImageSyntheticStatusError(statusCode int, message string, requestURL string) *openAIImageStatusError {
-	message = sanitizeUpstreamErrorMessage(strings.TrimSpace(message))
-	if message == "" {
-		message = "openai image backend request failed"
-	}
-	var body []byte
-	if payload, err := json.Marshal(map[string]string{"detail": message}); err == nil {
-		body = payload
-	}
-	return &openAIImageStatusError{
-		StatusCode:   statusCode,
-		Message:      message,
-		ResponseBody: body,
-		URL:          strings.TrimSpace(requestURL),
-	}
-}
-
 func isOpenAIImageTransientConversationNotFoundError(err error) bool {
 	statusErr, ok := err.(*openAIImageStatusError)
 	if !ok || statusErr == nil || statusErr.StatusCode != http.StatusNotFound {
@@ -1528,58 +1510,6 @@ func isOpenAIImageTransientConversationNotFoundError(err error) bool {
 		return true
 	}
 	return strings.Contains(bodyMsg, "conversation") && strings.Contains(bodyMsg, "not found")
-}
-
-func (s *OpenAIGatewayService) wrapOpenAIImageBackendError(
-	ctx context.Context,
-	c *gin.Context,
-	account *Account,
-	err error,
-) error {
-	var statusErr *openAIImageStatusError
-	if !errors.As(err, &statusErr) || statusErr == nil {
-		return err
-	}
-
-	upstreamMsg := sanitizeUpstreamErrorMessage(statusErr.Message)
-	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-		Platform:           account.Platform,
-		AccountID:          account.ID,
-		AccountName:        account.Name,
-		UpstreamStatusCode: statusErr.StatusCode,
-		UpstreamRequestID:  statusErr.RequestID,
-		UpstreamURL:        safeUpstreamURL(statusErr.URL),
-		Kind:               "request_error",
-		Message:            upstreamMsg,
-	})
-	setOpsUpstreamError(c, statusErr.StatusCode, upstreamMsg, "")
-
-	if s.shouldFailoverOpenAIUpstreamResponse(statusErr.StatusCode, upstreamMsg, statusErr.ResponseBody) {
-		if s.rateLimitService != nil {
-			s.rateLimitService.HandleUpstreamError(ctx, account, statusErr.StatusCode, statusErr.ResponseHeaders, statusErr.ResponseBody)
-		}
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-			Platform:           account.Platform,
-			AccountID:          account.ID,
-			AccountName:        account.Name,
-			UpstreamStatusCode: statusErr.StatusCode,
-			UpstreamRequestID:  statusErr.RequestID,
-			UpstreamURL:        safeUpstreamURL(statusErr.URL),
-			Kind:               "failover",
-			Message:            upstreamMsg,
-		})
-		retryableOnSameAccount := account.IsPoolMode() && isPoolModeRetryableStatus(statusErr.StatusCode)
-		if strings.Contains(strings.ToLower(statusErr.Message), "unsupported challenge") {
-			retryableOnSameAccount = false
-		}
-		return &UpstreamFailoverError{
-			StatusCode:             statusErr.StatusCode,
-			ResponseBody:           statusErr.ResponseBody,
-			RetryableOnSameAccount: retryableOnSameAccount,
-		}
-	}
-
-	return statusErr
 }
 
 func cloneHTTPHeader(src http.Header) http.Header {

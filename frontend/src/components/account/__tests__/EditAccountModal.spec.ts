@@ -178,4 +178,39 @@ describe('EditAccountModal', () => {
       'gpt-5.2': 'gpt-5.2'
     })
   })
+
+  it('saves the OpenAI Codex preset instructions switch into extra', async () => {
+    const account = buildAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await wrapper.setProps({ show: true })
+
+    await wrapper.get('[data-testid="openai-codex-preset-instructions-toggle"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.openai_codex_preset_instructions).toBe(true)
+  })
+
+  it('writes false when disabling an existing OpenAI Codex preset instructions switch', async () => {
+    const account = buildAccount()
+    account.extra = { openai_codex_preset_instructions: true }
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await wrapper.setProps({ show: true })
+
+    await wrapper.get('[data-testid="openai-codex-preset-instructions-toggle"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.openai_codex_preset_instructions).toBe(false)
+  })
 })

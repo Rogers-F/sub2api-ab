@@ -2532,6 +2532,9 @@ export default {
         apiKeyResponsesWebsocketsV2Desc:
           '仅对 OpenAI API Key 生效。开启后该账号才允许使用 OpenAI WebSocket Mode 协议。',
         responsesWebsocketsV2PassthroughHint: '当前已开启自动透传：仅影响 HTTP 透传链路，不影响 WS mode。',
+        codexPresetInstructions: '启用 Codex 预设 Instructions',
+        codexPresetInstructionsDesc:
+          '针对 codex-* 系列模型，当请求未显式携带 instructions 时自动注入内置的 Codex 系统提示，保证编码类任务的行为稳定。请求自带 instructions 时不会覆盖。',
         codexCLIOnly: '仅允许 Codex 官方客户端',
         codexCLIOnlyDesc: '仅对 OpenAI OAuth 生效。开启后仅允许 Codex 官方客户端家族访问；关闭后完全绕过并保持原逻辑。',
         modelRestrictionDisabledByPassthrough: '已开启自动透传：模型白名单/映射不会生效。',

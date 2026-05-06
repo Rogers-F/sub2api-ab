@@ -2384,6 +2384,9 @@ export default {
           'Only applies to OpenAI API Key. This account can use OpenAI WebSocket Mode only when enabled.',
         responsesWebsocketsV2PassthroughHint:
           'Automatic passthrough is currently enabled: it only affects HTTP passthrough and does not disable WS mode.',
+        codexPresetInstructions: 'Enable Codex preset Instructions',
+        codexPresetInstructionsDesc:
+          'For codex-* family models, automatically inject the built-in Codex system prompt when the request does not explicitly include instructions. Existing instructions are preserved.',
         codexCLIOnly: 'Codex official clients only',
         codexCLIOnlyDesc:
           'Only applies to OpenAI OAuth. When enabled, only Codex official client families are allowed; when disabled, the gateway bypasses this restriction and keeps existing behavior.',

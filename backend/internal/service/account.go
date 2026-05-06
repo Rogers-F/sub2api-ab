@@ -1020,6 +1020,24 @@ func (a *Account) IsOpenAIPassthroughEnabled() bool {
 	return false
 }
 
+// IsOpenAICodexPresetInstructionsEnabled 返回 OpenAI 账号是否启用 Codex 预设 instructions 注入。
+//
+// 新字段：accounts.extra.openai_codex_preset_instructions。
+// 兼容字段：accounts.extra.enable_codex_preset（与 pretty-api 的渠道开关命名一致）。
+// 字段缺失或类型不正确时，按 false（关闭）处理。
+func (a *Account) IsOpenAICodexPresetInstructionsEnabled() bool {
+	if a == nil || !a.IsOpenAI() || a.Extra == nil {
+		return false
+	}
+	if enabled, ok := a.Extra["openai_codex_preset_instructions"].(bool); ok {
+		return enabled
+	}
+	if enabled, ok := a.Extra["enable_codex_preset"].(bool); ok {
+		return enabled
+	}
+	return false
+}
+
 // IsOpenAIResponsesWebSocketV2Enabled 返回 OpenAI 账号是否开启 Responses WebSocket v2。
 //
 // 分类型新字段：

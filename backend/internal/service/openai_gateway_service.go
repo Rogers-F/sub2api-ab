@@ -2087,8 +2087,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		patchDisabled = true
 	}
 
-	// 非透传模式下，instructions 为空时注入默认指令。
-	if isInstructionsEmpty(reqBody) {
+	// 非透传模式下，instructions 为空时注入默认指令；Codex 预设开关开启时使用内置 Codex 系统提示。
+	if injectOpenAICodexPresetInstructionsIntoMap(reqBody, account, reqModel) {
+		bodyModified = true
+		markPatchSet("instructions", reqBody["instructions"])
+	} else if isInstructionsEmpty(reqBody) {
 		reqBody["instructions"] = "You are a helpful coding assistant."
 		bodyModified = true
 		markPatchSet("instructions", "You are a helpful coding assistant.")
@@ -2659,6 +2662,13 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 	reqStream bool,
 	startTime time.Time,
 ) (*OpenAIForwardResult, error) {
+	if injectedBody, injected, err := injectOpenAICodexPresetInstructionsIntoJSON(body, account, reqModel); err != nil {
+		return nil, err
+	} else if injected {
+		body = injectedBody
+		reqStream = gjson.GetBytes(body, "stream").Bool()
+	}
+
 	if account != nil && account.Type == AccountTypeOAuth {
 		if rejectReason := detectOpenAIPassthroughInstructionsRejectReason(reqModel, body); rejectReason != "" {
 			rejectMsg := "OpenAI codex passthrough requires a non-empty instructions field"

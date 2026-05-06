@@ -1169,6 +1169,37 @@
         </div>
       </div>
 
+      <!-- OpenAI Codex preset instructions switch -->
+      <div
+        v-if="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.codexPresetInstructions') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.codexPresetInstructionsDesc') }}
+            </p>
+          </div>
+          <button
+            type="button"
+            data-testid="openai-codex-preset-instructions-toggle"
+            @click="openaiCodexPresetInstructionsEnabled = !openaiCodexPresetInstructionsEnabled"
+            :class="[
+              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+              openaiCodexPresetInstructionsEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+            ]"
+          >
+            <span
+              :class="[
+                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                openaiCodexPresetInstructionsEnabled ? 'translate-x-5' : 'translate-x-0'
+              ]"
+            />
+          </button>
+        </div>
+      </div>
+
       <!-- Anthropic API Key 自动透传开关 -->
       <div
         v-if="account?.platform === 'anthropic' && account?.type === 'apikey'"
@@ -2073,6 +2104,7 @@ const customBaseUrl = ref('')
 const openaiPassthroughEnabled = ref(false)
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
+const openaiCodexPresetInstructionsEnabled = ref(false)
 const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
 const anthropicInvalidParamRectifierEnabled = ref(false)
@@ -2298,12 +2330,15 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   openaiPassthroughEnabled.value = false
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
+  openaiCodexPresetInstructionsEnabled.value = false
   codexCLIOnlyEnabled.value = false
   anthropicPassthroughEnabled.value = false
   anthropicInvalidParamRectifierEnabled.value = false
   webSearchEmulationMode.value = 'default'
   if (newAccount.platform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
     openaiPassthroughEnabled.value = extra?.openai_passthrough === true || extra?.openai_oauth_passthrough === true
+    openaiCodexPresetInstructionsEnabled.value =
+      extra?.openai_codex_preset_instructions === true || extra?.enable_codex_preset === true
     openaiOAuthResponsesWebSocketV2Mode.value = resolveOpenAIWSModeFromExtra(extra, {
       modeKey: 'openai_oauth_responses_websockets_v2_mode',
       enabledKey: 'openai_oauth_responses_websockets_v2_enabled',
@@ -3358,6 +3393,19 @@ const handleSubmit = async () => {
       } else {
         delete newExtra.openai_passthrough
         delete newExtra.openai_oauth_passthrough
+      }
+
+      const hadCodexPresetInstructionsEnabled =
+        currentExtra.openai_codex_preset_instructions === true || currentExtra.enable_codex_preset === true
+      if (openaiCodexPresetInstructionsEnabled.value) {
+        newExtra.openai_codex_preset_instructions = true
+        delete newExtra.enable_codex_preset
+      } else if (hadCodexPresetInstructionsEnabled) {
+        newExtra.openai_codex_preset_instructions = false
+        delete newExtra.enable_codex_preset
+      } else {
+        delete newExtra.openai_codex_preset_instructions
+        delete newExtra.enable_codex_preset
       }
 
       if (props.account.type === 'oauth') {

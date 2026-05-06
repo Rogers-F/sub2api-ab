@@ -391,7 +391,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_CodexPresetInjectsMissingInstruct
 		Concurrency: 1,
 		Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-acc"},
 		Extra: map[string]any{
-			"openai_passthrough":                true,
+			"openai_passthrough":               true,
 			"openai_codex_preset_instructions": true,
 		},
 		Status:         StatusActive,

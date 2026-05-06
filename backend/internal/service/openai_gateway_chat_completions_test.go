@@ -59,7 +59,7 @@ func TestOpenAIGatewayService_ChatCompletionsCodexPresetInjectsMissingInstructio
 
 	instructions := gjson.GetBytes(upstream.lastBody, "instructions").String()
 	require.Contains(t, instructions, "You are Codex")
-	require.Contains(t, instructions, "Codex CLI")
+	require.Contains(t, instructions, "You and the user share the same workspace")
 	require.Equal(t, "gpt-5.5", gjson.GetBytes(upstream.lastBody, "model").String())
 }
 

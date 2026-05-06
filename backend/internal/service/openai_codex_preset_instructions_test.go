@@ -26,3 +26,19 @@ func TestIsOpenAICodexInstructionsModelMatchesPrettyAPIFamily(t *testing.T) {
 		require.Equal(t, want, isOpenAICodexInstructionsModel(model), model)
 	}
 }
+
+func TestOpenAICodexPresetInstructionsMatchesPrettyAPIPromptForGPT55(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Extra:    map[string]any{"openai_codex_preset_instructions": true},
+	}
+	reqBody := map[string]any{}
+
+	require.True(t, injectOpenAICodexPresetInstructionsIntoMap(reqBody, account, "gpt-5.5"))
+
+	instructions, ok := reqBody["instructions"].(string)
+	require.True(t, ok)
+	require.Contains(t, instructions, "You are Codex, a coding agent based on GPT-5")
+	require.Contains(t, instructions, "You and the user share the same workspace")
+}

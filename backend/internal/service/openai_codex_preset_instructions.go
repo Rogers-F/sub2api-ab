@@ -30,15 +30,15 @@ func isOpenAICodexInstructionsModel(model string) bool {
 		strings.HasPrefix(normalized, "boomslang")
 }
 
-func openAICodexPresetInstructions() string {
-	return strings.TrimSpace(openai.DefaultInstructions)
-}
-
 func injectOpenAICodexPresetInstructionsIntoMap(reqBody map[string]any, account *Account, model string) bool {
 	if !shouldInjectOpenAICodexPresetInstructions(account, model) || !isInstructionsEmpty(reqBody) {
 		return false
 	}
-	reqBody["instructions"] = openAICodexPresetInstructions()
+	instructions, ok := openAICodexPresetInstructionsForModel(model)
+	if !ok {
+		return false
+	}
+	reqBody["instructions"] = instructions
 	return true
 }
 
@@ -57,9 +57,21 @@ func injectOpenAICodexPresetInstructionsIntoJSON(body []byte, account *Account, 
 		}
 	}
 
-	next, err := sjson.SetBytes(body, "instructions", openAICodexPresetInstructions())
+	instructionsText, ok := openAICodexPresetInstructionsForModel(model)
+	if !ok {
+		return body, false, nil
+	}
+	next, err := sjson.SetBytes(body, "instructions", instructionsText)
 	if err != nil {
 		return body, false, fmt.Errorf("inject codex preset instructions: %w", err)
 	}
 	return next, true, nil
+}
+
+func openAICodexPresetInstructionsForModel(model string) (string, bool) {
+	instructions, ok := openai.CodexPresetInstructionsForModel(model)
+	if !ok {
+		return "", false
+	}
+	return strings.TrimSpace(instructions), true
 }

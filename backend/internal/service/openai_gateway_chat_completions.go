@@ -134,6 +134,11 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 			return nil, fmt.Errorf("marshal responses request: %w", err)
 		}
 	}
+	if injectedBody, injected, err := injectOpenAICodexPresetInstructionsIntoJSON(responsesBody, account, upstreamModel); err != nil {
+		return nil, err
+	} else if injected {
+		responsesBody = injectedBody
+	}
 
 	logFields := []zap.Field{
 		zap.Int64("account_id", account.ID),

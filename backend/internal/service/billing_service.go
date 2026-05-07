@@ -272,9 +272,9 @@ func (s *BillingService) initFallbackPricing() {
 	}
 	s.fallbackPrices["gpt-image-2"] = &ModelPricing{
 		InputPricePerToken:       5e-6,
-		OutputPricePerToken:      1e-5,
+		OutputPricePerToken:      30e-6,
 		CacheReadPricePerToken:   1.25e-6,
-		ImageOutputPricePerToken: 3.2e-5,
+		ImageOutputPricePerToken: 30e-6,
 		SupportsCacheBreakdown:   false,
 	}
 }

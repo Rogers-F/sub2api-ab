@@ -180,6 +180,36 @@ func TestGetModelPricing_OpenAIGPT55ProFallback(t *testing.T) {
 	require.InDelta(t, 1.5, pricing.LongContextOutputMultiplier, 1e-12)
 }
 
+func TestGetModelPricing_OpenAIGPTImage2Fallback(t *testing.T) {
+	svc := newTestBillingService()
+
+	pricing, err := svc.GetModelPricing("gpt-image-2")
+	require.NoError(t, err)
+	require.NotNil(t, pricing)
+	require.InDelta(t, 5e-6, pricing.InputPricePerToken, 1e-12)
+	require.InDelta(t, 30e-6, pricing.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 1.25e-6, pricing.CacheReadPricePerToken, 1e-12)
+	require.InDelta(t, 30e-6, pricing.ImageOutputPricePerToken, 1e-12)
+}
+
+func TestCalculateCost_OpenAIGPTImage2ImageOutputTokens(t *testing.T) {
+	svc := newTestBillingService()
+
+	cost, err := svc.CalculateCost("gpt-image-2", UsageTokens{
+		InputTokens:       1000,
+		OutputTokens:      600,
+		ImageOutputTokens: 600,
+		CacheReadTokens:   200,
+	}, 1.0)
+	require.NoError(t, err)
+
+	require.InDelta(t, 1000*5e-6, cost.InputCost, 1e-12)
+	require.InDelta(t, 0, cost.OutputCost, 1e-12)
+	require.InDelta(t, 600*30e-6, cost.ImageOutputCost, 1e-12)
+	require.InDelta(t, 200*1.25e-6, cost.CacheReadCost, 1e-12)
+	require.InDelta(t, cost.InputCost+cost.ImageOutputCost+cost.CacheReadCost, cost.TotalCost, 1e-12)
+}
+
 func TestCalculateCost_OpenAIGPT54LongContextAppliesWholeSessionMultipliers(t *testing.T) {
 	svc := newTestBillingService()
 

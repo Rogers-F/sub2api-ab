@@ -123,7 +123,12 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	} else {
 		// Normal path: convert Chat Completions → Responses.
 		// ChatCompletionsToResponses always sets Stream=true (upstream always streams).
-		responsesReq, err = apicompat.ChatCompletionsToResponses(&chatReq)
+		convertReq := &chatReq
+		if shouldUseOpenAICodexPresetChatCompletionsCompat(account, upstreamModel) {
+			codexReq := normalizeOpenAICodexPresetChatCompletionsRequest(chatReq)
+			convertReq = &codexReq
+		}
+		responsesReq, err = apicompat.ChatCompletionsToResponses(convertReq)
 		if err != nil {
 			return nil, fmt.Errorf("convert chat completions to responses: %w", err)
 		}
@@ -317,6 +322,34 @@ func normalizedOpenAIServiceTierValue(raw string) string {
 		return ""
 	}
 	return *normalized
+}
+
+func shouldUseOpenAICodexPresetChatCompletionsCompat(account *Account, model string) bool {
+	return shouldInjectOpenAICodexPresetInstructions(account, model)
+}
+
+func normalizeOpenAICodexPresetChatCompletionsRequest(req apicompat.ChatCompletionsRequest) apicompat.ChatCompletionsRequest {
+	req.Messages = filterOpenAICodexPresetChatMessages(req.Messages)
+	req.MaxTokens = nil
+	req.MaxCompletionTokens = nil
+	return req
+}
+
+func filterOpenAICodexPresetChatMessages(messages []apicompat.ChatMessage) []apicompat.ChatMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+
+	filtered := make([]apicompat.ChatMessage, 0, len(messages))
+	for _, msg := range messages {
+		switch strings.ToLower(strings.TrimSpace(msg.Role)) {
+		case "system", "developer":
+			continue
+		default:
+			filtered = append(filtered, msg)
+		}
+	}
+	return filtered
 }
 
 // handleChatCompletionsErrorResponse reads an upstream error and returns it in

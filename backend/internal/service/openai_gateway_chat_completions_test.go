@@ -63,6 +63,59 @@ func TestOpenAIGatewayService_ChatCompletionsCodexPresetInjectsMissingInstructio
 	require.Equal(t, "gpt-5.5", gjson.GetBytes(upstream.lastBody, "model").String())
 }
 
+func TestOpenAIGatewayService_ChatCompletionsCodexPresetMatchesPrettyConversion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(nil))
+
+	upstreamSSE := strings.Join([]string{
+		`data: {"type":"response.completed","response":{"id":"resp_test","object":"response","model":"gpt-5.5","status":"completed","output":[{"type":"message","id":"msg_test","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`,
+		"",
+		"data: [DONE]",
+		"",
+	}, "\n")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamSSE)),
+	}}
+	svc := &OpenAIGatewayService{
+		cfg:          &config.Config{},
+		httpUpstream: upstream,
+	}
+	account := &Account{
+		ID:             123,
+		Name:           "openai-api-key",
+		Platform:       PlatformOpenAI,
+		Type:           AccountTypeAPIKey,
+		Concurrency:    1,
+		Credentials:    map[string]any{"api_key": "upstream-key"},
+		Extra:          map[string]any{"openai_codex_preset_instructions": true},
+		Status:         StatusActive,
+		Schedulable:    true,
+		RateMultiplier: f64p(1),
+	}
+
+	body := []byte(`{"model":"gpt-5.5","messages":[{"role":"system","content":"system should be filtered"},{"role":"developer","content":"developer should be filtered"},{"role":"user","content":"What is 2+2?"}],"stream":false,"max_tokens":1}`)
+
+	result, err := svc.ForwardAsChatCompletions(context.Background(), c, account, body, "", "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	instructions := gjson.GetBytes(upstream.lastBody, "instructions").String()
+	require.Contains(t, instructions, "You are Codex")
+	require.False(t, gjson.GetBytes(upstream.lastBody, "max_output_tokens").Exists())
+	require.NotContains(t, string(upstream.lastBody), "system should be filtered")
+	require.NotContains(t, string(upstream.lastBody), "developer should be filtered")
+
+	input := gjson.GetBytes(upstream.lastBody, "input").Array()
+	require.Len(t, input, 1)
+	require.Equal(t, "user", input[0].Get("role").String())
+	require.Equal(t, "What is 2+2?", input[0].Get("content").String())
+}
+
 func TestNormalizeResponsesRequestServiceTier(t *testing.T) {
 	t.Parallel()
 

@@ -175,6 +175,7 @@ func TestAccountTestService_OpenAIImageModelUsesImagesAPI(t *testing.T) {
 	body, err := io.ReadAll(upstream.requests[0].Body)
 	require.NoError(t, err)
 	require.Contains(t, string(body), `"prompt":"draw a tiny orange cat astronaut"`)
+	require.NotContains(t, string(body), "response_format")
 	require.Contains(t, recorder.Body.String(), `"type":"image"`)
 	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
 }

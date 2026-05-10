@@ -1382,6 +1382,7 @@ export default {
       columns: {
         user: 'User',
         email: 'Email',
+        id: 'ID',
         username: 'Username',
         notes: 'Notes',
         role: 'Role',
@@ -1391,6 +1392,8 @@ export default {
         usage: 'Usage',
         concurrency: 'Concurrency',
         status: 'Status',
+        lastActive: 'Last Active',
+        lastUsed: 'Last Used',
         created: 'Created',
         actions: 'Actions'
       },
@@ -4420,6 +4423,61 @@ export default {
         userinfoIdPathPlaceholder: 'for example data.id',
         userinfoUsernamePath: 'UserInfo Username Path',
         userinfoUsernamePathPlaceholder: 'for example data.username'
+      },
+      wechatConnect: {
+        title: 'WeChat Login',
+        description: 'Configure third-party login for WeChat Open Platform, Official Account, or Mini Program.',
+        enabledLabel: 'Enable WeChat Login',
+        enabledHint: 'When enabled, WeChat third-party login callbacks and authorization settings are available.',
+        appIdLabel: 'AppID',
+        appIdPlaceholder: 'WeChat Open Platform AppID',
+        appSecretLabel: 'AppSecret',
+        appSecretConfiguredPlaceholder: 'Secret configured. Leave empty to keep the current value.',
+        appSecretPlaceholder: 'WeChat Open Platform AppSecret',
+        appSecretConfiguredHint: 'Secret configured. Leave empty to keep the current value.',
+        appSecretHint: 'Entering a value will replace the current WeChat secret.',
+        modeLabel: 'Mode',
+        openModeLabel: 'Use Open Platform outside WeChat',
+        openModeHint: 'When the browser is not inside WeChat, use Open Platform QR authorization.',
+        mpModeLabel: 'Use Official Account inside WeChat',
+        mpModeHint: 'When the browser is inside WeChat, use Official Account authorization.',
+        redirectUrlLabel: 'Redirect URL',
+        redirectUrlPlaceholder: 'https://your-site.com/api/v1/auth/oauth/wechat/callback',
+        generateAndCopy: 'Generate and copy from current site',
+        redirectUrlSetAndCopied: 'Redirect URL generated from the current site and copied to clipboard',
+        frontendRedirectUrlLabel: 'Frontend Redirect URL',
+        frontendRedirectUrlPlaceholder: '/auth/wechat/callback',
+        frontendRedirectUrlHint: 'Usually the frontend route callback URL; keep it consistent with backend settings.'
+      },
+      authSourceDefaults: {
+        title: 'Auth Source Defaults',
+        description: 'Configure default balance, concurrency, subscriptions, and grant policy by registration source.',
+        requireEmailLabel: 'Require email for third-party signup',
+        requireEmailHint: 'When enabled, Linux DO, OIDC, and WeChat signups without email must add an email first.',
+        enabledHint: 'These defaults are granted to new users registered through this source. First-bind grants only apply when an existing account binds this source.',
+        sources: {
+          email: {
+            title: 'Email Signup',
+            description: 'Default quota for new users registered with email and password.'
+          },
+          linuxdo: {
+            title: 'Linux DO Login',
+            description: 'Default quota for new users registered through Linux DO.'
+          },
+          oidc: {
+            title: 'OIDC Login',
+            description: 'Default quota for new users registered through OIDC.'
+          },
+          wechat: {
+            title: 'WeChat Login',
+            description: 'Default quota for new users registered through WeChat.'
+          }
+        },
+        grantOnFirstBindLabel: 'Grant on first bind',
+        grantOnFirstBindHint: 'Grant default benefits when an existing account binds this source for the first time.',
+        defaultSubscriptionsLabel: 'Default subscriptions',
+        defaultSubscriptionsHint: 'Only applies to the current auth source. No source-specific subscription is added when empty.',
+        noSourceSubscriptions: 'No source-specific default subscriptions configured.'
       },
       defaults: {
         title: 'Default User Settings',

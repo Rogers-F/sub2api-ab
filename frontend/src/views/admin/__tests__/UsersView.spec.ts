@@ -4,6 +4,15 @@ import { flushPromises, mount } from '@vue/test-utils'
 import type { AdminUser } from '@/types'
 import UsersView from '../UsersView.vue'
 
+vi.mock('@/i18n', () => ({
+  i18n: {
+    global: {
+      t: (key: string) => key
+    }
+  },
+  getLocale: () => 'en'
+}))
+
 const {
   listUsers,
   getAllGroups,
@@ -55,6 +64,23 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+const createLocalStorageMock = () => {
+  const store = new Map<string, string>()
+
+  return {
+    getItem: vi.fn((key: string) => store.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store.set(key, value)
+    }),
+    removeItem: vi.fn((key: string) => {
+      store.delete(key)
+    }),
+    clear: vi.fn(() => {
+      store.clear()
+    })
+  }
+}
+
 const createAdminUser = (): AdminUser => ({
   id: 42,
   username: 'scoped-user',
@@ -91,6 +117,11 @@ const DataTableStub = {
 
 describe('admin UsersView', () => {
   beforeEach(() => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createLocalStorageMock(),
+      configurable: true,
+      writable: true
+    })
     localStorage.clear()
 
     listUsers.mockReset()

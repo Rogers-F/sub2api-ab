@@ -1408,6 +1408,7 @@ export default {
       columns: {
         user: '用户',
         email: '邮箱',
+        id: 'ID',
         username: '用户名',
         notes: '备注',
         role: '角色',
@@ -1417,6 +1418,8 @@ export default {
         usage: '用量',
         concurrency: '并发数',
         status: '状态',
+        lastActive: '最近活跃',
+        lastUsed: '最近使用',
         created: '创建时间',
         actions: '操作'
       },
@@ -4585,6 +4588,61 @@ export default {
         userinfoIdPathPlaceholder: '例如 data.id',
         userinfoUsernamePath: 'UserInfo 用户名字段路径',
         userinfoUsernamePathPlaceholder: '例如 data.username'
+      },
+      wechatConnect: {
+        title: '微信登录',
+        description: '用于微信开放平台或公众号/小程序的第三方登录配置。',
+        enabledLabel: '启用微信登录',
+        enabledHint: '开启后可使用微信第三方登录回调与授权配置。',
+        appIdLabel: 'AppID',
+        appIdPlaceholder: '微信开放平台 AppID',
+        appSecretLabel: 'AppSecret',
+        appSecretConfiguredPlaceholder: '密钥已配置，留空以保留当前值。',
+        appSecretPlaceholder: '微信开放平台 AppSecret',
+        appSecretConfiguredHint: '密钥已配置，留空以保留当前值。',
+        appSecretHint: '填写后会覆盖当前微信密钥。',
+        modeLabel: '模式',
+        openModeLabel: '非微信环境使用开放平台',
+        openModeHint: '浏览器不在微信内时，自动走开放平台扫码授权。',
+        mpModeLabel: '微信环境使用公众号',
+        mpModeHint: '浏览器在微信内时，自动走公众号授权。',
+        redirectUrlLabel: '回调地址',
+        redirectUrlPlaceholder: 'https://your-site.com/api/v1/auth/oauth/wechat/callback',
+        generateAndCopy: '使用当前站点生成并复制',
+        redirectUrlSetAndCopied: '已使用当前站点生成回调地址并复制到剪贴板',
+        frontendRedirectUrlLabel: '前端回调地址',
+        frontendRedirectUrlPlaceholder: '/auth/wechat/callback',
+        frontendRedirectUrlHint: '通常用于前端路由回调地址，需与后端配置保持一致。'
+      },
+      authSourceDefaults: {
+        title: '认证来源默认值',
+        description: '按注册来源配置新用户默认余额、并发、订阅与授权策略。',
+        requireEmailLabel: '第三方注册强制补充邮箱',
+        requireEmailHint: '启用后，Linux DO、OIDC、微信注册缺少邮箱时必须先补充邮箱地址。',
+        enabledHint: '以下默认值会在该来源注册新用户时发放；首次绑定时授权仅作用于已有账号绑定该来源。',
+        sources: {
+          email: {
+            title: '邮箱注册',
+            description: '适用于邮箱密码注册的新用户默认配额。'
+          },
+          linuxdo: {
+            title: 'Linux DO 登录',
+            description: '适用于 Linux DO 第三方注册的新用户默认配额。'
+          },
+          oidc: {
+            title: 'OIDC 登录',
+            description: '适用于 OIDC 第三方注册的新用户默认配额。'
+          },
+          wechat: {
+            title: '微信登录',
+            description: '适用于微信第三方注册的新用户默认配额。'
+          }
+        },
+        grantOnFirstBindLabel: '首次绑定时授权',
+        grantOnFirstBindHint: '已有账号首次绑定该来源时发放默认权益。',
+        defaultSubscriptionsLabel: '默认订阅',
+        defaultSubscriptionsHint: '仅对当前认证来源生效，未配置时不追加来源专属订阅。',
+        noSourceSubscriptions: '当前来源未配置专属默认订阅。'
       },
       defaults: {
         title: '用户默认设置',

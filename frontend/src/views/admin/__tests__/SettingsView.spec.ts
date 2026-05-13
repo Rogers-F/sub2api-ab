@@ -24,27 +24,35 @@ const {
   adminSettingsFetch,
   showError,
   showSuccess,
-} = vi.hoisted(() => ({
-  getSettings: vi.fn(),
-  updateSettings: vi.fn(),
-  getWebSearchEmulationConfig: vi.fn(),
-  updateWebSearchEmulationConfig: vi.fn(),
-  getAdminApiKey: vi.fn(),
-  getOverloadCooldownSettings: vi.fn(),
-  getStreamTimeoutSettings: vi.fn(),
-  getRectifierSettings: vi.fn(),
-  getBetaPolicySettings: vi.fn(),
-  getGroups: vi.fn(),
-  listProxies: vi.fn(),
-  getProviders: vi.fn(),
-  updateProvider: vi.fn(),
-  createProvider: vi.fn(),
-  deleteProvider: vi.fn(),
-  fetchPublicSettings: vi.fn(),
-  adminSettingsFetch: vi.fn(),
-  showError: vi.fn(),
-  showSuccess: vi.fn(),
-}));
+} = vi.hoisted(() => {
+  vi.stubGlobal("localStorage", {
+    getItem: vi.fn(() => null),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+  });
+
+  return {
+    getSettings: vi.fn(),
+    updateSettings: vi.fn(),
+    getWebSearchEmulationConfig: vi.fn(),
+    updateWebSearchEmulationConfig: vi.fn(),
+    getAdminApiKey: vi.fn(),
+    getOverloadCooldownSettings: vi.fn(),
+    getStreamTimeoutSettings: vi.fn(),
+    getRectifierSettings: vi.fn(),
+    getBetaPolicySettings: vi.fn(),
+    getGroups: vi.fn(),
+    listProxies: vi.fn(),
+    getProviders: vi.fn(),
+    updateProvider: vi.fn(),
+    createProvider: vi.fn(),
+    deleteProvider: vi.fn(),
+    fetchPublicSettings: vi.fn(),
+    adminSettingsFetch: vi.fn(),
+    showError: vi.fn(),
+    showSuccess: vi.fn(),
+  };
+});
 
 const localeRef = vi.hoisted(() => ({ value: "zh-CN" }));
 

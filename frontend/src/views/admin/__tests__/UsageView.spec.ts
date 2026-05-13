@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import UsageView from '../UsageView.vue'
 
-const { list, getStats, getSnapshotV2, getById } = vi.hoisted(() => {
+const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() => {
   vi.stubGlobal('localStorage', {
     getItem: vi.fn(() => null),
     setItem: vi.fn(),
@@ -14,6 +14,7 @@ const { list, getStats, getSnapshotV2, getById } = vi.hoisted(() => {
     list: vi.fn(),
     getStats: vi.fn(),
     getSnapshotV2: vi.fn(),
+    getModelStats: vi.fn(),
     getById: vi.fn(),
   }
 })
@@ -40,6 +41,7 @@ vi.mock('@/api/admin', () => ({
     },
     dashboard: {
       getSnapshotV2,
+      getModelStats,
     },
     users: {
       getById,
@@ -83,7 +85,10 @@ vi.mock('vue-router', () => ({
 }))
 
 const AppLayoutStub = { template: '<div><slot /></div>' }
-const UsageFiltersStub = { template: '<div><slot name="after-reset" /></div>' }
+const UsageFiltersStub = {
+  emits: ['reset'],
+  template: '<div><button data-test="reset-filters" @click="$emit(\'reset\')">reset</button><slot name="after-reset" /></div>'
+}
 const ModelDistributionChartStub = {
   props: ['metric'],
   emits: ['update:metric'],
@@ -105,12 +110,13 @@ const GroupDistributionChartStub = {
   `,
 }
 
-describe('admin UsageView distribution metric toggles', () => {
+describe('admin UsageView date range defaults and distribution metric toggles', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     list.mockReset()
     getStats.mockReset()
     getSnapshotV2.mockReset()
+    getModelStats.mockReset()
     getById.mockReset()
 
     list.mockResolvedValue({
@@ -133,13 +139,16 @@ describe('admin UsageView distribution metric toggles', () => {
       models: [],
       groups: [],
     })
+    getModelStats.mockResolvedValue({
+      models: [],
+    })
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('keeps model and group metric toggles independent without refetching chart data', async () => {
+  it('uses today as the default range and keeps model and group metric toggles independent without refetching chart data', async () => {
     const wrapper = mount(UsageView, {
       global: {
         stubs: {
@@ -166,10 +175,10 @@ describe('admin UsageView distribution metric toggles', () => {
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
     const now = new Date()
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const today = formatLocalDate(now)
     expect(getSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({
-      start_date: formatLocalDate(yesterday),
-      end_date: formatLocalDate(now),
+      start_date: today,
+      end_date: today,
       granularity: 'hour'
     }))
 
@@ -192,5 +201,55 @@ describe('admin UsageView distribution metric toggles', () => {
     expect(modelChart.find('.metric').text()).toBe('actual_cost')
     expect(groupChart.find('.metric').text()).toBe('actual_cost')
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
+  })
+
+  it('resets the admin usage range back to today', async () => {
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          UsageStatsCards: true,
+          UsageFilters: UsageFiltersStub,
+          UsageTable: true,
+          UsageExportProgress: true,
+          UsageCleanupDialog: true,
+          UserBalanceHistoryModal: true,
+          Pagination: true,
+          Select: true,
+          DateRangePicker: {
+            emits: ['update:startDate', 'update:endDate', 'change'],
+            template: `
+              <button
+                data-test="custom-range"
+                @click="$emit('update:startDate', '2026-05-01'); $emit('update:endDate', '2026-05-02'); $emit('change', { startDate: '2026-05-01', endDate: '2026-05-02', preset: null })"
+              >
+                custom
+              </button>
+            `
+          },
+          Icon: true,
+          TokenUsageTrend: true,
+          ModelDistributionChart: ModelDistributionChartStub,
+          GroupDistributionChart: GroupDistributionChartStub,
+        },
+      },
+    })
+
+    vi.advanceTimersByTime(120)
+    await flushPromises()
+
+    await wrapper.get('[data-test="custom-range"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-test="reset-filters"]').trigger('click')
+    await flushPromises()
+
+    const today = formatLocalDate(new Date())
+    expect(list).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        start_date: today,
+        end_date: today,
+      }),
+      expect.any(Object),
+    )
   })
 })

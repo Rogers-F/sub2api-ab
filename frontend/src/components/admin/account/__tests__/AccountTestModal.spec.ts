@@ -75,7 +75,15 @@ function mountModal(account?: Record<string, unknown>) {
     global: {
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-        Select: { template: '<div class="select-stub"></div>' },
+        Select: {
+          props: ['modelValue', 'options'],
+          template: `
+            <div class="select-stub">
+              <span data-test="selected-model">{{ modelValue }}</span>
+              <span v-for="option in options" :key="option.id" class="select-option">{{ option.id }}</span>
+            </div>
+          `
+        },
         TextArea: {
           props: ['modelValue'],
           emits: ['update:modelValue'],
@@ -144,6 +152,27 @@ describe('AccountTestModal', () => {
     const preview = wrapper.find('img[alt="test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('prioritizes all curated Gemini preview models in the test selector', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'gemini-2.0-flash', display_name: 'Gemini 2.0 Flash' },
+      { id: 'gemini-3.1-pro-preview', display_name: 'Gemini 3.1 Pro Preview' },
+      { id: 'gemini-3-pro-preview', display_name: 'Gemini 3 Pro Preview' },
+      { id: 'gemini-3-flash-preview', display_name: 'Gemini 3 Flash Preview' }
+    ])
+
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const optionIds = wrapper.findAll('.select-option').map((option) => option.text())
+    expect(optionIds).toEqual([
+      'gemini-3-flash-preview',
+      'gemini-3-pro-preview',
+      'gemini-3.1-pro-preview',
+      'gemini-2.0-flash'
+    ])
   })
 
   it('openai api key 图片模型测试会携带提示词', async () => {

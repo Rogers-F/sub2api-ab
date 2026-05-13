@@ -47,6 +47,15 @@ describe('useModelWhitelist', () => {
     expect(models.indexOf('gemini-2.5-flash-image')).toBeLessThan(models.indexOf('gemini-2.5-flash'))
   })
 
+  it('gemini 模型列表包含当前可计费的 Gemini 2.5/3 预览模型', () => {
+    const models = getModelsByPlatform('gemini')
+
+    expect(models).toContain('gemini-2.5-flash')
+    expect(models).toContain('gemini-2.5-pro')
+    expect(models).toContain('gemini-3-flash-preview')
+    expect(models).toContain('gemini-3.1-pro-preview')
+  })
+
   it('antigravity 模型列表会把新的 Gemini 图片模型排在前面', () => {
     const models = getModelsByPlatform('antigravity')
 

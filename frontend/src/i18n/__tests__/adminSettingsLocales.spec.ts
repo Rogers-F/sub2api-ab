@@ -42,6 +42,11 @@ const authSourceDefaultsKeys = [
   'noSourceSubscriptions'
 ] as const
 
+const openaiExperimentalSchedulerKeys = [
+  'title',
+  'description'
+] as const
+
 const authSources = ['email', 'linuxdo', 'oidc', 'wechat'] as const
 
 describe('admin settings locale keys', () => {
@@ -63,6 +68,13 @@ describe('admin settings locale keys', () => {
       expect(zh.admin.settings.authSourceDefaults.sources[source].description).toBeTruthy()
       expect(en.admin.settings.authSourceDefaults.sources[source].title).toBeTruthy()
       expect(en.admin.settings.authSourceDefaults.sources[source].description).toBeTruthy()
+    }
+  })
+
+  it('contains all OpenAI experimental scheduler labels in zh and en', () => {
+    for (const key of openaiExperimentalSchedulerKeys) {
+      expect((zh.admin.settings as Record<string, any>).openaiExperimentalScheduler?.[key]).toBeTruthy()
+      expect((en.admin.settings as Record<string, any>).openaiExperimentalScheduler?.[key]).toBeTruthy()
     }
   })
 })

@@ -4513,6 +4513,10 @@ export default {
         allowUngroupedKey: 'Allow Ungrouped Key Scheduling',
         allowUngroupedKeyHint: 'When disabled, API Keys not assigned to any group cannot make requests (403 Forbidden). Keep disabled to ensure all Keys belong to a specific group.'
       },
+      openaiExperimentalScheduler: {
+        title: 'OpenAI Experimental Scheduling Policy',
+        description: 'Disabled by default. When enabled, only this gateway uses the experimental scheduling selection logic across OpenAI accounts; it is not an official upstream OpenAI capability.'
+      },
       gatewayForwarding: {
         title: 'Request Forwarding',
         description: 'Control how requests are forwarded to upstream OAuth accounts',

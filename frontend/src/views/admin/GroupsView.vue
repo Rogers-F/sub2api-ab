@@ -1225,6 +1225,39 @@
           </p>
         </div>
 
+        <!-- 签名兼容开关（仅 anthropic/antigravity 平台） -->
+        <div
+          v-if="['anthropic', 'antigravity'].includes(createForm.platform)"
+          class="space-y-3 border-t pt-4"
+        >
+          <div>
+            <label class="input-label">{{
+              t("admin.groups.signatureCompat.title")
+            }}</label>
+            <Select
+              v-model="createForm.signature_compat_enabled"
+              :options="signatureCompatOverrideOptions"
+              :placeholder="t('admin.groups.signatureCompat.inherit')"
+            />
+            <p class="input-hint">
+              {{ t("admin.groups.signatureCompat.hint") }}
+            </p>
+          </div>
+          <div>
+            <label class="input-label">{{
+              t("admin.groups.signatureCompat.toolDowngradeTitle")
+            }}</label>
+            <Select
+              v-model="createForm.signature_tool_text_downgrade_enabled"
+              :options="signatureCompatOverrideOptions"
+              :placeholder="t('admin.groups.signatureCompat.inherit')"
+            />
+            <p class="input-hint">
+              {{ t("admin.groups.signatureCompat.toolDowngradeHint") }}
+            </p>
+          </div>
+        </div>
+
         <!-- 模型路由配置（仅 anthropic 平台） -->
         <div v-if="createForm.platform === 'anthropic'" class="border-t pt-4">
           <div class="mb-1.5 flex items-center gap-1">
@@ -2344,6 +2377,39 @@
           </p>
         </div>
 
+        <!-- 签名兼容开关（仅 anthropic/antigravity 平台） -->
+        <div
+          v-if="['anthropic', 'antigravity'].includes(editForm.platform)"
+          class="space-y-3 border-t pt-4"
+        >
+          <div>
+            <label class="input-label">{{
+              t("admin.groups.signatureCompat.title")
+            }}</label>
+            <Select
+              v-model="editForm.signature_compat_enabled"
+              :options="signatureCompatOverrideOptions"
+              :placeholder="t('admin.groups.signatureCompat.inherit')"
+            />
+            <p class="input-hint">
+              {{ t("admin.groups.signatureCompat.hint") }}
+            </p>
+          </div>
+          <div>
+            <label class="input-label">{{
+              t("admin.groups.signatureCompat.toolDowngradeTitle")
+            }}</label>
+            <Select
+              v-model="editForm.signature_tool_text_downgrade_enabled"
+              :options="signatureCompatOverrideOptions"
+              :placeholder="t('admin.groups.signatureCompat.inherit')"
+            />
+            <p class="input-hint">
+              {{ t("admin.groups.signatureCompat.toolDowngradeHint") }}
+            </p>
+          </div>
+        </div>
+
         <!-- 模型路由配置（仅 anthropic 平台） -->
         <div v-if="editForm.platform === 'anthropic'" class="border-t pt-4">
           <div class="mb-1.5 flex items-center gap-1">
@@ -2803,6 +2869,12 @@ const subscriptionTypeOptions = computed(() => [
   { value: "subscription", label: t("admin.groups.subscription.subscription") },
 ]);
 
+const signatureCompatOverrideOptions = computed(() => [
+  { value: null, label: t("admin.groups.signatureCompat.inherit") },
+  { value: true, label: t("admin.groups.signatureCompat.enabled") },
+  { value: false, label: t("admin.groups.signatureCompat.disabled") },
+]);
+
 // 降级分组选项（创建时）- 仅包含 anthropic 平台且未启用 claude_code_only 的分组
 const fallbackGroupOptions = computed(() => {
   const options: { value: number | null; label: string }[] = [
@@ -2973,6 +3045,8 @@ const createForm = reactive({
   claude_code_only: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
+  signature_compat_enabled: null as boolean | null,
+  signature_tool_text_downgrade_enabled: null as boolean | null,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
   allow_messages_dispatch: false,
   opus_mapped_model: createMessagesDispatchDefaults.opus_mapped_model,
@@ -3253,6 +3327,8 @@ const editForm = reactive({
   claude_code_only: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
+  signature_compat_enabled: null as boolean | null,
+  signature_tool_text_downgrade_enabled: null as boolean | null,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
   allow_messages_dispatch: false,
   default_mapped_model: '',
@@ -3437,6 +3513,8 @@ const closeCreateModal = () => {
   createForm.claude_code_only = false;
   createForm.fallback_group_id = null;
   createForm.fallback_group_id_on_invalid_request = null;
+  createForm.signature_compat_enabled = null;
+  createForm.signature_tool_text_downgrade_enabled = null;
   resetMessagesDispatchFormState(createForm);
   createForm.require_oauth_only = false;
   createForm.require_privacy_set = false;
@@ -3541,6 +3619,9 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.fallback_group_id = group.fallback_group_id;
   editForm.fallback_group_id_on_invalid_request =
     group.fallback_group_id_on_invalid_request;
+  editForm.signature_compat_enabled = group.signature_compat_enabled ?? null;
+  editForm.signature_tool_text_downgrade_enabled =
+    group.signature_tool_text_downgrade_enabled ?? null;
   const messagesDispatchFormState = messagesDispatchConfigToFormState(
     group.messages_dispatch_model_config,
   );

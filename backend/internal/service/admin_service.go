@@ -187,6 +187,9 @@ type CreateGroupInput struct {
 	FallbackGroupID *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
+	// 签名兼容开关（nil=继承）
+	SignatureCompatEnabled            *bool
+	SignatureToolTextDowngradeEnabled *bool
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64
 	ModelRoutingEnabled bool // 是否启用模型路由
@@ -222,6 +225,9 @@ type UpdateGroupInput struct {
 	FallbackGroupID *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
+	// 签名兼容开关（nil=继承）
+	SignatureCompatEnabled            *bool
+	SignatureToolTextDowngradeEnabled *bool
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64
 	ModelRoutingEnabled *bool // 是否启用模型路由
@@ -1292,30 +1298,32 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 
 	group := &Group{
-		Name:                            input.Name,
-		Description:                     input.Description,
-		Platform:                        platform,
-		RateMultiplier:                  input.RateMultiplier,
-		IsExclusive:                     input.IsExclusive,
-		Status:                          StatusActive,
-		SubscriptionType:                subscriptionType,
-		DailyLimitUSD:                   dailyLimit,
-		WeeklyLimitUSD:                  weeklyLimit,
-		MonthlyLimitUSD:                 monthlyLimit,
-		ImagePrice1K:                    imagePrice1K,
-		ImagePrice2K:                    imagePrice2K,
-		ImagePrice4K:                    imagePrice4K,
-		ClaudeCodeOnly:                  input.ClaudeCodeOnly,
-		FallbackGroupID:                 input.FallbackGroupID,
-		FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest,
-		ModelRouting:                    input.ModelRouting,
-		MCPXMLInject:                    mcpXMLInject,
-		SupportedModelScopes:            input.SupportedModelScopes,
-		AllowMessagesDispatch:           input.AllowMessagesDispatch,
-		RequireOAuthOnly:                input.RequireOAuthOnly,
-		RequirePrivacySet:               input.RequirePrivacySet,
-		DefaultMappedModel:              input.DefaultMappedModel,
-		MessagesDispatchModelConfig:     normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
+		Name:                              input.Name,
+		Description:                       input.Description,
+		Platform:                          platform,
+		RateMultiplier:                    input.RateMultiplier,
+		IsExclusive:                       input.IsExclusive,
+		Status:                            StatusActive,
+		SubscriptionType:                  subscriptionType,
+		DailyLimitUSD:                     dailyLimit,
+		WeeklyLimitUSD:                    weeklyLimit,
+		MonthlyLimitUSD:                   monthlyLimit,
+		ImagePrice1K:                      imagePrice1K,
+		ImagePrice2K:                      imagePrice2K,
+		ImagePrice4K:                      imagePrice4K,
+		ClaudeCodeOnly:                    input.ClaudeCodeOnly,
+		FallbackGroupID:                   input.FallbackGroupID,
+		FallbackGroupIDOnInvalidRequest:   fallbackOnInvalidRequest,
+		SignatureCompatEnabled:            input.SignatureCompatEnabled,
+		SignatureToolTextDowngradeEnabled: input.SignatureToolTextDowngradeEnabled,
+		ModelRouting:                      input.ModelRouting,
+		MCPXMLInject:                      mcpXMLInject,
+		SupportedModelScopes:              input.SupportedModelScopes,
+		AllowMessagesDispatch:             input.AllowMessagesDispatch,
+		RequireOAuthOnly:                  input.RequireOAuthOnly,
+		RequirePrivacySet:                 input.RequirePrivacySet,
+		DefaultMappedModel:                input.DefaultMappedModel,
+		MessagesDispatchModelConfig:       normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
 	}
 	sanitizeGroupMessagesDispatchFields(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
@@ -1560,6 +1568,8 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 	}
 	group.FallbackGroupIDOnInvalidRequest = fallbackOnInvalidRequest
+	group.SignatureCompatEnabled = input.SignatureCompatEnabled
+	group.SignatureToolTextDowngradeEnabled = input.SignatureToolTextDowngradeEnabled
 
 	// 模型路由配置
 	if input.ModelRouting != nil {

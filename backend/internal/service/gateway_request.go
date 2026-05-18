@@ -622,6 +622,148 @@ func FilterThinkingBlocksForRetry(body []byte) []byte {
 	return out
 }
 
+// FilterThinkingBlocksForSafeRetry removes signed-thinking history for internal retries without
+// converting thinking/tool blocks into user-visible text. It is used for explicit thinking
+// signature failures where preserving tool structure is safer than degrading tools to text.
+func FilterThinkingBlocksForSafeRetry(body []byte) []byte {
+	if !bytes.Contains(body, patternTypeThinking) &&
+		!bytes.Contains(body, patternTypeThinkingSpaced) &&
+		!bytes.Contains(body, patternTypeRedactedThinking) &&
+		!bytes.Contains(body, patternTypeRedactedSpaced) &&
+		!bytes.Contains(body, patternThinkingField) &&
+		!bytes.Contains(body, patternThinkingFieldSpaced) &&
+		!bytes.Contains(body, patternEmptyContent) &&
+		!bytes.Contains(body, patternEmptyContentSpaced) &&
+		!bytes.Contains(body, patternEmptyContentSp1) &&
+		!bytes.Contains(body, patternEmptyContentSp2) &&
+		!bytes.Contains(body, patternEmptyText) &&
+		!bytes.Contains(body, patternEmptyTextSpaced) &&
+		!bytes.Contains(body, patternEmptyTextSp1) &&
+		!bytes.Contains(body, patternEmptyTextSp2) {
+		return body
+	}
+
+	var req map[string]any
+	if err := json.Unmarshal(body, &req); err != nil {
+		return body
+	}
+
+	modified := false
+	if _, exists := req["thinking"]; exists {
+		delete(req, "thinking")
+		modified = true
+		if cm, ok := req["context_management"].(map[string]any); ok {
+			if edits, ok := cm["edits"].([]any); ok {
+				filtered := make([]any, 0, len(edits))
+				for _, edit := range edits {
+					if editMap, ok := edit.(map[string]any); ok && editMap["type"] == "clear_thinking_20251015" {
+						continue
+					}
+					filtered = append(filtered, edit)
+				}
+				if len(filtered) != len(edits) {
+					modified = true
+					if len(filtered) == 0 {
+						delete(cm, "edits")
+					} else {
+						cm["edits"] = filtered
+					}
+				}
+			}
+		}
+	}
+
+	messages, ok := req["messages"].([]any)
+	if !ok {
+		if !modified {
+			return body
+		}
+		out, err := json.Marshal(req)
+		if err != nil {
+			return body
+		}
+		return out
+	}
+
+	for _, msg := range messages {
+		msgMap, ok := msg.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		role, _ := msgMap["role"].(string)
+		content, ok := msgMap["content"].([]any)
+		if !ok {
+			continue
+		}
+
+		newContent := make([]any, 0, len(content))
+		modifiedThisMsg := false
+		for _, block := range content {
+			blockMap, ok := block.(map[string]any)
+			if !ok {
+				newContent = append(newContent, block)
+				continue
+			}
+
+			blockType, _ := blockMap["type"].(string)
+			switch blockType {
+			case "thinking", "redacted_thinking":
+				modifiedThisMsg = true
+				continue
+			case "text":
+				if txt, _ := blockMap["text"].(string); txt == "" {
+					modifiedThisMsg = true
+					continue
+				}
+			case "tool_result":
+				if nestedContent, ok := blockMap["content"].([]any); ok {
+					if cleaned, changed := stripEmptyTextBlocksFromSlice(nestedContent); changed {
+						blockCopy := make(map[string]any, len(blockMap))
+						for k, v := range blockMap {
+							blockCopy[k] = v
+						}
+						blockCopy["content"] = cleaned
+						newContent = append(newContent, blockCopy)
+						modifiedThisMsg = true
+						continue
+					}
+				}
+			}
+
+			if blockType == "" {
+				if _, hasThinking := blockMap["thinking"]; hasThinking {
+					modifiedThisMsg = true
+					continue
+				}
+			}
+
+			newContent = append(newContent, block)
+		}
+
+		if modifiedThisMsg || len(content) == 0 {
+			modified = true
+			if len(newContent) == 0 {
+				placeholder := "(content removed)"
+				if role == "assistant" {
+					placeholder = "(assistant content removed)"
+				}
+				newContent = append(newContent, map[string]any{"type": "text", "text": placeholder})
+			}
+			msgMap["content"] = newContent
+		}
+	}
+
+	if !modified {
+		return body
+	}
+	out, err := json.Marshal(req)
+	if err != nil {
+		return body
+	}
+	return out
+}
+
 // removeThinkingDependentContextStrategies 从 context_management.edits 中移除
 // 需要 thinking 启用的策略（如 clear_thinking_20251015）。
 // 当顶层 "thinking" 字段被禁用时必须调用，否则上游会返回

@@ -36,6 +36,10 @@ type Group struct {
 	// 无效请求兜底分组（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
 
+	// 签名兼容开关。nil 表示继承全局/账号级设置；false 显式关闭；true 显式开启。
+	SignatureCompatEnabled            *bool
+	SignatureToolTextDowngradeEnabled *bool
+
 	// 模型路由配置
 	// key: 模型匹配模式（支持 * 通配符，如 "claude-opus-*"）
 	// value: 优先账号 ID 列表

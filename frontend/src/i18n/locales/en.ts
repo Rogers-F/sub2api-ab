@@ -1734,6 +1734,15 @@ export default {
         hint: 'Triggered only when upstream explicitly returns prompt too long. Leave empty to disable fallback.',
         noFallback: 'No Fallback'
       },
+      signatureCompat: {
+        title: 'Signature Compatibility',
+        hint: 'Controls internal retry cleanup for invalid thinking signatures. Inherit keeps global/account-level behavior.',
+        toolDowngradeTitle: 'Tool Text Downgrade',
+        toolDowngradeHint: 'Controls the second-stage retry that converts tool blocks to text. Disable this for groups that must never alter tool structure.',
+        inherit: 'Inherit',
+        enabled: 'Enabled',
+        disabled: 'Disabled'
+      },
       copyAccounts: {
         title: 'Copy Accounts from Groups',
         tooltip: 'Select one or more groups of the same platform. After creation, all accounts from these groups will be automatically bound to the new group (deduplicated).',

@@ -1820,6 +1820,15 @@ export default {
         hint: '仅当上游明确返回 prompt too long 时才会触发，留空表示不兜底',
         noFallback: '不兜底'
       },
+      signatureCompat: {
+        title: '签名兼容',
+        hint: '控制 invalid thinking signature 这类错误的内部重试清理。继承表示使用全局/账号级行为。',
+        toolDowngradeTitle: '工具块文本降级',
+        toolDowngradeHint: '控制二阶段重试是否把工具块转成文本。对要求工具结构绝不变化的分组应关闭。',
+        inherit: '继承',
+        enabled: '开启',
+        disabled: '关闭'
+      },
       copyAccounts: {
         title: '从分组复制账号',
         tooltip: '选择一个或多个相同平台的分组，创建后会自动将这些分组的所有账号绑定到新分组（去重）。',

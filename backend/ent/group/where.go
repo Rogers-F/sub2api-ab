@@ -155,6 +155,16 @@ func FallbackGroupIDOnInvalidRequest(v int64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldFallbackGroupIDOnInvalidRequest, v))
 }
 
+// SignatureCompatEnabled applies equality check predicate on the "signature_compat_enabled" field. It's identical to SignatureCompatEnabledEQ.
+func SignatureCompatEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSignatureCompatEnabled, v))
+}
+
+// SignatureToolTextDowngradeEnabled applies equality check predicate on the "signature_tool_text_downgrade_enabled" field. It's identical to SignatureToolTextDowngradeEnabledEQ.
+func SignatureToolTextDowngradeEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSignatureToolTextDowngradeEnabled, v))
+}
+
 // ModelRoutingEnabled applies equality check predicate on the "model_routing_enabled" field. It's identical to ModelRoutingEnabledEQ.
 func ModelRoutingEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldModelRoutingEnabled, v))
@@ -1153,6 +1163,46 @@ func FallbackGroupIDOnInvalidRequestIsNil() predicate.Group {
 // FallbackGroupIDOnInvalidRequestNotNil applies the NotNil predicate on the "fallback_group_id_on_invalid_request" field.
 func FallbackGroupIDOnInvalidRequestNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldFallbackGroupIDOnInvalidRequest))
+}
+
+// SignatureCompatEnabledEQ applies the EQ predicate on the "signature_compat_enabled" field.
+func SignatureCompatEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSignatureCompatEnabled, v))
+}
+
+// SignatureCompatEnabledNEQ applies the NEQ predicate on the "signature_compat_enabled" field.
+func SignatureCompatEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSignatureCompatEnabled, v))
+}
+
+// SignatureCompatEnabledIsNil applies the IsNil predicate on the "signature_compat_enabled" field.
+func SignatureCompatEnabledIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldSignatureCompatEnabled))
+}
+
+// SignatureCompatEnabledNotNil applies the NotNil predicate on the "signature_compat_enabled" field.
+func SignatureCompatEnabledNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldSignatureCompatEnabled))
+}
+
+// SignatureToolTextDowngradeEnabledEQ applies the EQ predicate on the "signature_tool_text_downgrade_enabled" field.
+func SignatureToolTextDowngradeEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSignatureToolTextDowngradeEnabled, v))
+}
+
+// SignatureToolTextDowngradeEnabledNEQ applies the NEQ predicate on the "signature_tool_text_downgrade_enabled" field.
+func SignatureToolTextDowngradeEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSignatureToolTextDowngradeEnabled, v))
+}
+
+// SignatureToolTextDowngradeEnabledIsNil applies the IsNil predicate on the "signature_tool_text_downgrade_enabled" field.
+func SignatureToolTextDowngradeEnabledIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldSignatureToolTextDowngradeEnabled))
+}
+
+// SignatureToolTextDowngradeEnabledNotNil applies the NotNil predicate on the "signature_tool_text_downgrade_enabled" field.
+func SignatureToolTextDowngradeEnabledNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldSignatureToolTextDowngradeEnabled))
 }
 
 // ModelRoutingIsNil applies the IsNil predicate on the "model_routing" field.

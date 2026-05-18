@@ -424,6 +424,46 @@ func (_u *GroupUpdate) ClearFallbackGroupIDOnInvalidRequest() *GroupUpdate {
 	return _u
 }
 
+// SetSignatureCompatEnabled sets the "signature_compat_enabled" field.
+func (_u *GroupUpdate) SetSignatureCompatEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetSignatureCompatEnabled(v)
+	return _u
+}
+
+// SetNillableSignatureCompatEnabled sets the "signature_compat_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSignatureCompatEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetSignatureCompatEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSignatureCompatEnabled clears the value of the "signature_compat_enabled" field.
+func (_u *GroupUpdate) ClearSignatureCompatEnabled() *GroupUpdate {
+	_u.mutation.ClearSignatureCompatEnabled()
+	return _u
+}
+
+// SetSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field.
+func (_u *GroupUpdate) SetSignatureToolTextDowngradeEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetSignatureToolTextDowngradeEnabled(v)
+	return _u
+}
+
+// SetNillableSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSignatureToolTextDowngradeEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetSignatureToolTextDowngradeEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSignatureToolTextDowngradeEnabled clears the value of the "signature_tool_text_downgrade_enabled" field.
+func (_u *GroupUpdate) ClearSignatureToolTextDowngradeEnabled() *GroupUpdate {
+	_u.mutation.ClearSignatureToolTextDowngradeEnabled()
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdate) SetModelRouting(v map[string][]int64) *GroupUpdate {
 	_u.mutation.SetModelRouting(v)
@@ -988,6 +1028,18 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.FallbackGroupIDOnInvalidRequestCleared() {
 		_spec.ClearField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SignatureCompatEnabled(); ok {
+		_spec.SetField(group.FieldSignatureCompatEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SignatureCompatEnabledCleared() {
+		_spec.ClearField(group.FieldSignatureCompatEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.SignatureToolTextDowngradeEnabled(); ok {
+		_spec.SetField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SignatureToolTextDowngradeEnabledCleared() {
+		_spec.ClearField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -1732,6 +1784,46 @@ func (_u *GroupUpdateOne) ClearFallbackGroupIDOnInvalidRequest() *GroupUpdateOne
 	return _u
 }
 
+// SetSignatureCompatEnabled sets the "signature_compat_enabled" field.
+func (_u *GroupUpdateOne) SetSignatureCompatEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetSignatureCompatEnabled(v)
+	return _u
+}
+
+// SetNillableSignatureCompatEnabled sets the "signature_compat_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSignatureCompatEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSignatureCompatEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSignatureCompatEnabled clears the value of the "signature_compat_enabled" field.
+func (_u *GroupUpdateOne) ClearSignatureCompatEnabled() *GroupUpdateOne {
+	_u.mutation.ClearSignatureCompatEnabled()
+	return _u
+}
+
+// SetSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field.
+func (_u *GroupUpdateOne) SetSignatureToolTextDowngradeEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetSignatureToolTextDowngradeEnabled(v)
+	return _u
+}
+
+// SetNillableSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSignatureToolTextDowngradeEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSignatureToolTextDowngradeEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSignatureToolTextDowngradeEnabled clears the value of the "signature_tool_text_downgrade_enabled" field.
+func (_u *GroupUpdateOne) ClearSignatureToolTextDowngradeEnabled() *GroupUpdateOne {
+	_u.mutation.ClearSignatureToolTextDowngradeEnabled()
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdateOne) SetModelRouting(v map[string][]int64) *GroupUpdateOne {
 	_u.mutation.SetModelRouting(v)
@@ -2326,6 +2418,18 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.FallbackGroupIDOnInvalidRequestCleared() {
 		_spec.ClearField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SignatureCompatEnabled(); ok {
+		_spec.SetField(group.FieldSignatureCompatEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SignatureCompatEnabledCleared() {
+		_spec.ClearField(group.FieldSignatureCompatEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.SignatureToolTextDowngradeEnabled(); ok {
+		_spec.SetField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SignatureToolTextDowngradeEnabledCleared() {
+		_spec.ClearField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)

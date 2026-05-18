@@ -124,6 +124,10 @@ type AdminGroup struct {
 	// MCP XML 协议注入（仅 antigravity 平台使用）
 	MCPXMLInject bool `json:"mcp_xml_inject"`
 
+	// 签名兼容开关（nil 表示继承全局/账号级设置）
+	SignatureCompatEnabled            *bool `json:"signature_compat_enabled"`
+	SignatureToolTextDowngradeEnabled *bool `json:"signature_tool_text_downgrade_enabled"`
+
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
 	DefaultMappedModel          string                                   `json:"default_mapped_model"`
 	MessagesDispatchModelConfig domain.OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config"`

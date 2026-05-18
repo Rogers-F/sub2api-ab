@@ -99,6 +99,14 @@ func (Group) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("无效请求兜底使用的分组 ID"),
+		field.Bool("signature_compat_enabled").
+			Optional().
+			Nillable().
+			Comment("签名兼容重试开关：NULL 继承全局/账号级设置，false 显式关闭，true 显式开启"),
+		field.Bool("signature_tool_text_downgrade_enabled").
+			Optional().
+			Nillable().
+			Comment("签名兼容二阶段工具块文本降级开关：NULL 继承默认行为，false 禁止，true 允许"),
 
 		// 模型路由配置 (added by migration 040)
 		field.JSON("model_routing", map[string][]int64{}).

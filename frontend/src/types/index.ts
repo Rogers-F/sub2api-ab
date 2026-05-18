@@ -485,6 +485,10 @@ export interface AdminGroup extends Group {
   // MCP XML 协议注入（仅 antigravity 平台使用）
   mcp_xml_inject: boolean
 
+  // 签名兼容开关（仅管理员可见，null 表示继承全局/账号级设置）
+  signature_compat_enabled: boolean | null
+  signature_tool_text_downgrade_enabled: boolean | null
+
   // 支持的模型系列（仅 antigravity 平台使用）
   supported_model_scopes?: string[]
 
@@ -575,6 +579,8 @@ export interface CreateGroupRequest {
   claude_code_only?: boolean
   fallback_group_id?: number | null
   fallback_group_id_on_invalid_request?: number | null
+  signature_compat_enabled?: boolean | null
+  signature_tool_text_downgrade_enabled?: boolean | null
   mcp_xml_inject?: boolean
   supported_model_scopes?: string[]
   require_oauth_only?: boolean
@@ -600,6 +606,8 @@ export interface UpdateGroupRequest {
   claude_code_only?: boolean
   fallback_group_id?: number | null
   fallback_group_id_on_invalid_request?: number | null
+  signature_compat_enabled?: boolean | null
+  signature_tool_text_downgrade_enabled?: boolean | null
   mcp_xml_inject?: boolean
   supported_model_scopes?: string[]
   require_oauth_only?: boolean

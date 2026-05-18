@@ -301,6 +301,34 @@ func (_c *GroupCreate) SetNillableFallbackGroupIDOnInvalidRequest(v *int64) *Gro
 	return _c
 }
 
+// SetSignatureCompatEnabled sets the "signature_compat_enabled" field.
+func (_c *GroupCreate) SetSignatureCompatEnabled(v bool) *GroupCreate {
+	_c.mutation.SetSignatureCompatEnabled(v)
+	return _c
+}
+
+// SetNillableSignatureCompatEnabled sets the "signature_compat_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSignatureCompatEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetSignatureCompatEnabled(*v)
+	}
+	return _c
+}
+
+// SetSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field.
+func (_c *GroupCreate) SetSignatureToolTextDowngradeEnabled(v bool) *GroupCreate {
+	_c.mutation.SetSignatureToolTextDowngradeEnabled(v)
+	return _c
+}
+
+// SetNillableSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSignatureToolTextDowngradeEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetSignatureToolTextDowngradeEnabled(*v)
+	}
+	return _c
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_c *GroupCreate) SetModelRouting(v map[string][]int64) *GroupCreate {
 	_c.mutation.SetModelRouting(v)
@@ -823,6 +851,14 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.FallbackGroupIDOnInvalidRequest(); ok {
 		_spec.SetField(group.FieldFallbackGroupIDOnInvalidRequest, field.TypeInt64, value)
 		_node.FallbackGroupIDOnInvalidRequest = &value
+	}
+	if value, ok := _c.mutation.SignatureCompatEnabled(); ok {
+		_spec.SetField(group.FieldSignatureCompatEnabled, field.TypeBool, value)
+		_node.SignatureCompatEnabled = &value
+	}
+	if value, ok := _c.mutation.SignatureToolTextDowngradeEnabled(); ok {
+		_spec.SetField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool, value)
+		_node.SignatureToolTextDowngradeEnabled = &value
 	}
 	if value, ok := _c.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -1365,6 +1401,42 @@ func (u *GroupUpsert) AddFallbackGroupIDOnInvalidRequest(v int64) *GroupUpsert {
 // ClearFallbackGroupIDOnInvalidRequest clears the value of the "fallback_group_id_on_invalid_request" field.
 func (u *GroupUpsert) ClearFallbackGroupIDOnInvalidRequest() *GroupUpsert {
 	u.SetNull(group.FieldFallbackGroupIDOnInvalidRequest)
+	return u
+}
+
+// SetSignatureCompatEnabled sets the "signature_compat_enabled" field.
+func (u *GroupUpsert) SetSignatureCompatEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldSignatureCompatEnabled, v)
+	return u
+}
+
+// UpdateSignatureCompatEnabled sets the "signature_compat_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSignatureCompatEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldSignatureCompatEnabled)
+	return u
+}
+
+// ClearSignatureCompatEnabled clears the value of the "signature_compat_enabled" field.
+func (u *GroupUpsert) ClearSignatureCompatEnabled() *GroupUpsert {
+	u.SetNull(group.FieldSignatureCompatEnabled)
+	return u
+}
+
+// SetSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field.
+func (u *GroupUpsert) SetSignatureToolTextDowngradeEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldSignatureToolTextDowngradeEnabled, v)
+	return u
+}
+
+// UpdateSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSignatureToolTextDowngradeEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldSignatureToolTextDowngradeEnabled)
+	return u
+}
+
+// ClearSignatureToolTextDowngradeEnabled clears the value of the "signature_tool_text_downgrade_enabled" field.
+func (u *GroupUpsert) ClearSignatureToolTextDowngradeEnabled() *GroupUpsert {
+	u.SetNull(group.FieldSignatureToolTextDowngradeEnabled)
 	return u
 }
 
@@ -1948,6 +2020,48 @@ func (u *GroupUpsertOne) UpdateFallbackGroupIDOnInvalidRequest() *GroupUpsertOne
 func (u *GroupUpsertOne) ClearFallbackGroupIDOnInvalidRequest() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearFallbackGroupIDOnInvalidRequest()
+	})
+}
+
+// SetSignatureCompatEnabled sets the "signature_compat_enabled" field.
+func (u *GroupUpsertOne) SetSignatureCompatEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSignatureCompatEnabled(v)
+	})
+}
+
+// UpdateSignatureCompatEnabled sets the "signature_compat_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSignatureCompatEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSignatureCompatEnabled()
+	})
+}
+
+// ClearSignatureCompatEnabled clears the value of the "signature_compat_enabled" field.
+func (u *GroupUpsertOne) ClearSignatureCompatEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSignatureCompatEnabled()
+	})
+}
+
+// SetSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field.
+func (u *GroupUpsertOne) SetSignatureToolTextDowngradeEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSignatureToolTextDowngradeEnabled(v)
+	})
+}
+
+// UpdateSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSignatureToolTextDowngradeEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSignatureToolTextDowngradeEnabled()
+	})
+}
+
+// ClearSignatureToolTextDowngradeEnabled clears the value of the "signature_tool_text_downgrade_enabled" field.
+func (u *GroupUpsertOne) ClearSignatureToolTextDowngradeEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSignatureToolTextDowngradeEnabled()
 	})
 }
 
@@ -2719,6 +2833,48 @@ func (u *GroupUpsertBulk) UpdateFallbackGroupIDOnInvalidRequest() *GroupUpsertBu
 func (u *GroupUpsertBulk) ClearFallbackGroupIDOnInvalidRequest() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearFallbackGroupIDOnInvalidRequest()
+	})
+}
+
+// SetSignatureCompatEnabled sets the "signature_compat_enabled" field.
+func (u *GroupUpsertBulk) SetSignatureCompatEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSignatureCompatEnabled(v)
+	})
+}
+
+// UpdateSignatureCompatEnabled sets the "signature_compat_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSignatureCompatEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSignatureCompatEnabled()
+	})
+}
+
+// ClearSignatureCompatEnabled clears the value of the "signature_compat_enabled" field.
+func (u *GroupUpsertBulk) ClearSignatureCompatEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSignatureCompatEnabled()
+	})
+}
+
+// SetSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field.
+func (u *GroupUpsertBulk) SetSignatureToolTextDowngradeEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSignatureToolTextDowngradeEnabled(v)
+	})
+}
+
+// UpdateSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSignatureToolTextDowngradeEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSignatureToolTextDowngradeEnabled()
+	})
+}
+
+// ClearSignatureToolTextDowngradeEnabled clears the value of the "signature_tool_text_downgrade_enabled" field.
+func (u *GroupUpsertBulk) ClearSignatureToolTextDowngradeEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSignatureToolTextDowngradeEnabled()
 	})
 }
 

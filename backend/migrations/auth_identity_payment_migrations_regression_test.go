@@ -127,3 +127,13 @@ func TestMigration124BackfillsLegacyOIDCSecurityFlagsSafely(t *testing.T) {
 	require.Contains(t, sql, "oidc_connect_enabled")
 	require.Contains(t, sql, "'false'")
 }
+
+func TestMigration126AddsGroupSignatureCompatSwitches(t *testing.T) {
+	content, err := FS.ReadFile("126_add_group_signature_compat_switches.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "signature_compat_enabled")
+	require.Contains(t, sql, "signature_tool_text_downgrade_enabled")
+	require.Contains(t, sql, "ADD COLUMN IF NOT EXISTS")
+}

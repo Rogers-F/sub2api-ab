@@ -56,6 +56,10 @@ const (
 	FieldFallbackGroupID = "fallback_group_id"
 	// FieldFallbackGroupIDOnInvalidRequest holds the string denoting the fallback_group_id_on_invalid_request field in the database.
 	FieldFallbackGroupIDOnInvalidRequest = "fallback_group_id_on_invalid_request"
+	// FieldSignatureCompatEnabled holds the string denoting the signature_compat_enabled field in the database.
+	FieldSignatureCompatEnabled = "signature_compat_enabled"
+	// FieldSignatureToolTextDowngradeEnabled holds the string denoting the signature_tool_text_downgrade_enabled field in the database.
+	FieldSignatureToolTextDowngradeEnabled = "signature_tool_text_downgrade_enabled"
 	// FieldModelRouting holds the string denoting the model_routing field in the database.
 	FieldModelRouting = "model_routing"
 	// FieldModelRoutingEnabled holds the string denoting the model_routing_enabled field in the database.
@@ -171,6 +175,8 @@ var Columns = []string{
 	FieldClaudeCodeOnly,
 	FieldFallbackGroupID,
 	FieldFallbackGroupIDOnInvalidRequest,
+	FieldSignatureCompatEnabled,
+	FieldSignatureToolTextDowngradeEnabled,
 	FieldModelRouting,
 	FieldModelRoutingEnabled,
 	FieldMcpXMLInject,
@@ -366,6 +372,16 @@ func ByFallbackGroupID(opts ...sql.OrderTermOption) OrderOption {
 // ByFallbackGroupIDOnInvalidRequest orders the results by the fallback_group_id_on_invalid_request field.
 func ByFallbackGroupIDOnInvalidRequest(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFallbackGroupIDOnInvalidRequest, opts...).ToFunc()
+}
+
+// BySignatureCompatEnabled orders the results by the signature_compat_enabled field.
+func BySignatureCompatEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSignatureCompatEnabled, opts...).ToFunc()
+}
+
+// BySignatureToolTextDowngradeEnabled orders the results by the signature_tool_text_downgrade_enabled field.
+func BySignatureToolTextDowngradeEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSignatureToolTextDowngradeEnabled, opts...).ToFunc()
 }
 
 // ByModelRoutingEnabled orders the results by the model_routing_enabled field.

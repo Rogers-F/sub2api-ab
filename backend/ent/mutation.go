@@ -10197,6 +10197,8 @@ type GroupMutation struct {
 	addfallback_group_id                    *int64
 	fallback_group_id_on_invalid_request    *int64
 	addfallback_group_id_on_invalid_request *int64
+	signature_compat_enabled                *bool
+	signature_tool_text_downgrade_enabled   *bool
 	model_routing                           *map[string][]int64
 	model_routing_enabled                   *bool
 	mcp_xml_inject                          *bool
@@ -11389,6 +11391,104 @@ func (m *GroupMutation) ResetFallbackGroupIDOnInvalidRequest() {
 	delete(m.clearedFields, group.FieldFallbackGroupIDOnInvalidRequest)
 }
 
+// SetSignatureCompatEnabled sets the "signature_compat_enabled" field.
+func (m *GroupMutation) SetSignatureCompatEnabled(b bool) {
+	m.signature_compat_enabled = &b
+}
+
+// SignatureCompatEnabled returns the value of the "signature_compat_enabled" field in the mutation.
+func (m *GroupMutation) SignatureCompatEnabled() (r bool, exists bool) {
+	v := m.signature_compat_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSignatureCompatEnabled returns the old "signature_compat_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSignatureCompatEnabled(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSignatureCompatEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSignatureCompatEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSignatureCompatEnabled: %w", err)
+	}
+	return oldValue.SignatureCompatEnabled, nil
+}
+
+// ClearSignatureCompatEnabled clears the value of the "signature_compat_enabled" field.
+func (m *GroupMutation) ClearSignatureCompatEnabled() {
+	m.signature_compat_enabled = nil
+	m.clearedFields[group.FieldSignatureCompatEnabled] = struct{}{}
+}
+
+// SignatureCompatEnabledCleared returns if the "signature_compat_enabled" field was cleared in this mutation.
+func (m *GroupMutation) SignatureCompatEnabledCleared() bool {
+	_, ok := m.clearedFields[group.FieldSignatureCompatEnabled]
+	return ok
+}
+
+// ResetSignatureCompatEnabled resets all changes to the "signature_compat_enabled" field.
+func (m *GroupMutation) ResetSignatureCompatEnabled() {
+	m.signature_compat_enabled = nil
+	delete(m.clearedFields, group.FieldSignatureCompatEnabled)
+}
+
+// SetSignatureToolTextDowngradeEnabled sets the "signature_tool_text_downgrade_enabled" field.
+func (m *GroupMutation) SetSignatureToolTextDowngradeEnabled(b bool) {
+	m.signature_tool_text_downgrade_enabled = &b
+}
+
+// SignatureToolTextDowngradeEnabled returns the value of the "signature_tool_text_downgrade_enabled" field in the mutation.
+func (m *GroupMutation) SignatureToolTextDowngradeEnabled() (r bool, exists bool) {
+	v := m.signature_tool_text_downgrade_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSignatureToolTextDowngradeEnabled returns the old "signature_tool_text_downgrade_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSignatureToolTextDowngradeEnabled(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSignatureToolTextDowngradeEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSignatureToolTextDowngradeEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSignatureToolTextDowngradeEnabled: %w", err)
+	}
+	return oldValue.SignatureToolTextDowngradeEnabled, nil
+}
+
+// ClearSignatureToolTextDowngradeEnabled clears the value of the "signature_tool_text_downgrade_enabled" field.
+func (m *GroupMutation) ClearSignatureToolTextDowngradeEnabled() {
+	m.signature_tool_text_downgrade_enabled = nil
+	m.clearedFields[group.FieldSignatureToolTextDowngradeEnabled] = struct{}{}
+}
+
+// SignatureToolTextDowngradeEnabledCleared returns if the "signature_tool_text_downgrade_enabled" field was cleared in this mutation.
+func (m *GroupMutation) SignatureToolTextDowngradeEnabledCleared() bool {
+	_, ok := m.clearedFields[group.FieldSignatureToolTextDowngradeEnabled]
+	return ok
+}
+
+// ResetSignatureToolTextDowngradeEnabled resets all changes to the "signature_tool_text_downgrade_enabled" field.
+func (m *GroupMutation) ResetSignatureToolTextDowngradeEnabled() {
+	m.signature_tool_text_downgrade_enabled = nil
+	delete(m.clearedFields, group.FieldSignatureToolTextDowngradeEnabled)
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (m *GroupMutation) SetModelRouting(value map[string][]int64) {
 	m.model_routing = &value
@@ -12155,7 +12255,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 30)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -12215,6 +12315,12 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.fallback_group_id_on_invalid_request != nil {
 		fields = append(fields, group.FieldFallbackGroupIDOnInvalidRequest)
+	}
+	if m.signature_compat_enabled != nil {
+		fields = append(fields, group.FieldSignatureCompatEnabled)
+	}
+	if m.signature_tool_text_downgrade_enabled != nil {
+		fields = append(fields, group.FieldSignatureToolTextDowngradeEnabled)
 	}
 	if m.model_routing != nil {
 		fields = append(fields, group.FieldModelRouting)
@@ -12294,6 +12400,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.FallbackGroupID()
 	case group.FieldFallbackGroupIDOnInvalidRequest:
 		return m.FallbackGroupIDOnInvalidRequest()
+	case group.FieldSignatureCompatEnabled:
+		return m.SignatureCompatEnabled()
+	case group.FieldSignatureToolTextDowngradeEnabled:
+		return m.SignatureToolTextDowngradeEnabled()
 	case group.FieldModelRouting:
 		return m.ModelRouting()
 	case group.FieldModelRoutingEnabled:
@@ -12363,6 +12473,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldFallbackGroupID(ctx)
 	case group.FieldFallbackGroupIDOnInvalidRequest:
 		return m.OldFallbackGroupIDOnInvalidRequest(ctx)
+	case group.FieldSignatureCompatEnabled:
+		return m.OldSignatureCompatEnabled(ctx)
+	case group.FieldSignatureToolTextDowngradeEnabled:
+		return m.OldSignatureToolTextDowngradeEnabled(ctx)
 	case group.FieldModelRouting:
 		return m.OldModelRouting(ctx)
 	case group.FieldModelRoutingEnabled:
@@ -12531,6 +12645,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFallbackGroupIDOnInvalidRequest(v)
+		return nil
+	case group.FieldSignatureCompatEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSignatureCompatEnabled(v)
+		return nil
+	case group.FieldSignatureToolTextDowngradeEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSignatureToolTextDowngradeEnabled(v)
 		return nil
 	case group.FieldModelRouting:
 		v, ok := value.(map[string][]int64)
@@ -12797,6 +12925,12 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldFallbackGroupIDOnInvalidRequest) {
 		fields = append(fields, group.FieldFallbackGroupIDOnInvalidRequest)
 	}
+	if m.FieldCleared(group.FieldSignatureCompatEnabled) {
+		fields = append(fields, group.FieldSignatureCompatEnabled)
+	}
+	if m.FieldCleared(group.FieldSignatureToolTextDowngradeEnabled) {
+		fields = append(fields, group.FieldSignatureToolTextDowngradeEnabled)
+	}
 	if m.FieldCleared(group.FieldModelRouting) {
 		fields = append(fields, group.FieldModelRouting)
 	}
@@ -12843,6 +12977,12 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldFallbackGroupIDOnInvalidRequest:
 		m.ClearFallbackGroupIDOnInvalidRequest()
+		return nil
+	case group.FieldSignatureCompatEnabled:
+		m.ClearSignatureCompatEnabled()
+		return nil
+	case group.FieldSignatureToolTextDowngradeEnabled:
+		m.ClearSignatureToolTextDowngradeEnabled()
 		return nil
 	case group.FieldModelRouting:
 		m.ClearModelRouting()
@@ -12914,6 +13054,12 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldFallbackGroupIDOnInvalidRequest:
 		m.ResetFallbackGroupIDOnInvalidRequest()
+		return nil
+	case group.FieldSignatureCompatEnabled:
+		m.ResetSignatureCompatEnabled()
+		return nil
+	case group.FieldSignatureToolTextDowngradeEnabled:
+		m.ResetSignatureToolTextDowngradeEnabled()
 		return nil
 	case group.FieldModelRouting:
 		m.ResetModelRouting()

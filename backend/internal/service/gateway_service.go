@@ -4382,7 +4382,11 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					// 2) Only if upstream still errors AND error message points to tool/function signature issues:
 					//    also downgrade tool_use/tool_result blocks to text.
 
+					thinkingOnlyRetry := s.shouldRetryThinkingOnlySignatureCompat(ctx, account, respBody)
 					filteredBody := FilterThinkingBlocksForRetry(body)
+					if thinkingOnlyRetry {
+						filteredBody = FilterThinkingBlocksForSafeRetry(body)
+					}
 					retryCtx, releaseRetryCtx := detachStreamUpstreamContext(ctx, reqStream)
 					retryReq, buildErr := s.buildUpstreamRequest(retryCtx, c, account, filteredBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
 					releaseRetryCtx()
@@ -4415,7 +4419,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 									}(),
 								})
 								msg2 := extractUpstreamErrorMessage(retryRespBody)
-								if looksLikeToolSignatureError(msg2) && time.Since(retryStart) < maxRetryElapsed {
+								if !thinkingOnlyRetry && s.shouldRetryToolTextDowngradeSignatureCompat(ctx) && looksLikeToolSignatureError(msg2) && time.Since(retryStart) < maxRetryElapsed {
 									logger.LegacyPrintf("service.gateway", "Account %d: signature retry still failing and looks tool-related, retrying with tool blocks downgraded", account.ID)
 									filteredBody2 := FilterSignatureSensitiveBlocksForRetry(body)
 									retryCtx2, releaseRetryCtx2 := detachStreamUpstreamContext(ctx, reqStream)
@@ -6464,33 +6468,89 @@ func truncateForLog(b []byte, maxBytes int) string {
 // shouldRectifySignatureError 统一判断是否应触发签名整流（strip thinking blocks 并重试）。
 // 根据账号类型检查对应的开关和匹配模式。
 func (s *GatewayService) shouldRectifySignatureError(ctx context.Context, account *Account, requestBody, respBody []byte) bool {
+	if account == nil {
+		return false
+	}
+	settings := s.loadRectifierSettings(ctx)
+	if settings == nil || !settings.Enabled {
+		return false
+	}
+	if enabled, ok := signatureCompatGroupOverride(ctx); ok && !enabled {
+		return false
+	}
+	groupEnabled, groupOverride := signatureCompatGroupOverride(ctx)
+
 	if account.Type == AccountTypeAPIKey {
-		settings := DefaultRectifierSettings()
-		if s.settingService != nil {
-			loaded, err := s.settingService.GetRectifierSettings(ctx)
-			if err == nil && loaded != nil {
-				settings = loaded
-			}
-		}
-		if settings == nil || !settings.Enabled {
-			return false
-		}
 		// 显式 signature 错误仍受 API key 子开关控制；兼容上游把此类错误压成
 		// "参数值无效" 时，按请求体结构触发一次安全的 thinking 整流重试。
-		if settings.APIKeySignatureEnabled && s.isThinkingBlockSignatureError(respBody) {
+		if (groupEnabled || settings.APIKeySignatureEnabled) && s.isThinkingBlockSignatureError(respBody) {
 			return true
 		}
-		if account.IsAnthropicInvalidParamRectifierEnabled() &&
+		if (groupEnabled || account.IsAnthropicInvalidParamRectifierEnabled()) &&
 			shouldRetryGenericAPIKeySignatureCompat(requestBody, respBody) {
 			return true
 		}
-		if settings.APIKeySignatureEnabled {
+		if groupEnabled || settings.APIKeySignatureEnabled {
 			return matchSignaturePatterns(respBody, settings.APIKeySignaturePatterns)
 		}
 		return false
 	}
 	// OAuth/SetupToken/Upstream/Bedrock 等：保持原有行为（内置模式 + 原开关）
-	return s.isThinkingBlockSignatureError(respBody) && (s.settingService == nil || s.settingService.IsSignatureRectifierEnabled(ctx))
+	if !s.isThinkingBlockSignatureError(respBody) {
+		return false
+	}
+	if groupOverride {
+		return groupEnabled
+	}
+	return settings.ThinkingSignatureEnabled
+}
+
+func (s *GatewayService) shouldRetryThinkingOnlySignatureCompat(ctx context.Context, account *Account, respBody []byte) bool {
+	if account == nil || account.Type != AccountTypeAPIKey {
+		return false
+	}
+	settings := s.loadRectifierSettings(ctx)
+	if settings == nil || !settings.Enabled {
+		return false
+	}
+	if enabled, ok := signatureCompatGroupOverride(ctx); ok {
+		return enabled && isExplicitThinkingSignatureError(respBody)
+	}
+	return settings.APIKeySignatureEnabled && isExplicitThinkingSignatureError(respBody)
+}
+
+func (s *GatewayService) shouldRetryToolTextDowngradeSignatureCompat(ctx context.Context) bool {
+	if enabled, ok := signatureToolTextDowngradeGroupOverride(ctx); ok {
+		return enabled
+	}
+	return true
+}
+
+func (s *GatewayService) loadRectifierSettings(ctx context.Context) *RectifierSettings {
+	settings := DefaultRectifierSettings()
+	if s.settingService != nil {
+		loaded, err := s.settingService.GetRectifierSettings(ctx)
+		if err == nil && loaded != nil {
+			settings = loaded
+		}
+	}
+	return settings
+}
+
+func signatureCompatGroupOverride(ctx context.Context) (bool, bool) {
+	group, ok := ctx.Value(ctxkey.Group).(*Group)
+	if !ok || !IsGroupContextValid(group) || group.SignatureCompatEnabled == nil {
+		return false, false
+	}
+	return *group.SignatureCompatEnabled, true
+}
+
+func signatureToolTextDowngradeGroupOverride(ctx context.Context) (bool, bool) {
+	group, ok := ctx.Value(ctxkey.Group).(*Group)
+	if !ok || !IsGroupContextValid(group) || group.SignatureToolTextDowngradeEnabled == nil {
+		return false, false
+	}
+	return *group.SignatureToolTextDowngradeEnabled, true
 }
 
 // isSignatureErrorPattern 仅做模式匹配，不检查开关。
@@ -6532,6 +6592,14 @@ func shouldRetryGenericAPIKeySignatureCompat(requestBody, respBody []byte) bool 
 		return false
 	}
 	return requestHasSignatureSensitiveThinkingHistory(requestBody)
+}
+
+func isExplicitThinkingSignatureError(respBody []byte) bool {
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "signature") && strings.Contains(msg, "thinking")
 }
 
 func isGenericInvalidParameterMessage(respBody []byte) bool {

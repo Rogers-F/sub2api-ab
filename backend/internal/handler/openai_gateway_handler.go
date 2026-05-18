@@ -246,8 +246,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	for {
 		// Select account supporting the requested model
 		reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
+		selectionCtx := withFailoverSourceSelectionContext(c.Request.Context(), lastFailedAccountID, false)
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
-			c.Request.Context(),
+			selectionCtx,
 			apiKey.GroupID,
 			previousResponseID,
 			sessionHash,
@@ -305,7 +306,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
-		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, 0, false)
+		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, switchCount, false)
 		result, err := h.gatewayService.Forward(requestCtx, c, account, forwardBody)
 		cleanupAttemptCtx()
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
@@ -640,8 +641,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			currentRoutingModel = effectiveMappedModel
 		}
 		reqLog.Debug("openai_messages.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
+		selectionCtx := withFailoverSourceSelectionContext(c.Request.Context(), lastFailedAccountID, false)
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
-			c.Request.Context(),
+			selectionCtx,
 			apiKey.GroupID,
 			"", // no previous_response_id
 			sessionHash,
@@ -692,7 +694,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		if channelMappingMsg.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMappingMsg.MappedModel)
 		}
-		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, 0, false)
+		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, switchCount, false)
 		result, err := h.gatewayService.ForwardAsAnthropic(requestCtx, c, account, forwardBody, promptCacheKey, defaultMappedModel)
 		cleanupAttemptCtx()
 

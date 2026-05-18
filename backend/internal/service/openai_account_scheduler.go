@@ -20,6 +20,7 @@ import (
 const (
 	openAIAccountScheduleLayerPreviousResponse = "previous_response_id"
 	openAIAccountScheduleLayerSessionSticky    = "session_hash"
+	openAIAccountScheduleLayerFallbackChain    = "fallback_chain"
 	openAIAccountScheduleLayerLoadBalance      = "load_balance"
 	openAIAdvancedSchedulerSettingKey          = "openai_advanced_scheduler_enabled"
 )
@@ -279,7 +280,18 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		}
 	}
 
-	selection, err := s.selectBySessionHash(ctx, req)
+	selection, err := s.selectByFallbackChain(ctx, req)
+	if err != nil {
+		return nil, decision, err
+	}
+	if selection != nil && selection.Account != nil {
+		decision.Layer = openAIAccountScheduleLayerFallbackChain
+		decision.SelectedAccountID = selection.Account.ID
+		decision.SelectedAccountType = selection.Account.Type
+		return selection, decision, nil
+	}
+
+	selection, err = s.selectBySessionHash(ctx, req)
 	if err != nil {
 		return nil, decision, err
 	}
@@ -376,6 +388,61 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 				MaxWaiting:     cfg.StickySessionMaxWaiting,
 			},
 		}, nil
+	}
+	return nil, nil
+}
+
+func (s *defaultOpenAIAccountScheduler) selectByFallbackChain(
+	ctx context.Context,
+	req OpenAIAccountScheduleRequest,
+) (*AccountSelectionResult, error) {
+	if s == nil || s.service == nil {
+		return nil, nil
+	}
+	sourceAccountID := failoverSourceAccountIDFromContext(ctx)
+	if sourceAccountID <= 0 {
+		return nil, nil
+	}
+
+	candidates, err := s.service.listFallbackChainAccounts(ctx, sourceAccountID)
+	if err != nil {
+		return nil, err
+	}
+	cfg := s.service.schedulingConfig()
+	for _, candidate := range candidates {
+		resolved := s.service.resolveFallbackChainCandidate(ctx, req.GroupID, req.RequestedModel, req.ExcludedIDs, candidate)
+		if resolved == nil {
+			continue
+		}
+		if !s.isAccountTransportCompatible(resolved, req.RequiredTransport) || !s.isAccountRequestCompatible(resolved, req) {
+			continue
+		}
+
+		result, acquireErr := s.service.tryAcquireAccountSlot(ctx, resolved.ID, resolved.Concurrency)
+		if acquireErr != nil {
+			return nil, acquireErr
+		}
+		if result != nil && result.Acquired {
+			if req.SessionHash != "" {
+				_ = s.service.BindStickySession(ctx, req.GroupID, req.SessionHash, resolved.ID)
+			}
+			return &AccountSelectionResult{
+				Account:     resolved,
+				Acquired:    true,
+				ReleaseFunc: result.ReleaseFunc,
+			}, nil
+		}
+		if s.service.concurrencyService != nil {
+			return &AccountSelectionResult{
+				Account: resolved,
+				WaitPlan: &AccountWaitPlan{
+					AccountID:      resolved.ID,
+					MaxConcurrency: resolved.Concurrency,
+					Timeout:        cfg.FallbackWaitTimeout,
+					MaxWaiting:     cfg.FallbackMaxWaiting,
+				},
+			}, nil
+		}
 	}
 	return nil, nil
 }

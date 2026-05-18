@@ -1080,6 +1080,30 @@ func TestOpenAISelectFallbackChainAccount_AllowsCrossGroupCandidate(t *testing.T
 	require.Equal(t, int64(2), account.ID, "显式兜底链应允许同平台跨分组账号")
 }
 
+func TestOpenAIShouldFailoverUpstreamResponseForAccount_404RequiresExplicitFallback(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	fallbackID := int64(2)
+
+	require.True(t,
+		svc.shouldFailoverOpenAIUpstreamResponseForAccount(
+			&Account{FallbackAccountID: &fallbackID},
+			http.StatusNotFound,
+			"bad response status code 404",
+			nil,
+		),
+		"显式账号级兜底应允许 404 进入 failover 链",
+	)
+	require.False(t,
+		svc.shouldFailoverOpenAIUpstreamResponseForAccount(
+			&Account{},
+			http.StatusNotFound,
+			"bad response status code 404",
+			nil,
+		),
+		"未配置账号级兜底时 404 保持普通上游错误",
+	)
+}
+
 func TestOpenAIStreamingTimeout(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{

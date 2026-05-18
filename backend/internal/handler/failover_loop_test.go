@@ -774,3 +774,11 @@ func TestWithFailoverSelectionContext(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, int64(123), accountID)
 }
+
+func TestWithFailoverSourceSelectionContext(t *testing.T) {
+	ctx := withFailoverSourceSelectionContext(context.Background(), 456, false)
+	accountID, ok := service.FailoverSourceAccountIDFromContext(ctx)
+
+	require.True(t, ok)
+	require.Equal(t, int64(456), accountID)
+}

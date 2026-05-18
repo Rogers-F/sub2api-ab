@@ -119,8 +119,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	for {
 		c.Set("openai_chat_completions_fallback_model", "")
 		reqLog.Debug("openai_chat_completions.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
+		selectionCtx := withFailoverSourceSelectionContext(c.Request.Context(), lastFailedAccountID, false)
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
-			c.Request.Context(),
+			selectionCtx,
 			apiKey.GroupID,
 			"",
 			sessionHash,
@@ -191,7 +192,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
-		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, 0, false)
+		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, switchCount, false)
 		result, err := h.gatewayService.ForwardAsChatCompletions(requestCtx, c, account, forwardBody, promptCacheKey, defaultMappedModel)
 		cleanupAttemptCtx()
 

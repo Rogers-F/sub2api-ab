@@ -14,7 +14,14 @@ func withFailoverSelectionContext(ctx context.Context, fs *FailoverState, bridge
 	if ctx == nil || fs == nil || fs.LastFailedAccountID <= 0 {
 		return ctx
 	}
-	return service.WithFailoverSourceAccountID(ctx, fs.LastFailedAccountID, bridgeOldKeys)
+	return withFailoverSourceSelectionContext(ctx, fs.LastFailedAccountID, bridgeOldKeys)
+}
+
+func withFailoverSourceSelectionContext(ctx context.Context, lastFailedAccountID int64, bridgeOldKeys bool) context.Context {
+	if ctx == nil || lastFailedAccountID <= 0 {
+		return ctx
+	}
+	return service.WithFailoverSourceAccountID(ctx, lastFailedAccountID, bridgeOldKeys)
 }
 
 // TempUnscheduler 用于 HandleFailoverError 中同账号重试耗尽后的临时封禁。

@@ -386,6 +386,27 @@ func BuildRequestCompatibilityRetryBody(body, respBody []byte) ([]byte, string, 
 		}
 	}
 
+	if isDanglingToolUseError(respBody) {
+		if out, ok := RemoveDanglingToolUseForRetry(body); ok {
+			return out, "dangling_tool_use", true
+		}
+		return body, "", false
+	}
+
+	if isTemperatureTopPConflictError(respBody) {
+		if out, ok := RemoveTopPForRetry(body); ok {
+			return out, "temperature_top_p", true
+		}
+		return body, "", false
+	}
+
+	if isUnsupportedContextManagementError(respBody) {
+		if out, ok := RemoveContextManagementForRetry(body); ok {
+			return out, "context_management", true
+		}
+		return body, "", false
+	}
+
 	return body, "", false
 }
 
@@ -406,6 +427,41 @@ func isInvalidRedactedThinkingDataError(respBody []byte) bool {
 	return strings.Contains(msg, "redacted_thinking") &&
 		strings.Contains(msg, "invalid") &&
 		strings.Contains(msg, "data")
+}
+
+func isDanglingToolUseError(respBody []byte) bool {
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "tool_use") &&
+		strings.Contains(msg, "tool_result") &&
+		(strings.Contains(msg, "without") ||
+			strings.Contains(msg, "immediately after") ||
+			strings.Contains(msg, "must have a corresponding"))
+}
+
+func isTemperatureTopPConflictError(respBody []byte) bool {
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "temperature") &&
+		strings.Contains(msg, "top_p") &&
+		(strings.Contains(msg, "cannot both") ||
+			strings.Contains(msg, "both be specified") ||
+			strings.Contains(msg, "use only one"))
+}
+
+func isUnsupportedContextManagementError(respBody []byte) bool {
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "context_management") &&
+		(strings.Contains(msg, "extra inputs are not permitted") ||
+			strings.Contains(msg, "extra fields not permitted") ||
+			strings.Contains(msg, "unknown field"))
 }
 
 // RemoveAssistantPrefillForRetry removes the final pure assistant prefill so
@@ -460,6 +516,253 @@ func RemoveAssistantPrefillForRetry(body []byte) ([]byte, bool) {
 		return body, false
 	}
 	return out, true
+}
+
+// RemoveTopPForRetry resolves model/provider paths that reject simultaneous
+// temperature and top_p by preserving temperature and dropping top_p.
+func RemoveTopPForRetry(body []byte) ([]byte, bool) {
+	if !bytes.Contains(body, []byte(`"temperature"`)) ||
+		!bytes.Contains(body, []byte(`"top_p"`)) {
+		return body, false
+	}
+
+	jsonStr := *(*string)(unsafe.Pointer(&body))
+	if !gjson.Get(jsonStr, "temperature").Exists() || !gjson.Get(jsonStr, "top_p").Exists() {
+		return body, false
+	}
+
+	out, err := sjson.DeleteBytes(body, "top_p")
+	if err != nil {
+		return body, false
+	}
+	return out, true
+}
+
+// RemoveContextManagementForRetry drops top-level context_management only when
+// an upstream explicitly rejects that field. Message and tool blocks are kept.
+func RemoveContextManagementForRetry(body []byte) ([]byte, bool) {
+	if !bytes.Contains(body, []byte(`"context_management"`)) {
+		return body, false
+	}
+
+	jsonStr := *(*string)(unsafe.Pointer(&body))
+	if !gjson.Get(jsonStr, "context_management").Exists() {
+		return body, false
+	}
+
+	out, err := sjson.DeleteBytes(body, "context_management")
+	if err != nil {
+		return body, false
+	}
+	return out, true
+}
+
+// RemoveDanglingToolUseForRetry removes assistant tool_use blocks that do not
+// have matching tool_result blocks in the immediately following user message.
+// It does not invent tool results or convert tool blocks to visible text.
+func RemoveDanglingToolUseForRetry(body []byte) ([]byte, bool) {
+	if !bytes.Contains(body, []byte(`"messages"`)) ||
+		!bytes.Contains(body, []byte(`"tool_use"`)) {
+		return body, false
+	}
+
+	jsonStr := *(*string)(unsafe.Pointer(&body))
+	msgsRes := gjson.Get(jsonStr, "messages")
+	if !msgsRes.Exists() || !msgsRes.IsArray() {
+		return body, false
+	}
+
+	var messages []any
+	if err := json.Unmarshal(sliceRawFromBody(body, msgsRes), &messages); err != nil {
+		return body, false
+	}
+	if len(messages) == 0 {
+		return body, false
+	}
+
+	modified := false
+	withoutDanglingTools := make([]any, 0, len(messages))
+	for i, msg := range messages {
+		msgMap, ok := msg.(map[string]any)
+		if !ok {
+			withoutDanglingTools = append(withoutDanglingTools, msg)
+			continue
+		}
+		role, _ := msgMap["role"].(string)
+		content, ok := msgMap["content"].([]any)
+		if role != "assistant" || !ok {
+			withoutDanglingTools = append(withoutDanglingTools, msg)
+			continue
+		}
+
+		nextToolResultIDs := map[string]struct{}{}
+		if i+1 < len(messages) {
+			nextToolResultIDs = collectToolResultIDs(messages[i+1])
+		}
+
+		cleanedContent := make([]any, 0, len(content))
+		changedThisMessage := false
+		for _, block := range content {
+			blockMap, ok := block.(map[string]any)
+			if !ok {
+				cleanedContent = append(cleanedContent, block)
+				continue
+			}
+			blockType, _ := blockMap["type"].(string)
+			if blockType == "tool_use" {
+				id, _ := blockMap["id"].(string)
+				if _, hasResult := nextToolResultIDs[id]; id == "" || !hasResult {
+					modified = true
+					changedThisMessage = true
+					continue
+				}
+			}
+			cleanedContent = append(cleanedContent, block)
+		}
+
+		if !changedThisMessage {
+			withoutDanglingTools = append(withoutDanglingTools, msg)
+			continue
+		}
+		if len(cleanedContent) == 0 {
+			continue
+		}
+		msgCopy := cloneMessageMap(msgMap)
+		msgCopy["content"] = cleanedContent
+		withoutDanglingTools = append(withoutDanglingTools, msgCopy)
+	}
+
+	if !modified {
+		return body, false
+	}
+
+	cleanedMessages := removeOrphanToolResults(withoutDanglingTools)
+	msgsBytes, err := json.Marshal(cleanedMessages)
+	if err != nil {
+		return body, false
+	}
+	out, err := sjson.SetRawBytes(body, "messages", msgsBytes)
+	if err != nil {
+		return body, false
+	}
+	return out, true
+}
+
+func removeOrphanToolResults(messages []any) []any {
+	cleanedMessages := make([]any, 0, len(messages))
+	for _, msg := range messages {
+		msgMap, ok := msg.(map[string]any)
+		if !ok {
+			cleanedMessages = append(cleanedMessages, msg)
+			continue
+		}
+		role, _ := msgMap["role"].(string)
+		content, ok := msgMap["content"].([]any)
+		if role != "user" || !ok {
+			cleanedMessages = append(cleanedMessages, msg)
+			continue
+		}
+
+		validToolUseIDs := map[string]struct{}{}
+		if len(cleanedMessages) > 0 {
+			validToolUseIDs = collectToolUseIDs(cleanedMessages[len(cleanedMessages)-1])
+		}
+
+		cleanedContent := make([]any, 0, len(content))
+		changedThisMessage := false
+		for _, block := range content {
+			blockMap, ok := block.(map[string]any)
+			if !ok {
+				cleanedContent = append(cleanedContent, block)
+				continue
+			}
+			blockType, _ := blockMap["type"].(string)
+			if blockType == "tool_result" {
+				toolUseID, _ := blockMap["tool_use_id"].(string)
+				if _, hasToolUse := validToolUseIDs[toolUseID]; toolUseID == "" || !hasToolUse {
+					changedThisMessage = true
+					continue
+				}
+			}
+			cleanedContent = append(cleanedContent, block)
+		}
+
+		if !changedThisMessage {
+			cleanedMessages = append(cleanedMessages, msg)
+			continue
+		}
+		if len(cleanedContent) == 0 {
+			continue
+		}
+		msgCopy := cloneMessageMap(msgMap)
+		msgCopy["content"] = cleanedContent
+		cleanedMessages = append(cleanedMessages, msgCopy)
+	}
+	return cleanedMessages
+}
+
+func collectToolResultIDs(msg any) map[string]struct{} {
+	ids := map[string]struct{}{}
+	msgMap, ok := msg.(map[string]any)
+	if !ok {
+		return ids
+	}
+	role, _ := msgMap["role"].(string)
+	content, ok := msgMap["content"].([]any)
+	if role != "user" || !ok {
+		return ids
+	}
+	for _, block := range content {
+		blockMap, ok := block.(map[string]any)
+		if !ok {
+			continue
+		}
+		blockType, _ := blockMap["type"].(string)
+		if blockType != "tool_result" {
+			continue
+		}
+		toolUseID, _ := blockMap["tool_use_id"].(string)
+		if toolUseID != "" {
+			ids[toolUseID] = struct{}{}
+		}
+	}
+	return ids
+}
+
+func collectToolUseIDs(msg any) map[string]struct{} {
+	ids := map[string]struct{}{}
+	msgMap, ok := msg.(map[string]any)
+	if !ok {
+		return ids
+	}
+	role, _ := msgMap["role"].(string)
+	content, ok := msgMap["content"].([]any)
+	if role != "assistant" || !ok {
+		return ids
+	}
+	for _, block := range content {
+		blockMap, ok := block.(map[string]any)
+		if !ok {
+			continue
+		}
+		blockType, _ := blockMap["type"].(string)
+		if blockType != "tool_use" {
+			continue
+		}
+		id, _ := blockMap["id"].(string)
+		if id != "" {
+			ids[id] = struct{}{}
+		}
+	}
+	return ids
+}
+
+func cloneMessageMap(msg map[string]any) map[string]any {
+	out := make(map[string]any, len(msg))
+	for k, v := range msg {
+		out[k] = v
+	}
+	return out
 }
 
 func assistantMessageContainsToolBlock(msg map[string]any) bool {

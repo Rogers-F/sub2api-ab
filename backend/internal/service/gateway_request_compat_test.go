@@ -120,6 +120,127 @@ func TestBuildRequestCompatibilityRetryBody_StripsInvalidRedactedThinkingData(t 
 	require.NotContains(t, string(out), "redacted_thinking")
 }
 
+func TestBuildRequestCompatibilityRetryBody_RemovesDanglingToolUse(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":100,
+		"messages":[
+			{"role":"user","content":"Use tools"},
+			{"role":"assistant","content":[
+				{"type":"tool_use","id":"toolu_good","name":"Bash","input":{"command":"pwd"}},
+				{"type":"tool_use","id":"toolu_missing","name":"Bash","input":{"command":"cat /etc/passwd"}}
+			]},
+			{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_good","content":"ok"}]},
+			{"role":"user","content":"continue"}
+		]
+	}`)
+	respBody := []byte(`{"type":"error","error":{"message":"messages.1: ` + "`tool_use`" + ` ids were found without ` + "`tool_result`" + ` blocks immediately after: toolu_missing. Each ` + "`tool_use`" + ` block must have a corresponding ` + "`tool_result`" + ` block in the next message."}}`)
+
+	out, kind, ok := BuildRequestCompatibilityRetryBody(body, respBody)
+	require.True(t, ok)
+	require.Equal(t, "dangling_tool_use", kind)
+	require.Equal(t, int64(1), gjson.GetBytes(out, "messages.1.content.#").Int())
+	require.Equal(t, "tool_use", gjson.GetBytes(out, "messages.1.content.0.type").String())
+	require.Equal(t, "toolu_good", gjson.GetBytes(out, "messages.1.content.0.id").String())
+	require.Equal(t, "toolu_good", gjson.GetBytes(out, "messages.2.content.0.tool_use_id").String())
+	require.NotContains(t, string(out), "toolu_missing")
+	require.NotContains(t, string(out), "cat /etc/passwd")
+}
+
+func TestBuildRequestCompatibilityRetryBody_RemovesOrphanedToolResultAfterDanglingToolUse(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":100,
+		"messages":[
+			{"role":"user","content":"Use a tool"},
+			{"role":"assistant","content":[{"type":"tool_use","id":"toolu_missing","name":"Bash","input":{"command":"whoami"}}]},
+			{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_other","content":"orphan"}]},
+			{"role":"user","content":"continue"}
+		]
+	}`)
+	respBody := []byte(`{"type":"error","error":{"message":"messages.1: ` + "`tool_use`" + ` ids were found without ` + "`tool_result`" + ` blocks immediately after: toolu_missing. Each ` + "`tool_use`" + ` block must have a corresponding ` + "`tool_result`" + ` block in the next message."}}`)
+
+	out, kind, ok := BuildRequestCompatibilityRetryBody(body, respBody)
+	require.True(t, ok)
+	require.Equal(t, "dangling_tool_use", kind)
+	require.Equal(t, int64(2), gjson.GetBytes(out, "messages.#").Int())
+	require.Equal(t, "Use a tool", gjson.GetBytes(out, "messages.0.content").String())
+	require.Equal(t, "continue", gjson.GetBytes(out, "messages.1.content").String())
+	require.NotContains(t, string(out), "toolu_missing")
+	require.NotContains(t, string(out), "toolu_other")
+	require.NotContains(t, string(out), "whoami")
+	require.NotContains(t, string(out), "orphan")
+}
+
+func TestBuildRequestCompatibilityRetryBody_KeepsValidToolUseResultPairUnchanged(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":100,
+		"messages":[
+			{"role":"user","content":"Use a tool"},
+			{"role":"assistant","content":[{"type":"tool_use","id":"toolu_good","name":"Bash","input":{"command":"pwd"}}]},
+			{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_good","content":"ok"}]}
+		]
+	}`)
+	respBody := []byte(`{"type":"error","error":{"message":"messages.1: ` + "`tool_use`" + ` ids were found without ` + "`tool_result`" + ` blocks immediately after: toolu_missing. Each ` + "`tool_use`" + ` block must have a corresponding ` + "`tool_result`" + ` block in the next message."}}`)
+
+	out, _, ok := BuildRequestCompatibilityRetryBody(body, respBody)
+	require.False(t, ok)
+	require.Equal(t, string(body), string(out))
+}
+
+func TestBuildRequestCompatibilityRetryBody_RemovesTopPWhenTemperatureConflicts(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":100,
+		"temperature":0.7,
+		"top_p":0.9,
+		"messages":[{"role":"user","content":"hello"}]
+	}`)
+	respBody := []byte(`{"type":"error","error":{"message":"` + "`temperature`" + ` and ` + "`top_p`" + ` cannot both be specified for this model. Please use only one."}}`)
+
+	out, kind, ok := BuildRequestCompatibilityRetryBody(body, respBody)
+	require.True(t, ok)
+	require.Equal(t, "temperature_top_p", kind)
+	require.True(t, gjson.GetBytes(out, "temperature").Exists())
+	require.False(t, gjson.GetBytes(out, "top_p").Exists())
+	require.Equal(t, "hello", gjson.GetBytes(out, "messages.0.content").String())
+}
+
+func TestBuildRequestCompatibilityRetryBody_KeepsTopPWhenTemperatureMissing(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":100,
+		"top_p":0.9,
+		"messages":[{"role":"user","content":"hello"}]
+	}`)
+	respBody := []byte(`{"type":"error","error":{"message":"` + "`temperature`" + ` and ` + "`top_p`" + ` cannot both be specified for this model. Please use only one."}}`)
+
+	out, _, ok := BuildRequestCompatibilityRetryBody(body, respBody)
+	require.False(t, ok)
+	require.Equal(t, string(body), string(out))
+}
+
+func TestBuildRequestCompatibilityRetryBody_RemovesUnsupportedContextManagement(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":100,
+		"context_management":{"edits":[{"type":"clear_thinking_20251015"}]},
+		"messages":[
+			{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"pwd"}}]},
+			{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"ok"}]}
+		]
+	}`)
+	respBody := []byte(`{"type":"error","error":{"message":"context_management: Extra inputs are not permitted"}}`)
+
+	out, kind, ok := BuildRequestCompatibilityRetryBody(body, respBody)
+	require.True(t, ok)
+	require.Equal(t, "context_management", kind)
+	require.False(t, gjson.GetBytes(out, "context_management").Exists())
+	require.Equal(t, "tool_use", gjson.GetBytes(out, "messages.0.content.0.type").String())
+	require.Equal(t, "tool_result", gjson.GetBytes(out, "messages.1.content.0.type").String())
+}
+
 func TestGatewayService_Forward_GroupRequestCompatRetriesAssistantPrefill(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

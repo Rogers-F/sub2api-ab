@@ -63,6 +63,8 @@ type Group struct {
 	SignatureCompatEnabled *bool `json:"signature_compat_enabled,omitempty"`
 	// 签名兼容二阶段工具块文本降级开关：NULL 继承默认行为，false 禁止，true 允许
 	SignatureToolTextDowngradeEnabled *bool `json:"signature_tool_text_downgrade_enabled,omitempty"`
+	// 请求兼容重试开关：处理部分上游请求格式兼容错误
+	RequestCompatEnabled bool `json:"request_compat_enabled,omitempty"`
 	// 模型路由配置：模型模式 -> 优先账号ID列表
 	ModelRouting map[string][]int64 `json:"model_routing,omitempty"`
 	// 是否启用模型路由配置
@@ -191,7 +193,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldMessagesDispatchModelConfig:
 			values[i] = new([]byte)
-		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldSignatureCompatEnabled, group.FieldSignatureToolTextDowngradeEnabled, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet:
+		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldSignatureCompatEnabled, group.FieldSignatureToolTextDowngradeEnabled, group.FieldRequestCompatEnabled, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet:
 			values[i] = new(sql.NullBool)
 		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k:
 			values[i] = new(sql.NullFloat64)
@@ -365,6 +367,12 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SignatureToolTextDowngradeEnabled = new(bool)
 				*_m.SignatureToolTextDowngradeEnabled = value.Bool
+			}
+		case group.FieldRequestCompatEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field request_compat_enabled", values[i])
+			} else if value.Valid {
+				_m.RequestCompatEnabled = value.Bool
 			}
 		case group.FieldModelRouting:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -597,6 +605,9 @@ func (_m *Group) String() string {
 		builder.WriteString("signature_tool_text_downgrade_enabled=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("request_compat_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequestCompatEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("model_routing=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ModelRouting))

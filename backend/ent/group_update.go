@@ -464,6 +464,12 @@ func (_u *GroupUpdate) ClearSignatureToolTextDowngradeEnabled() *GroupUpdate {
 	return _u
 }
 
+// SetRequestCompatEnabled sets the "request_compat_enabled" field.
+func (_u *GroupUpdate) SetRequestCompatEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetRequestCompatEnabled(v)
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdate) SetModelRouting(v map[string][]int64) *GroupUpdate {
 	_u.mutation.SetModelRouting(v)
@@ -1040,6 +1046,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.SignatureToolTextDowngradeEnabledCleared() {
 		_spec.ClearField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RequestCompatEnabled(); ok {
+		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -1824,6 +1833,12 @@ func (_u *GroupUpdateOne) ClearSignatureToolTextDowngradeEnabled() *GroupUpdateO
 	return _u
 }
 
+// SetRequestCompatEnabled sets the "request_compat_enabled" field.
+func (_u *GroupUpdateOne) SetRequestCompatEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetRequestCompatEnabled(v)
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdateOne) SetModelRouting(v map[string][]int64) *GroupUpdateOne {
 	_u.mutation.SetModelRouting(v)
@@ -2430,6 +2445,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.SignatureToolTextDowngradeEnabledCleared() {
 		_spec.ClearField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RequestCompatEnabled(); ok {
+		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)

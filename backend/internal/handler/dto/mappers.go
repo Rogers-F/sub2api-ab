@@ -146,6 +146,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		MCPXMLInject:                      g.MCPXMLInject,
 		SignatureCompatEnabled:            g.SignatureCompatEnabled,
 		SignatureToolTextDowngradeEnabled: g.SignatureToolTextDowngradeEnabled,
+		RequestCompatEnabled:              g.RequestCompatEnabled,
 		DefaultMappedModel:                g.DefaultMappedModel,
 		MessagesDispatchModelConfig:       g.MessagesDispatchModelConfig,
 		SupportedModelScopes:              g.SupportedModelScopes,

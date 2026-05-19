@@ -1820,6 +1820,12 @@ export default {
         hint: '仅当上游明确返回 prompt too long 时才会触发，留空表示不兜底',
         noFallback: '不兜底'
       },
+      requestCompat: {
+        title: '请求兼容',
+        hint: '启用后，遇到部分上游请求格式兼容错误时会内部清洗并重试一次，例如 assistant prefill 和 redacted_thinking data。不会把工具块转成文本。',
+        enabled: '已开启请求兼容',
+        disabled: '已关闭请求兼容'
+      },
       signatureCompat: {
         title: '签名兼容',
         hint: '控制 invalid thinking signature 这类错误的内部重试清理。继承表示使用全局/账号级行为。',

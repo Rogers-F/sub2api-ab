@@ -60,6 +60,8 @@ const (
 	FieldSignatureCompatEnabled = "signature_compat_enabled"
 	// FieldSignatureToolTextDowngradeEnabled holds the string denoting the signature_tool_text_downgrade_enabled field in the database.
 	FieldSignatureToolTextDowngradeEnabled = "signature_tool_text_downgrade_enabled"
+	// FieldRequestCompatEnabled holds the string denoting the request_compat_enabled field in the database.
+	FieldRequestCompatEnabled = "request_compat_enabled"
 	// FieldModelRouting holds the string denoting the model_routing field in the database.
 	FieldModelRouting = "model_routing"
 	// FieldModelRoutingEnabled holds the string denoting the model_routing_enabled field in the database.
@@ -177,6 +179,7 @@ var Columns = []string{
 	FieldFallbackGroupIDOnInvalidRequest,
 	FieldSignatureCompatEnabled,
 	FieldSignatureToolTextDowngradeEnabled,
+	FieldRequestCompatEnabled,
 	FieldModelRouting,
 	FieldModelRoutingEnabled,
 	FieldMcpXMLInject,
@@ -244,6 +247,8 @@ var (
 	DefaultDefaultValidityDays int
 	// DefaultClaudeCodeOnly holds the default value on creation for the "claude_code_only" field.
 	DefaultClaudeCodeOnly bool
+	// DefaultRequestCompatEnabled holds the default value on creation for the "request_compat_enabled" field.
+	DefaultRequestCompatEnabled bool
 	// DefaultModelRoutingEnabled holds the default value on creation for the "model_routing_enabled" field.
 	DefaultModelRoutingEnabled bool
 	// DefaultMcpXMLInject holds the default value on creation for the "mcp_xml_inject" field.
@@ -382,6 +387,11 @@ func BySignatureCompatEnabled(opts ...sql.OrderTermOption) OrderOption {
 // BySignatureToolTextDowngradeEnabled orders the results by the signature_tool_text_downgrade_enabled field.
 func BySignatureToolTextDowngradeEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSignatureToolTextDowngradeEnabled, opts...).ToFunc()
+}
+
+// ByRequestCompatEnabled orders the results by the request_compat_enabled field.
+func ByRequestCompatEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestCompatEnabled, opts...).ToFunc()
 }
 
 // ByModelRoutingEnabled orders the results by the model_routing_enabled field.

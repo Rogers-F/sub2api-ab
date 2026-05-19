@@ -100,6 +100,7 @@ type CreateGroupRequest struct {
 	FallbackGroupIDOnInvalidRequest   *int64   `json:"fallback_group_id_on_invalid_request"`
 	SignatureCompatEnabled            *bool    `json:"signature_compat_enabled"`
 	SignatureToolTextDowngradeEnabled *bool    `json:"signature_tool_text_downgrade_enabled"`
+	RequestCompatEnabled              bool     `json:"request_compat_enabled"`
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64 `json:"model_routing"`
 	ModelRoutingEnabled bool               `json:"model_routing_enabled"`
@@ -137,6 +138,7 @@ type UpdateGroupRequest struct {
 	FallbackGroupIDOnInvalidRequest   *int64   `json:"fallback_group_id_on_invalid_request"`
 	SignatureCompatEnabled            *bool    `json:"signature_compat_enabled"`
 	SignatureToolTextDowngradeEnabled *bool    `json:"signature_tool_text_downgrade_enabled"`
+	RequestCompatEnabled              *bool    `json:"request_compat_enabled"`
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64 `json:"model_routing"`
 	ModelRoutingEnabled *bool              `json:"model_routing_enabled"`
@@ -259,6 +261,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		FallbackGroupIDOnInvalidRequest:   req.FallbackGroupIDOnInvalidRequest,
 		SignatureCompatEnabled:            req.SignatureCompatEnabled,
 		SignatureToolTextDowngradeEnabled: req.SignatureToolTextDowngradeEnabled,
+		RequestCompatEnabled:              req.RequestCompatEnabled,
 		ModelRouting:                      req.ModelRouting,
 		ModelRoutingEnabled:               req.ModelRoutingEnabled,
 		MCPXMLInject:                      req.MCPXMLInject,
@@ -312,6 +315,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		FallbackGroupIDOnInvalidRequest:   req.FallbackGroupIDOnInvalidRequest,
 		SignatureCompatEnabled:            req.SignatureCompatEnabled,
 		SignatureToolTextDowngradeEnabled: req.SignatureToolTextDowngradeEnabled,
+		RequestCompatEnabled:              req.RequestCompatEnabled,
 		ModelRouting:                      req.ModelRouting,
 		ModelRoutingEnabled:               req.ModelRoutingEnabled,
 		MCPXMLInject:                      req.MCPXMLInject,

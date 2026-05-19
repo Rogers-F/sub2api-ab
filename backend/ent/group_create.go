@@ -329,6 +329,12 @@ func (_c *GroupCreate) SetNillableSignatureToolTextDowngradeEnabled(v *bool) *Gr
 	return _c
 }
 
+// SetRequestCompatEnabled sets the "request_compat_enabled" field.
+func (_c *GroupCreate) SetRequestCompatEnabled(v bool) *GroupCreate {
+	_c.mutation.SetRequestCompatEnabled(v)
+	return _c
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_c *GroupCreate) SetModelRouting(v map[string][]int64) *GroupCreate {
 	_c.mutation.SetModelRouting(v)
@@ -622,6 +628,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultClaudeCodeOnly
 		_c.mutation.SetClaudeCodeOnly(v)
 	}
+	if _, ok := _c.mutation.RequestCompatEnabled(); !ok {
+		v := group.DefaultRequestCompatEnabled
+		_c.mutation.SetRequestCompatEnabled(v)
+	}
 	if _, ok := _c.mutation.ModelRoutingEnabled(); !ok {
 		v := group.DefaultModelRoutingEnabled
 		_c.mutation.SetModelRoutingEnabled(v)
@@ -859,6 +869,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.SignatureToolTextDowngradeEnabled(); ok {
 		_spec.SetField(group.FieldSignatureToolTextDowngradeEnabled, field.TypeBool, value)
 		_node.SignatureToolTextDowngradeEnabled = &value
+	}
+	if value, ok := _c.mutation.RequestCompatEnabled(); ok {
+		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
+		_node.RequestCompatEnabled = value
 	}
 	if value, ok := _c.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -1437,6 +1451,18 @@ func (u *GroupUpsert) UpdateSignatureToolTextDowngradeEnabled() *GroupUpsert {
 // ClearSignatureToolTextDowngradeEnabled clears the value of the "signature_tool_text_downgrade_enabled" field.
 func (u *GroupUpsert) ClearSignatureToolTextDowngradeEnabled() *GroupUpsert {
 	u.SetNull(group.FieldSignatureToolTextDowngradeEnabled)
+	return u
+}
+
+// SetRequestCompatEnabled sets the "request_compat_enabled" field.
+func (u *GroupUpsert) SetRequestCompatEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldRequestCompatEnabled, v)
+	return u
+}
+
+// UpdateRequestCompatEnabled sets the "request_compat_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateRequestCompatEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldRequestCompatEnabled)
 	return u
 }
 
@@ -2062,6 +2088,20 @@ func (u *GroupUpsertOne) UpdateSignatureToolTextDowngradeEnabled() *GroupUpsertO
 func (u *GroupUpsertOne) ClearSignatureToolTextDowngradeEnabled() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearSignatureToolTextDowngradeEnabled()
+	})
+}
+
+// SetRequestCompatEnabled sets the "request_compat_enabled" field.
+func (u *GroupUpsertOne) SetRequestCompatEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetRequestCompatEnabled(v)
+	})
+}
+
+// UpdateRequestCompatEnabled sets the "request_compat_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateRequestCompatEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateRequestCompatEnabled()
 	})
 }
 
@@ -2875,6 +2915,20 @@ func (u *GroupUpsertBulk) UpdateSignatureToolTextDowngradeEnabled() *GroupUpsert
 func (u *GroupUpsertBulk) ClearSignatureToolTextDowngradeEnabled() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearSignatureToolTextDowngradeEnabled()
+	})
+}
+
+// SetRequestCompatEnabled sets the "request_compat_enabled" field.
+func (u *GroupUpsertBulk) SetRequestCompatEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetRequestCompatEnabled(v)
+	})
+}
+
+// UpdateRequestCompatEnabled sets the "request_compat_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateRequestCompatEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateRequestCompatEnabled()
 	})
 }
 

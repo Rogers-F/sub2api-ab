@@ -107,6 +107,9 @@ func (Group) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("签名兼容二阶段工具块文本降级开关：NULL 继承默认行为，false 禁止，true 允许"),
+		field.Bool("request_compat_enabled").
+			Default(false).
+			Comment("请求兼容重试开关：处理部分上游请求格式兼容错误"),
 
 		// 模型路由配置 (added by migration 040)
 		field.JSON("model_routing", map[string][]int64{}).

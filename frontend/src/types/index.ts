@@ -488,6 +488,7 @@ export interface AdminGroup extends Group {
   // 签名兼容开关（仅管理员可见，null 表示继承全局/账号级设置）
   signature_compat_enabled: boolean | null
   signature_tool_text_downgrade_enabled: boolean | null
+  request_compat_enabled: boolean
 
   // 支持的模型系列（仅 antigravity 平台使用）
   supported_model_scopes?: string[]
@@ -581,6 +582,7 @@ export interface CreateGroupRequest {
   fallback_group_id_on_invalid_request?: number | null
   signature_compat_enabled?: boolean | null
   signature_tool_text_downgrade_enabled?: boolean | null
+  request_compat_enabled?: boolean
   mcp_xml_inject?: boolean
   supported_model_scopes?: string[]
   require_oauth_only?: boolean
@@ -608,6 +610,7 @@ export interface UpdateGroupRequest {
   fallback_group_id_on_invalid_request?: number | null
   signature_compat_enabled?: boolean | null
   signature_tool_text_downgrade_enabled?: boolean | null
+  request_compat_enabled?: boolean
   mcp_xml_inject?: boolean
   supported_model_scopes?: string[]
   require_oauth_only?: boolean

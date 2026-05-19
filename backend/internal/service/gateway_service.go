@@ -4512,6 +4512,75 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					}
 				}
 
+				if retryBody, compatKind, ok := s.buildRequestCompatRetryBody(ctx, body, respBody); ok {
+					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+						Platform:           account.Platform,
+						AccountID:          account.ID,
+						AccountName:        account.Name,
+						UpstreamStatusCode: resp.StatusCode,
+						UpstreamRequestID:  resp.Header.Get("x-request-id"),
+						UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
+						Kind:               "request_compat_" + compatKind,
+						Message:            extractUpstreamErrorMessage(respBody),
+						Detail: func() string {
+							if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
+								return truncateString(string(respBody), s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes)
+							}
+							return ""
+						}(),
+					})
+
+					if time.Since(retryStart) < maxRetryElapsed {
+						logger.LegacyPrintf("service.gateway", "Account %d: request compatibility retry triggered: %s", account.ID, compatKind)
+						compatRetryCtx, releaseCompatRetryCtx := detachStreamUpstreamContext(ctx, reqStream)
+						compatRetryReq, buildErr := s.buildUpstreamRequest(compatRetryCtx, c, account, retryBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+						releaseCompatRetryCtx()
+						if buildErr == nil {
+							compatRetryResp, retryErr := s.httpUpstream.DoWithTLS(compatRetryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+							if retryErr == nil {
+								if compatRetryResp.StatusCode < 400 {
+									resp = compatRetryResp
+									break
+								}
+								compatRetryRespBody, _ := io.ReadAll(io.LimitReader(compatRetryResp.Body, 2<<20))
+								_ = compatRetryResp.Body.Close()
+								appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+									Platform:           account.Platform,
+									AccountID:          account.ID,
+									AccountName:        account.Name,
+									UpstreamStatusCode: compatRetryResp.StatusCode,
+									UpstreamRequestID:  compatRetryResp.Header.Get("x-request-id"),
+									UpstreamURL:        safeUpstreamURL(compatRetryReq.URL.String()),
+									Kind:               "request_compat_retry_failed_" + compatKind,
+									Message:            extractUpstreamErrorMessage(compatRetryRespBody),
+									Detail: func() string {
+										if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
+											return truncateString(string(compatRetryRespBody), s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes)
+										}
+										return ""
+									}(),
+								})
+							} else {
+								if compatRetryResp != nil && compatRetryResp.Body != nil {
+									_ = compatRetryResp.Body.Close()
+								}
+								appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+									Platform:           account.Platform,
+									AccountID:          account.ID,
+									AccountName:        account.Name,
+									UpstreamStatusCode: 0,
+									UpstreamURL:        safeUpstreamURL(compatRetryReq.URL.String()),
+									Kind:               "request_compat_retry_request_error_" + compatKind,
+									Message:            sanitizeUpstreamErrorMessage(retryErr.Error()),
+								})
+								logger.LegacyPrintf("service.gateway", "Account %d: request compatibility retry failed: %v", account.ID, retryErr)
+							}
+						} else {
+							logger.LegacyPrintf("service.gateway", "Account %d: request compatibility retry build failed: %v", account.ID, buildErr)
+						}
+					}
+				}
+
 				resp.Body = io.NopCloser(bytes.NewReader(respBody))
 			}
 		}
@@ -6551,6 +6620,21 @@ func signatureToolTextDowngradeGroupOverride(ctx context.Context) (bool, bool) {
 		return false, false
 	}
 	return *group.SignatureToolTextDowngradeEnabled, true
+}
+
+func (s *GatewayService) buildRequestCompatRetryBody(ctx context.Context, body, respBody []byte) ([]byte, string, bool) {
+	if !requestCompatGroupEnabled(ctx) {
+		return body, "", false
+	}
+	return BuildRequestCompatibilityRetryBody(body, respBody)
+}
+
+func requestCompatGroupEnabled(ctx context.Context) bool {
+	group, ok := ctx.Value(ctxkey.Group).(*Group)
+	if !ok || !IsGroupContextValid(group) {
+		return false
+	}
+	return group.RequestCompatEnabled
 }
 
 // isSignatureErrorPattern 仅做模式匹配，不检查开关。

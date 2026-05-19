@@ -368,6 +368,119 @@ func StripEmptyTextBlocks(body []byte) []byte {
 	return out
 }
 
+// BuildRequestCompatibilityRetryBody builds a conservative retry body for opt-in
+// request-format compatibility errors. It never converts tool_use/tool_result
+// blocks to text; cases that would alter tool semantics are left unchanged.
+func BuildRequestCompatibilityRetryBody(body, respBody []byte) ([]byte, string, bool) {
+	if isAssistantPrefillUnsupportedError(respBody) {
+		if out, ok := RemoveAssistantPrefillForRetry(body); ok {
+			return out, "assistant_prefill", true
+		}
+		return body, "", false
+	}
+
+	if isInvalidRedactedThinkingDataError(respBody) {
+		out := FilterThinkingBlocksForSafeRetry(body)
+		if !bytes.Equal(out, body) {
+			return out, "redacted_thinking", true
+		}
+	}
+
+	return body, "", false
+}
+
+func isAssistantPrefillUnsupportedError(respBody []byte) bool {
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "assistant message prefill") ||
+		strings.Contains(msg, "conversation must end with a user message")
+}
+
+func isInvalidRedactedThinkingDataError(respBody []byte) bool {
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "redacted_thinking") &&
+		strings.Contains(msg, "invalid") &&
+		strings.Contains(msg, "data")
+}
+
+// RemoveAssistantPrefillForRetry removes the final pure assistant prefill so
+// retry requests end with a user message. If the assistant message contains any
+// tool block, the request is left unchanged to avoid breaking tool chains.
+func RemoveAssistantPrefillForRetry(body []byte) ([]byte, bool) {
+	if !bytes.Contains(body, []byte(`"messages"`)) ||
+		!bytes.Contains(body, []byte(`"role"`)) ||
+		!bytes.Contains(body, []byte(`"assistant"`)) {
+		return body, false
+	}
+
+	jsonStr := *(*string)(unsafe.Pointer(&body))
+	msgsRes := gjson.Get(jsonStr, "messages")
+	if !msgsRes.Exists() || !msgsRes.IsArray() {
+		return body, false
+	}
+
+	var messages []any
+	if err := json.Unmarshal(sliceRawFromBody(body, msgsRes), &messages); err != nil {
+		return body, false
+	}
+	if len(messages) < 2 {
+		return body, false
+	}
+
+	lastMsg, ok := messages[len(messages)-1].(map[string]any)
+	if !ok {
+		return body, false
+	}
+	role, _ := lastMsg["role"].(string)
+	if role != "assistant" || assistantMessageContainsToolBlock(lastMsg) {
+		return body, false
+	}
+
+	retryMessages := messages[:len(messages)-1]
+	prevMsg, ok := retryMessages[len(retryMessages)-1].(map[string]any)
+	if !ok {
+		return body, false
+	}
+	prevRole, _ := prevMsg["role"].(string)
+	if prevRole != "user" {
+		return body, false
+	}
+
+	msgsBytes, err := json.Marshal(retryMessages)
+	if err != nil {
+		return body, false
+	}
+	out, err := sjson.SetRawBytes(body, "messages", msgsBytes)
+	if err != nil {
+		return body, false
+	}
+	return out, true
+}
+
+func assistantMessageContainsToolBlock(msg map[string]any) bool {
+	content, ok := msg["content"].([]any)
+	if !ok {
+		return false
+	}
+	for _, block := range content {
+		blockMap, ok := block.(map[string]any)
+		if !ok {
+			continue
+		}
+		blockType, _ := blockMap["type"].(string)
+		blockType = strings.ToLower(blockType)
+		if blockType == "tool_use" || blockType == "tool_result" || strings.Contains(blockType, "tool") {
+			return true
+		}
+	}
+	return false
+}
+
 // FilterThinkingBlocks removes thinking blocks from request body
 // Returns filtered body or original body if filtering fails (fail-safe)
 // This prevents 400 errors from invalid thinking block signatures

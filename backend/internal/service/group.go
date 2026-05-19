@@ -39,6 +39,8 @@ type Group struct {
 	// 签名兼容开关。nil 表示继承全局/账号级设置；false 显式关闭；true 显式开启。
 	SignatureCompatEnabled            *bool
 	SignatureToolTextDowngradeEnabled *bool
+	// 请求兼容开关。启用后可对部分上游请求格式兼容错误做内部重试。
+	RequestCompatEnabled bool
 
 	// 模型路由配置
 	// key: 模型匹配模式（支持 * 通配符，如 "claude-opus-*"）

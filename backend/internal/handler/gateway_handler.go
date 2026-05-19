@@ -122,6 +122,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
 		return
 	}
+	if service.IsGroupContextValid(apiKey.Group) {
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.Group, apiKey.Group))
+	}
 	reqLog := requestLogger(
 		c,
 		"handler.gateway.messages",
@@ -747,6 +750,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						}
 						// 兜底重试按"直接请求兜底分组"处理：清除强制平台，允许按分组平台调度
 						ctx := context.WithValue(c.Request.Context(), ctxkey.ForcePlatform, "")
+						if service.IsGroupContextValid(fallbackGroup) {
+							ctx = context.WithValue(ctx, ctxkey.Group, fallbackGroup)
+						}
 						c.Request = c.Request.WithContext(ctx)
 						currentAPIKey = fallbackAPIKey
 						currentSubscription = nil
@@ -1400,6 +1406,9 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 	if !ok {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
 		return
+	}
+	if service.IsGroupContextValid(apiKey.Group) {
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.Group, apiKey.Group))
 	}
 	reqLog := requestLogger(
 		c,

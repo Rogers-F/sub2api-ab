@@ -1734,6 +1734,12 @@ export default {
         hint: 'Triggered only when upstream explicitly returns prompt too long. Leave empty to disable fallback.',
         noFallback: 'No Fallback'
       },
+      requestCompat: {
+        title: 'Request Compatibility',
+        hint: 'When enabled, selected upstream request-format errors are cleaned and retried once, such as assistant prefill and redacted_thinking data. Tool blocks are never converted to text.',
+        enabled: 'Request compatibility enabled',
+        disabled: 'Request compatibility disabled'
+      },
       signatureCompat: {
         title: 'Signature Compatibility',
         hint: 'Controls internal retry cleanup for invalid thinking signatures. Inherit keeps global/account-level behavior.',

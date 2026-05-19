@@ -137,3 +137,13 @@ func TestMigration126AddsGroupSignatureCompatSwitches(t *testing.T) {
 	require.Contains(t, sql, "signature_tool_text_downgrade_enabled")
 	require.Contains(t, sql, "ADD COLUMN IF NOT EXISTS")
 }
+
+func TestMigration127AddsGroupRequestCompatSwitch(t *testing.T) {
+	content, err := FS.ReadFile("127_add_group_request_compat_switch.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "request_compat_enabled")
+	require.Contains(t, sql, "ADD COLUMN IF NOT EXISTS")
+	require.Contains(t, sql, "BOOLEAN NOT NULL DEFAULT FALSE")
+}

@@ -190,6 +190,8 @@ type CreateGroupInput struct {
 	// 签名兼容开关（nil=继承）
 	SignatureCompatEnabled            *bool
 	SignatureToolTextDowngradeEnabled *bool
+	// 请求兼容开关
+	RequestCompatEnabled bool
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64
 	ModelRoutingEnabled bool // 是否启用模型路由
@@ -228,6 +230,8 @@ type UpdateGroupInput struct {
 	// 签名兼容开关（nil=继承）
 	SignatureCompatEnabled            *bool
 	SignatureToolTextDowngradeEnabled *bool
+	// 请求兼容开关
+	RequestCompatEnabled *bool
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64
 	ModelRoutingEnabled *bool // 是否启用模型路由
@@ -1316,6 +1320,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		FallbackGroupIDOnInvalidRequest:   fallbackOnInvalidRequest,
 		SignatureCompatEnabled:            input.SignatureCompatEnabled,
 		SignatureToolTextDowngradeEnabled: input.SignatureToolTextDowngradeEnabled,
+		RequestCompatEnabled:              input.RequestCompatEnabled,
 		ModelRouting:                      input.ModelRouting,
 		MCPXMLInject:                      mcpXMLInject,
 		SupportedModelScopes:              input.SupportedModelScopes,
@@ -1570,6 +1575,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	group.FallbackGroupIDOnInvalidRequest = fallbackOnInvalidRequest
 	group.SignatureCompatEnabled = input.SignatureCompatEnabled
 	group.SignatureToolTextDowngradeEnabled = input.SignatureToolTextDowngradeEnabled
+	if input.RequestCompatEnabled != nil {
+		group.RequestCompatEnabled = *input.RequestCompatEnabled
+	}
 
 	// 模型路由配置
 	if input.ModelRouting != nil {

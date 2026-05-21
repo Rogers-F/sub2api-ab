@@ -471,6 +471,25 @@ func TestShouldRectifySignatureError_APIKeyExplicitThinkingSignatureUsesDefaultR
 	require.True(t, svc.shouldRectifySignatureError(context.Background(), account, []byte(`{"messages":[]}`), respBody))
 }
 
+func TestShouldRectifySignatureError_APIKeyThinkingBlockMissingContentUsesDefaultRectifier(t *testing.T) {
+	svc := &GatewayService{
+		settingService: NewSettingService(signatureCompatSettingRepo{}, &config.Config{}),
+	}
+	account := &Account{
+		Platform: PlatformAnthropic,
+		Type:     AccountTypeAPIKey,
+	}
+	respBody := []byte(`{"error":{"message":"messages.1.content.0.thinking: each thinking block must contain thinking"}}`)
+
+	require.True(t, svc.shouldRectifySignatureError(context.Background(), account, []byte(`{"messages":[]}`), respBody))
+}
+
+func TestAntigravitySignatureRelatedError_ThinkingBlockMissingContent(t *testing.T) {
+	respBody := []byte(`{"error":{"message":"messages.1.content.0.thinking: each thinking block must contain thinking"}}`)
+
+	require.True(t, isSignatureRelatedError(respBody))
+}
+
 func TestShouldRetryGenericAPIKeySignatureCompat_RequiresThinkingHistory(t *testing.T) {
 	body := []byte(`{
 		"model":"claude-sonnet-4-6",

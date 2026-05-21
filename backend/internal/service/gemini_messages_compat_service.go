@@ -1641,9 +1641,12 @@ func sleepGeminiBackoff(attempt int) {
 }
 
 var (
-	sensitiveQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:key|client_secret|access_token|refresh_token)=)[^&"\s]+`)
-	retryInRegex             = regexp.MustCompile(`Please retry in ([0-9.]+)s`)
-	upstreamErrorTypoFixer   = strings.NewReplacer(
+	sensitiveQueryParamRegex           = regexp.MustCompile(`(?i)([?&](?:key|client_secret|access_token|refresh_token)=)[^&"\s]+`)
+	upstreamTraceOrRequestIDRegex      = regexp.MustCompile(`(?i)\s*[（(]\s*(?:trace[_\s-]*id|traceid|request[_\s-]*id)\s*:\s*[^）)]*[）)]`)
+	upstreamJSONRequestIDFieldRegex    = regexp.MustCompile(`(?i),?\s*"request[_-]?id"\s*:\s*"[^"]*"`)
+	upstreamEscapedRequestIDFieldRegex = regexp.MustCompile(`(?i),?\\+"request[_-]?id\\+"\s*:\s*\\+"[^\\"]*\\+"`)
+	retryInRegex                       = regexp.MustCompile(`Please retry in ([0-9.]+)s`)
+	upstreamErrorTypoFixer             = strings.NewReplacer(
 		"faliled", "failed",
 		"Faliled", "Failed",
 		"linkconnection", "link connection",
@@ -1653,12 +1656,23 @@ var (
 	)
 )
 
+// SanitizeUpstreamErrorMessage removes provider-only identifiers from client-facing errors.
+func SanitizeUpstreamErrorMessage(msg string) string {
+	return sanitizeUpstreamErrorMessage(msg)
+}
+
 func sanitizeUpstreamErrorMessage(msg string) string {
 	if msg == "" {
 		return msg
 	}
 	msg = upstreamErrorTypoFixer.Replace(msg)
-	return sensitiveQueryParamRegex.ReplaceAllString(msg, `$1***`)
+	msg = sensitiveQueryParamRegex.ReplaceAllString(msg, `$1***`)
+	msg = upstreamEscapedRequestIDFieldRegex.ReplaceAllString(msg, "")
+	msg = upstreamJSONRequestIDFieldRegex.ReplaceAllString(msg, "")
+	msg = upstreamTraceOrRequestIDRegex.ReplaceAllString(msg, "")
+	msg = strings.ReplaceAll(msg, "{,", "{")
+	msg = strings.ReplaceAll(msg, ",}", "}")
+	return strings.TrimSpace(msg)
 }
 
 func (s *GeminiMessagesCompatService) writeGeminiMappedError(c *gin.Context, account *Account, upstreamStatus int, upstreamRequestID string, body []byte) error {

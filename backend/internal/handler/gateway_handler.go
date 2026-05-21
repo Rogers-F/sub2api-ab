@@ -1256,7 +1256,7 @@ func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *se
 			}
 
 			// 确定响应消息
-			msg := service.ExtractUpstreamErrorMessage(responseBody)
+			msg := service.SanitizeUpstreamErrorMessage(service.ExtractUpstreamErrorMessage(responseBody))
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				msg = *rule.CustomMessage
 			}
@@ -1271,7 +1271,7 @@ func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *se
 	}
 
 	// 记录原始上游状态码，以便 ops 错误日志捕获真实的上游错误
-	upstreamMsg := service.ExtractUpstreamErrorMessage(responseBody)
+	upstreamMsg := service.SanitizeUpstreamErrorMessage(service.ExtractUpstreamErrorMessage(responseBody))
 	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
 
 	// 使用默认的错误映射

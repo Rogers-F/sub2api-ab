@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/model"
@@ -34,6 +35,54 @@ func TestApplyErrorPassthroughRule_NoBoundService(t *testing.T) {
 	assert.Equal(t, http.StatusBadGateway, status)
 	assert.Equal(t, "upstream_error", errType)
 	assert.Equal(t, "Upstream request failed", errMsg)
+}
+
+func TestSanitizeUpstreamErrorMessage_RemovesUpstreamRequestIDs(t *testing.T) {
+	input := `{"type":"error","error":{"type":"invalid_request_error","message":"messages.1.content.0.thinking: Field required"},"request_id":"req_011CbFedwSZkWdQu9Q9KcLBZ"}（traceid: 45a0b3a6bc91b11863e0915ce85d4203） (request id: 202605211139267190477788268d9d6HZsVKEPP) (request id: 202605211139266208570228268d9d6HTGfF1BQ)`
+
+	got := sanitizeUpstreamErrorMessage(input)
+
+	assert.Contains(t, got, "Field required")
+	assert.NotContains(t, got, "req_011CbFedwSZkWdQu9Q9KcLBZ")
+	assert.NotContains(t, got, "45a0b3a6bc91b11863e0915ce85d4203")
+	assert.NotContains(t, got, "202605211139267190477788268d9d6HZsVKEPP")
+	assert.NotContains(t, strings.ToLower(got), "request id:")
+	assert.NotContains(t, strings.ToLower(got), "request_id")
+	assert.NotContains(t, strings.ToLower(got), "traceid")
+}
+
+func TestApplyErrorPassthroughRule_SanitizesPassthroughBodyMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+
+	rule := &model.ErrorPassthroughRule{
+		ID:              1,
+		Name:            "passthrough-body-rule",
+		Enabled:         true,
+		Priority:        1,
+		ErrorCodes:      []int{http.StatusBadRequest},
+		Keywords:        []string{"field required"},
+		MatchMode:       model.MatchModeAll,
+		PassthroughCode: true,
+		PassthroughBody: true,
+	}
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{rule})
+	BindErrorPassthroughService(c, ruleSvc)
+
+	_, _, errMsg, matched := applyErrorPassthroughRule(
+		c,
+		PlatformAnthropic,
+		http.StatusBadRequest,
+		[]byte(`{"error":{"message":"messages.1.content.0.thinking: Field required (request id: upstream-rid-1)"}}`),
+		http.StatusBadGateway,
+		"upstream_error",
+		"Upstream request failed",
+	)
+
+	assert.True(t, matched)
+	assert.Equal(t, "messages.1.content.0.thinking: Field required", errMsg)
 }
 
 func TestGatewayHandleErrorResponse_NoRuleKeepsDefault(t *testing.T) {

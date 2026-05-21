@@ -67,7 +67,7 @@ func setOpsUpstreamError(c *gin.Context, upstreamStatusCode int, upstreamMessage
 	if upstreamStatusCode > 0 {
 		c.Set(OpsUpstreamStatusCodeKey, upstreamStatusCode)
 	}
-	if msg := strings.TrimSpace(upstreamMessage); msg != "" {
+	if msg := sanitizeUpstreamErrorMessage(strings.TrimSpace(upstreamMessage)); msg != "" {
 		c.Set(OpsUpstreamErrorMessageKey, msg)
 	}
 	if detail := strings.TrimSpace(upstreamDetail); detail != "" {

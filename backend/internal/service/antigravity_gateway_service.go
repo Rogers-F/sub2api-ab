@@ -1826,6 +1826,12 @@ func isSignatureRelatedError(respBody []byte) bool {
 		return true
 	}
 
+	// Also detect empty/missing thinking content:
+	// "messages.1.content.0.thinking: each thinking block must contain thinking"
+	if strings.Contains(msg, "thinking block must contain") {
+		return true
+	}
+
 	return false
 }
 

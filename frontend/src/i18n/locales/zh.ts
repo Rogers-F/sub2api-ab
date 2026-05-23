@@ -737,6 +737,7 @@ export default {
     standardCost: '标准',
     actualCost: '实际',
     accountCost: '成本',
+    profit: '利润',
     userBilled: '用户扣费',
     accountBilled: '账号计费',
     accountMultiplier: '账号倍率',

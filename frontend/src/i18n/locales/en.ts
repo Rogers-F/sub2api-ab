@@ -733,6 +733,7 @@ export default {
     standardCost: 'Standard',
     actualCost: 'Actual',
     accountCost: 'Cost',
+    profit: 'Profit',
     userBilled: 'User billed',
     accountBilled: 'Account billed',
     accountMultiplier: 'Account rate',

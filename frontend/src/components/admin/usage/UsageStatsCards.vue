@@ -33,7 +33,7 @@
         <p class="text-xs text-gray-400">
           <span class="text-orange-500">{{ t('usage.accountCost') }} ${{ (stats?.total_account_cost || 0).toFixed(4) }}</span>
           <span> · </span>
-          <span>{{ t('usage.standardCost') }} ${{ (stats?.total_cost || 0).toFixed(4) }}</span>
+          <span>{{ t('usage.profit') }} ${{ profit.toFixed(4) }}</span>
         </p>
       </div>
     </div>
@@ -47,13 +47,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AdminUsageStatsResponse } from '@/api/admin/usage'
 import Icon from '@/components/icons/Icon.vue'
 
-defineProps<{ stats: AdminUsageStatsResponse | null }>()
+const props = defineProps<{ stats: AdminUsageStatsResponse | null }>()
 
 const { t } = useI18n()
+
+const profit = computed(() =>
+  (props.stats?.total_actual_cost || 0) - (props.stats?.total_account_cost || 0),
+)
 
 const formatDuration = (ms: number) =>
   ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`

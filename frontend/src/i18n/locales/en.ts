@@ -1760,7 +1760,7 @@ export default {
       },
       smartDispatch: {
         title: 'Smart Dispatch',
-        hint: 'When this group has no schedulable accounts, move accounts from the selected pool group and retry the request once.',
+        hint: 'When this group has no normal accounts, move accounts from the selected pool group and retry the request once.',
         sourceGroup: 'Pool Group',
         noSource: 'No Pool Group',
         count: 'Move Count',

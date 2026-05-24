@@ -69,7 +69,7 @@ type Group struct {
 	SmartDispatchEnabled bool `json:"smart_dispatch_enabled,omitempty"`
 	// 智能调度号池分组 ID
 	SmartDispatchSourceGroupID *int64 `json:"smart_dispatch_source_group_id,omitempty"`
-	// 目标分组无可调度账号时一次移动的账号数
+	// 目标分组无正常状态账号时一次移动的账号数
 	SmartDispatchCount int `json:"smart_dispatch_count,omitempty"`
 	// 模型路由配置：模型模式 -> 优先账号ID列表
 	ModelRouting map[string][]int64 `json:"model_routing,omitempty"`

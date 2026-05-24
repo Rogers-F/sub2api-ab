@@ -6,12 +6,11 @@ import (
 )
 
 type SmartDispatchAccountLister interface {
-	ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]Account, error)
-	ListSchedulableByGroupIDAndPlatforms(ctx context.Context, groupID int64, platforms []string) ([]Account, error)
+	ListSchedulableByGroupID(ctx context.Context, groupID int64) ([]Account, error)
 }
 
 type SmartDispatchMover interface {
-	MoveAccountsForSmartDispatch(ctx context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64) (movedIDs []int64, targetAlreadyAvailable bool, err error)
+	MoveAccountsForSmartDispatch(ctx context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64) (movedIDs []int64, targetAlreadyNormal bool, err error)
 }
 
 type SmartDispatcher interface {
@@ -24,17 +23,14 @@ type SmartDispatchService struct {
 }
 
 type SmartDispatchRefillRequest struct {
-	TargetGroup    *Group
-	Platform       string
-	UseMixed       bool
-	ExcludedIDs    map[int64]struct{}
-	CandidateAllow func(account *Account) bool
+	TargetGroup *Group
+	ExcludedIDs map[int64]struct{}
 }
 
 type SmartDispatchRefillResult struct {
-	Attempted              bool
-	TargetAlreadyAvailable bool
-	MovedAccountIDs        []int64
+	Attempted           bool
+	TargetAlreadyNormal bool
+	MovedAccountIDs     []int64
 }
 
 func NewSmartDispatchService(accountRepo SmartDispatchAccountLister, mover SmartDispatchMover) *SmartDispatchService {
@@ -57,7 +53,7 @@ func (s *SmartDispatchService) Refill(ctx context.Context, req SmartDispatchRefi
 	}
 	sourceGroupID := *group.SmartDispatchSourceGroupID
 
-	accounts, err := s.listSourceCandidates(ctx, sourceGroupID, req.Platform, req.UseMixed)
+	accounts, err := s.accountRepo.ListSchedulableByGroupID(ctx, sourceGroupID)
 	if err != nil {
 		return result, fmt.Errorf("list smart dispatch source accounts: %w", err)
 	}
@@ -77,12 +73,6 @@ func (s *SmartDispatchService) Refill(ctx context.Context, req SmartDispatchRefi
 		if !acc.IsSchedulable() {
 			continue
 		}
-		if req.UseMixed && acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
-			continue
-		}
-		if req.CandidateAllow != nil && !req.CandidateAllow(acc) {
-			continue
-		}
 		selected = append(selected, acc.ID)
 		if len(selected) >= count {
 			break
@@ -93,20 +83,12 @@ func (s *SmartDispatchService) Refill(ctx context.Context, req SmartDispatchRefi
 		return result, nil
 	}
 
-	movedIDs, targetAlreadyAvailable, err := s.mover.MoveAccountsForSmartDispatch(ctx, group.ID, sourceGroupID, selected)
+	movedIDs, targetAlreadyNormal, err := s.mover.MoveAccountsForSmartDispatch(ctx, group.ID, sourceGroupID, selected)
 	if err != nil {
 		return result, fmt.Errorf("move smart dispatch accounts: %w", err)
 	}
 	result.Attempted = true
-	result.TargetAlreadyAvailable = targetAlreadyAvailable
+	result.TargetAlreadyNormal = targetAlreadyNormal
 	result.MovedAccountIDs = movedIDs
 	return result, nil
-}
-
-func (s *SmartDispatchService) listSourceCandidates(ctx context.Context, sourceGroupID int64, platform string, useMixed bool) ([]Account, error) {
-	if useMixed {
-		platforms := []string{platform, PlatformAntigravity}
-		return s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, sourceGroupID, platforms)
-	}
-	return s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, sourceGroupID, platform)
 }

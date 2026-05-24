@@ -44,7 +44,6 @@ func TestGatewayService_SelectAccountForModelWithExclusions_SmartDispatchRetry(t
 	dispatcher := &fakeGatewaySmartDispatcher{
 		onRefill: func(req SmartDispatchRefillRequest) {
 			require.Equal(t, groupID, req.TargetGroup.ID)
-			require.Equal(t, PlatformAnthropic, req.Platform)
 			acc := Account{
 				ID:          9,
 				Name:        "moved",

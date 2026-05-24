@@ -785,11 +785,11 @@ func (r *groupRepository) MoveAccountsForSmartDispatch(ctx context.Context, targ
 		return nil, false, err
 	}
 
-	var targetAvailable int64
-	if err := scanSingleRow(ctx, exec, smartDispatchSchedulableCountSQL, []any{targetGroupID}, &targetAvailable); err != nil {
+	var targetNormal int64
+	if err := scanSingleRow(ctx, exec, smartDispatchNormalCountSQL, []any{targetGroupID}, &targetNormal); err != nil {
 		return nil, false, err
 	}
-	if targetAvailable > 0 {
+	if targetNormal > 0 {
 		if tx != nil {
 			if err := tx.Commit(); err != nil {
 				return nil, false, err
@@ -873,7 +873,7 @@ func (r *groupRepository) MoveAccountsForSmartDispatch(ctx context.Context, targ
 	return movedIDs, false, nil
 }
 
-const smartDispatchSchedulableCountSQL = `
+const smartDispatchNormalCountSQL = `
 	SELECT COUNT(*)
 	FROM account_groups ag
 	JOIN accounts a ON a.id = ag.account_id

@@ -2137,41 +2137,9 @@ func (s *GatewayService) trySmartDispatchRefill(ctx context.Context, group *Grou
 		return false
 	}
 
-	refillCtx := ctx
-	candidateAllow := func(acc *Account) bool {
-		if acc == nil {
-			return false
-		}
-		if !s.isAccountAllowedForPlatform(acc, platform, useMixed) {
-			return false
-		}
-		if group.RequirePrivacySet && !acc.IsPrivacySet() {
-			return false
-		}
-		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(refillCtx, acc, requestedModel) {
-			return false
-		}
-		if !s.isAccountSchedulableForModelSelection(refillCtx, acc, requestedModel) {
-			return false
-		}
-		if !s.isAccountSchedulableForQuota(acc) {
-			return false
-		}
-		if !s.isAccountSchedulableForWindowCost(refillCtx, acc, false) {
-			return false
-		}
-		if !s.isAccountSchedulableForRPM(refillCtx, acc, false) {
-			return false
-		}
-		return true
-	}
-
 	result, err := s.smartDispatcher.Refill(ctx, SmartDispatchRefillRequest{
-		TargetGroup:    group,
-		Platform:       platform,
-		UseMixed:       useMixed,
-		ExcludedIDs:    excludedIDs,
-		CandidateAllow: candidateAllow,
+		TargetGroup: group,
+		ExcludedIDs: excludedIDs,
 	})
 	if err != nil {
 		logger.LegacyPrintf("service.gateway", "[SmartDispatch] refill failed: group_id=%d platform=%s model=%s err=%v", *groupID, platform, requestedModel, err)
@@ -2180,8 +2148,8 @@ func (s *GatewayService) trySmartDispatchRefill(ctx context.Context, group *Grou
 	if result == nil || !result.Attempted {
 		return false
 	}
-	if result.TargetAlreadyAvailable || len(result.MovedAccountIDs) > 0 {
-		logger.LegacyPrintf("service.gateway", "[SmartDispatch] refill triggered: group_id=%d platform=%s model=%s moved=%v target_available=%v", *groupID, platform, requestedModel, result.MovedAccountIDs, result.TargetAlreadyAvailable)
+	if result.TargetAlreadyNormal || len(result.MovedAccountIDs) > 0 {
+		logger.LegacyPrintf("service.gateway", "[SmartDispatch] refill triggered: group_id=%d platform=%s model=%s moved=%v target_normal=%v", *groupID, platform, requestedModel, result.MovedAccountIDs, result.TargetAlreadyNormal)
 		return true
 	}
 	return false

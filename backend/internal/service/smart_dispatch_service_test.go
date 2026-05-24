@@ -8,8 +8,13 @@ import (
 )
 
 type fakeSmartDispatchAccountRepo struct {
+	byGroup     []Account
 	byPlatform  []Account
 	byPlatforms []Account
+}
+
+func (f *fakeSmartDispatchAccountRepo) ListSchedulableByGroupID(_ context.Context, _ int64) ([]Account, error) {
+	return f.byGroup, nil
 }
 
 func (f *fakeSmartDispatchAccountRepo) ListSchedulableByGroupIDAndPlatform(_ context.Context, _ int64, _ string) ([]Account, error) {
@@ -43,7 +48,7 @@ func TestSmartDispatchService_RefillMovesConfiguredCountAndSkipsExcluded(t *test
 		SmartDispatchCount:         2,
 	}
 	accountRepo := &fakeSmartDispatchAccountRepo{
-		byPlatforms: []Account{
+		byGroup: []Account{
 			{ID: 1, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
 			{ID: 2, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
 			{ID: 3, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
@@ -53,18 +58,40 @@ func TestSmartDispatchService_RefillMovesConfiguredCountAndSkipsExcluded(t *test
 	svc := NewSmartDispatchService(accountRepo, mover)
 
 	result, err := svc.Refill(context.Background(), SmartDispatchRefillRequest{
-		TargetGroup:    target,
-		Platform:       PlatformAnthropic,
-		UseMixed:       true,
-		ExcludedIDs:    map[int64]struct{}{2: {}},
-		CandidateAllow: func(account *Account) bool { return account != nil && account.ID != 3 },
+		TargetGroup: target,
+		ExcludedIDs: map[int64]struct{}{2: {}},
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, []int64{1}, result.MovedAccountIDs)
+	require.Equal(t, []int64{1, 3}, result.MovedAccountIDs)
 	require.Equal(t, target.ID, mover.movedTarget)
 	require.Equal(t, sourceID, mover.movedSource)
-	require.Equal(t, []int64{1}, mover.movedIDs)
+	require.Equal(t, []int64{1, 3}, mover.movedIDs)
+}
+
+func TestSmartDispatchService_RefillDoesNotFilterByRequestPlatformOrModel(t *testing.T) {
+	sourceID := int64(20)
+	target := &Group{
+		ID:                         10,
+		Platform:                   PlatformAnthropic,
+		SmartDispatchEnabled:       true,
+		SmartDispatchSourceGroupID: &sourceID,
+		SmartDispatchCount:         1,
+	}
+	accountRepo := &fakeSmartDispatchAccountRepo{
+		byGroup: []Account{
+			{ID: 8, Platform: PlatformGemini, Status: StatusActive, Schedulable: true},
+		},
+	}
+	mover := &fakeSmartDispatchMover{}
+	svc := NewSmartDispatchService(accountRepo, mover)
+
+	result, err := svc.Refill(context.Background(), SmartDispatchRefillRequest{
+		TargetGroup: target,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, []int64{8}, result.MovedAccountIDs)
 }
 
 func TestSmartDispatchService_RefillNoopsWhenDisabled(t *testing.T) {
@@ -74,7 +101,6 @@ func TestSmartDispatchService_RefillNoopsWhenDisabled(t *testing.T) {
 
 	result, err := svc.Refill(context.Background(), SmartDispatchRefillRequest{
 		TargetGroup: &Group{ID: 10, Platform: PlatformAnthropic},
-		Platform:    PlatformAnthropic,
 	})
 
 	require.NoError(t, err)

@@ -1846,7 +1846,7 @@ export default {
       },
       smartDispatch: {
         title: '智能调度',
-        hint: '当此分组没有可调度账号时，从选定号池分组移动账号过来，并重试当前请求一次。',
+        hint: '当此分组没有状态为正常的账号时，从选定号池分组移动账号过来，并重试当前请求一次。',
         sourceGroup: '号池分组',
         noSource: '不使用号池',
         count: '调度数量',

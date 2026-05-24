@@ -1,5 +1,5 @@
 -- Add per-group smart dispatch configuration.
--- When enabled, a target group can move normal accounts from a configured pool group.
+-- When enabled, a target group can move schedulable accounts from a configured pool group.
 
 ALTER TABLE groups
     ADD COLUMN IF NOT EXISTS smart_dispatch_enabled BOOLEAN NOT NULL DEFAULT FALSE,

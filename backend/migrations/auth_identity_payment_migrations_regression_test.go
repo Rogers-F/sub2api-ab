@@ -1,6 +1,8 @@
 package migrations
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"testing"
 
@@ -146,4 +148,15 @@ func TestMigration127AddsGroupRequestCompatSwitch(t *testing.T) {
 	require.Contains(t, sql, "request_compat_enabled")
 	require.Contains(t, sql, "ADD COLUMN IF NOT EXISTS")
 	require.Contains(t, sql, "BOOLEAN NOT NULL DEFAULT FALSE")
+}
+
+func TestMigration128ChecksumMatchesPublishedSmartDispatchRelease(t *testing.T) {
+	content, err := FS.ReadFile("128_add_group_smart_dispatch.sql")
+	require.NoError(t, err)
+
+	sum := sha256.Sum256([]byte(strings.TrimSpace(string(content))))
+	require.Equal(t,
+		"d3fd9e8d916f3e1b97482e3c03989cfc27f036bddd8af2af2c47819fec900d39",
+		hex.EncodeToString(sum[:]),
+	)
 }

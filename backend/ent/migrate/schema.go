@@ -490,6 +490,9 @@ var (
 		{Name: "signature_compat_enabled", Type: field.TypeBool, Nullable: true},
 		{Name: "signature_tool_text_downgrade_enabled", Type: field.TypeBool, Nullable: true},
 		{Name: "request_compat_enabled", Type: field.TypeBool, Default: false},
+		{Name: "smart_dispatch_enabled", Type: field.TypeBool, Default: false},
+		{Name: "smart_dispatch_source_group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "smart_dispatch_count", Type: field.TypeInt, Default: 1},
 		{Name: "model_routing", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "model_routing_enabled", Type: field.TypeBool, Default: false},
 		{Name: "mcp_xml_inject", Type: field.TypeBool, Default: true},
@@ -535,7 +538,12 @@ var (
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[27]},
+				Columns: []*schema.Column{GroupsColumns[31]},
+			},
+			{
+				Name:    "group_smart_dispatch_source_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{GroupsColumns[25]},
 			},
 		},
 	}
@@ -1286,7 +1294,7 @@ var (
 		{Name: "totp_secret_encrypted", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "totp_enabled", Type: field.TypeBool, Default: false},
 		{Name: "totp_enabled_at", Type: field.TypeTime, Nullable: true},
-		{Name: "signup_source", Type: field.TypeString, Size: 20, Default: "email"},
+		{Name: "signup_source", Type: field.TypeString, Default: "email"},
 		{Name: "last_login_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "last_active_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "balance_notify_enabled", Type: field.TypeBool, Default: true},

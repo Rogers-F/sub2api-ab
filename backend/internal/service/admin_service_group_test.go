@@ -15,12 +15,21 @@ func ptrString[T ~string](v T) *string {
 	return &s
 }
 
+func ptrBool(v bool) *bool {
+	return &v
+}
+
+func ptrGroupInt(v int) *int {
+	return &v
+}
+
 // groupRepoStubForAdmin 用于测试 AdminService 的 GroupRepository Stub
 type groupRepoStubForAdmin struct {
-	created *Group // 记录 Create 调用的参数
-	updated *Group // 记录 Update 调用的参数
-	getByID *Group // GetByID 返回值
-	getErr  error  // GetByID 返回的错误
+	created    *Group // 记录 Create 调用的参数
+	updated    *Group // 记录 Update 调用的参数
+	getByID    *Group // GetByID 返回值
+	getErr     error  // GetByID 返回的错误
+	groupsByID map[int64]*Group
 
 	listWithFiltersCalls       int
 	listWithFiltersParams      pagination.PaginationParams
@@ -43,16 +52,28 @@ func (s *groupRepoStubForAdmin) Update(_ context.Context, g *Group) error {
 	return nil
 }
 
-func (s *groupRepoStubForAdmin) GetByID(_ context.Context, _ int64) (*Group, error) {
+func (s *groupRepoStubForAdmin) GetByID(_ context.Context, id int64) (*Group, error) {
 	if s.getErr != nil {
 		return nil, s.getErr
+	}
+	if s.groupsByID != nil {
+		if g, ok := s.groupsByID[id]; ok {
+			return g, nil
+		}
+		return nil, ErrGroupNotFound
 	}
 	return s.getByID, nil
 }
 
-func (s *groupRepoStubForAdmin) GetByIDLite(_ context.Context, _ int64) (*Group, error) {
+func (s *groupRepoStubForAdmin) GetByIDLite(_ context.Context, id int64) (*Group, error) {
 	if s.getErr != nil {
 		return nil, s.getErr
+	}
+	if s.groupsByID != nil {
+		if g, ok := s.groupsByID[id]; ok {
+			return g, nil
+		}
+		return nil, ErrGroupNotFound
 	}
 	return s.getByID, nil
 }
@@ -125,6 +146,10 @@ func (s *groupRepoStubForAdmin) UpdateSortOrders(_ context.Context, _ []GroupSor
 	return nil
 }
 
+func (s *groupRepoStubForAdmin) MoveAccountsForSmartDispatch(_ context.Context, _, _ int64, _ []int64) ([]int64, bool, error) {
+	panic("unexpected MoveAccountsForSmartDispatch call")
+}
+
 func TestAdminService_ListGroups_PassesSortParams(t *testing.T) {
 	repo := &groupRepoStubForAdmin{
 		listWithFiltersGroups: []Group{{ID: 1, Name: "g1"}},
@@ -139,6 +164,94 @@ func TestAdminService_ListGroups_PassesSortParams(t *testing.T) {
 		SortBy:    "account_count",
 		SortOrder: "ASC",
 	}, repo.listWithFiltersParams)
+}
+
+func TestAdminService_CreateGroup_SmartDispatchConfig(t *testing.T) {
+	sourceID := int64(42)
+	repo := &groupRepoStubForAdmin{
+		groupsByID: map[int64]*Group{
+			sourceID: {ID: sourceID, Name: "pool", Platform: PlatformAnthropic, Status: StatusActive},
+		},
+	}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:                       "target",
+		Platform:                   PlatformAnthropic,
+		RateMultiplier:             1,
+		SmartDispatchEnabled:       true,
+		SmartDispatchSourceGroupID: &sourceID,
+		SmartDispatchCount:         ptrGroupInt(2),
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.True(t, repo.created.SmartDispatchEnabled)
+	require.Equal(t, sourceID, *repo.created.SmartDispatchSourceGroupID)
+	require.Equal(t, 2, repo.created.SmartDispatchCount)
+}
+
+func TestAdminService_CreateGroup_SmartDispatchRejectsMissingSource(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	_, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:                 "target",
+		Platform:             PlatformAnthropic,
+		RateMultiplier:       1,
+		SmartDispatchEnabled: true,
+		SmartDispatchCount:   ptrGroupInt(1),
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "smart dispatch source group is required")
+	require.Nil(t, repo.created)
+}
+
+func TestAdminService_UpdateGroup_SmartDispatchConfig(t *testing.T) {
+	sourceID := int64(42)
+	targetID := int64(7)
+	repo := &groupRepoStubForAdmin{
+		groupsByID: map[int64]*Group{
+			targetID: {ID: targetID, Name: "target", Platform: PlatformAnthropic, Status: StatusActive},
+			sourceID: {ID: sourceID, Name: "pool", Platform: PlatformAnthropic, Status: StatusActive},
+		},
+	}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.UpdateGroup(context.Background(), targetID, &UpdateGroupInput{
+		SmartDispatchEnabled:       ptrBool(true),
+		SmartDispatchSourceGroupID: &sourceID,
+		SmartDispatchCount:         ptrGroupInt(3),
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.updated)
+	require.True(t, repo.updated.SmartDispatchEnabled)
+	require.Equal(t, sourceID, *repo.updated.SmartDispatchSourceGroupID)
+	require.Equal(t, 3, repo.updated.SmartDispatchCount)
+}
+
+func TestAdminService_UpdateGroup_SmartDispatchRejectsSelfSource(t *testing.T) {
+	targetID := int64(7)
+	repo := &groupRepoStubForAdmin{
+		groupsByID: map[int64]*Group{
+			targetID: {ID: targetID, Name: "target", Platform: PlatformAnthropic, Status: StatusActive},
+		},
+	}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	_, err := svc.UpdateGroup(context.Background(), targetID, &UpdateGroupInput{
+		SmartDispatchEnabled:       ptrBool(true),
+		SmartDispatchSourceGroupID: &targetID,
+		SmartDispatchCount:         ptrGroupInt(1),
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "smart dispatch source group cannot be self")
+	require.Nil(t, repo.updated)
 }
 
 // TestAdminService_CreateGroup_WithImagePricing 测试创建分组时 ImagePrice 字段正确传递

@@ -110,6 +110,17 @@ func (Group) Fields() []ent.Field {
 		field.Bool("request_compat_enabled").
 			Default(false).
 			Comment("请求兼容重试开关：处理部分上游请求格式兼容错误"),
+		field.Bool("smart_dispatch_enabled").
+			Default(false).
+			Comment("是否启用智能调度补号"),
+		field.Int64("smart_dispatch_source_group_id").
+			Optional().
+			Nillable().
+			Comment("智能调度号池分组 ID"),
+		field.Int("smart_dispatch_count").
+			Default(1).
+			Positive().
+			Comment("目标分组无可调度账号时一次移动的账号数"),
 
 		// 模型路由配置 (added by migration 040)
 		field.JSON("model_routing", map[string][]int64{}).
@@ -185,5 +196,6 @@ func (Group) Indexes() []ent.Index {
 		index.Fields("is_exclusive"),
 		index.Fields("deleted_at"),
 		index.Fields("sort_order"),
+		index.Fields("smart_dispatch_source_group_id"),
 	}
 }

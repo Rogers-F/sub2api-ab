@@ -1758,6 +1758,15 @@ export default {
         hint: 'Multiple groups can be selected, accounts will be deduplicated',
         hintEdit: '⚠️ Warning: This will replace all existing account bindings'
       },
+      smartDispatch: {
+        title: 'Smart Dispatch',
+        hint: 'When this group has no schedulable accounts, move accounts from the selected pool group and retry the request once.',
+        sourceGroup: 'Pool Group',
+        noSource: 'No Pool Group',
+        count: 'Move Count',
+        sourceRequired: 'Please select a smart dispatch pool group',
+        countRequired: 'Move count must be at least 1'
+      },
       modelRouting: {
         title: 'Model Routing',
         tooltip: 'Configure specific model requests to be routed to designated accounts. Supports wildcard matching, e.g., claude-opus-* matches all opus models.',

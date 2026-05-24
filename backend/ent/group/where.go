@@ -165,6 +165,26 @@ func SignatureToolTextDowngradeEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSignatureToolTextDowngradeEnabled, v))
 }
 
+// RequestCompatEnabled applies equality check predicate on the "request_compat_enabled" field. It's identical to RequestCompatEnabledEQ.
+func RequestCompatEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldRequestCompatEnabled, v))
+}
+
+// SmartDispatchEnabled applies equality check predicate on the "smart_dispatch_enabled" field. It's identical to SmartDispatchEnabledEQ.
+func SmartDispatchEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchEnabled, v))
+}
+
+// SmartDispatchSourceGroupID applies equality check predicate on the "smart_dispatch_source_group_id" field. It's identical to SmartDispatchSourceGroupIDEQ.
+func SmartDispatchSourceGroupID(v int64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchSourceGroupID, v))
+}
+
+// SmartDispatchCount applies equality check predicate on the "smart_dispatch_count" field. It's identical to SmartDispatchCountEQ.
+func SmartDispatchCount(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchCount, v))
+}
+
 // ModelRoutingEnabled applies equality check predicate on the "model_routing_enabled" field. It's identical to ModelRoutingEnabledEQ.
 func ModelRoutingEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldModelRoutingEnabled, v))
@@ -1203,6 +1223,116 @@ func SignatureToolTextDowngradeEnabledIsNil() predicate.Group {
 // SignatureToolTextDowngradeEnabledNotNil applies the NotNil predicate on the "signature_tool_text_downgrade_enabled" field.
 func SignatureToolTextDowngradeEnabledNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldSignatureToolTextDowngradeEnabled))
+}
+
+// RequestCompatEnabledEQ applies the EQ predicate on the "request_compat_enabled" field.
+func RequestCompatEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldRequestCompatEnabled, v))
+}
+
+// RequestCompatEnabledNEQ applies the NEQ predicate on the "request_compat_enabled" field.
+func RequestCompatEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldRequestCompatEnabled, v))
+}
+
+// SmartDispatchEnabledEQ applies the EQ predicate on the "smart_dispatch_enabled" field.
+func SmartDispatchEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchEnabled, v))
+}
+
+// SmartDispatchEnabledNEQ applies the NEQ predicate on the "smart_dispatch_enabled" field.
+func SmartDispatchEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSmartDispatchEnabled, v))
+}
+
+// SmartDispatchSourceGroupIDEQ applies the EQ predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDEQ(v int64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchSourceGroupID, v))
+}
+
+// SmartDispatchSourceGroupIDNEQ applies the NEQ predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDNEQ(v int64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSmartDispatchSourceGroupID, v))
+}
+
+// SmartDispatchSourceGroupIDIn applies the In predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDIn(vs ...int64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldSmartDispatchSourceGroupID, vs...))
+}
+
+// SmartDispatchSourceGroupIDNotIn applies the NotIn predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDNotIn(vs ...int64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldSmartDispatchSourceGroupID, vs...))
+}
+
+// SmartDispatchSourceGroupIDGT applies the GT predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDGT(v int64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldSmartDispatchSourceGroupID, v))
+}
+
+// SmartDispatchSourceGroupIDGTE applies the GTE predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDGTE(v int64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldSmartDispatchSourceGroupID, v))
+}
+
+// SmartDispatchSourceGroupIDLT applies the LT predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDLT(v int64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldSmartDispatchSourceGroupID, v))
+}
+
+// SmartDispatchSourceGroupIDLTE applies the LTE predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDLTE(v int64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldSmartDispatchSourceGroupID, v))
+}
+
+// SmartDispatchSourceGroupIDIsNil applies the IsNil predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldSmartDispatchSourceGroupID))
+}
+
+// SmartDispatchSourceGroupIDNotNil applies the NotNil predicate on the "smart_dispatch_source_group_id" field.
+func SmartDispatchSourceGroupIDNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldSmartDispatchSourceGroupID))
+}
+
+// SmartDispatchCountEQ applies the EQ predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchCount, v))
+}
+
+// SmartDispatchCountNEQ applies the NEQ predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountNEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSmartDispatchCount, v))
+}
+
+// SmartDispatchCountIn applies the In predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldSmartDispatchCount, vs...))
+}
+
+// SmartDispatchCountNotIn applies the NotIn predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountNotIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldSmartDispatchCount, vs...))
+}
+
+// SmartDispatchCountGT applies the GT predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountGT(v int) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldSmartDispatchCount, v))
+}
+
+// SmartDispatchCountGTE applies the GTE predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountGTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldSmartDispatchCount, v))
+}
+
+// SmartDispatchCountLT applies the LT predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountLT(v int) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldSmartDispatchCount, v))
+}
+
+// SmartDispatchCountLTE applies the LTE predicate on the "smart_dispatch_count" field.
+func SmartDispatchCountLTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldSmartDispatchCount, v))
 }
 
 // ModelRoutingIsNil applies the IsNil predicate on the "model_routing" field.

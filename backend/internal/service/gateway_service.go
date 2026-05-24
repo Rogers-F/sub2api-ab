@@ -63,6 +63,7 @@ const (
 // ForceCacheBillingContextKey 强制缓存计费上下文键
 // 用于粘性会话切换时，将 input_tokens 转为 cache_read_input_tokens 计费
 type forceCacheBillingKeyType struct{}
+type smartDispatchTriedKeyType struct{}
 
 // accountWithLoad 账号与负载信息的组合，用于负载感知调度
 type accountWithLoad struct {
@@ -71,6 +72,7 @@ type accountWithLoad struct {
 }
 
 var ForceCacheBillingContextKey = forceCacheBillingKeyType{}
+var smartDispatchTriedContextKey = smartDispatchTriedKeyType{}
 
 var (
 	windowCostPrefetchCacheHitTotal  atomic.Int64
@@ -610,6 +612,7 @@ type GatewayService struct {
 	debugGatewayBodyFile  atomic.Pointer[os.File] // non-nil when SUB2API_DEBUG_GATEWAY_BODY is set
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
+	smartDispatcher       SmartDispatcher
 }
 
 // NewGatewayService creates a new GatewayService
@@ -675,6 +678,9 @@ func NewGatewayService(
 		channelService:       channelService,
 		resolver:             resolver,
 		balanceNotifyService: balanceNotifyService,
+	}
+	if mover, ok := groupRepo.(SmartDispatchMover); ok {
+		svc.smartDispatcher = NewSmartDispatchService(accountRepo, mover)
 	}
 	svc.userGroupRateResolver = newUserGroupRateResolver(
 		userGroupRateRepo,
@@ -1249,6 +1255,9 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 	if (platform == PlatformAnthropic || platform == PlatformGemini) && !hasForcePlatform {
 		account, err := s.selectAccountWithMixedScheduling(ctx, groupID, sessionHash, requestedModel, excludedIDs, platform)
 		if err != nil {
+			if errors.Is(err, ErrNoAvailableAccounts) && s.trySmartDispatchRefill(ctx, group, groupID, platform, true, requestedModel, excludedIDs) {
+				return s.SelectAccountForModelWithExclusions(withSmartDispatchTried(ctx), groupID, sessionHash, requestedModel, excludedIDs)
+			}
 			return nil, err
 		}
 		return s.hydrateSelectedAccount(ctx, account)
@@ -1258,6 +1267,9 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 	// 注意：强制平台模式也必须遵守分组限制，不再回退到全平台查询
 	account, err := s.selectAccountForModelWithPlatform(ctx, groupID, sessionHash, requestedModel, excludedIDs, platform)
 	if err != nil {
+		if errors.Is(err, ErrNoAvailableAccounts) && s.trySmartDispatchRefill(ctx, group, groupID, platform, false, requestedModel, excludedIDs) {
+			return s.SelectAccountForModelWithExclusions(withSmartDispatchTried(ctx), groupID, sessionHash, requestedModel, excludedIDs)
+		}
 		return nil, err
 	}
 	return s.hydrateSelectedAccount(ctx, account)
@@ -1379,6 +1391,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		return nil, err
 	}
 	if len(accounts) == 0 {
+		if s.trySmartDispatchRefill(ctx, group, groupID, platform, useMixed, requestedModel, excludedIDs) {
+			return s.SelectAccountWithLoadAwareness(withSmartDispatchTried(ctx), groupID, sessionHash, requestedModel, excludedIDs, metadataUserID, sub2apiUserID)
+		}
 		return nil, ErrNoAvailableAccounts
 	}
 	ctx = s.withWindowCostPrefetch(ctx, accounts)
@@ -1740,6 +1755,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	}
 
 	if len(candidates) == 0 {
+		if s.trySmartDispatchRefill(ctx, group, groupID, platform, useMixed, requestedModel, excludedIDs) {
+			return s.SelectAccountWithLoadAwareness(withSmartDispatchTried(ctx), groupID, sessionHash, requestedModel, excludedIDs, metadataUserID, sub2apiUserID)
+		}
 		return nil, ErrNoAvailableAccounts
 	}
 
@@ -1823,6 +1841,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			Timeout:        cfg.FallbackWaitTimeout,
 			MaxWaiting:     cfg.FallbackMaxWaiting,
 		})
+	}
+	if s.trySmartDispatchRefill(ctx, group, groupID, platform, useMixed, requestedModel, excludedIDs) {
+		return s.SelectAccountWithLoadAwareness(withSmartDispatchTried(ctx), groupID, sessionHash, requestedModel, excludedIDs, metadataUserID, sub2apiUserID)
 	}
 	return nil, ErrNoAvailableAccounts
 }
@@ -2089,6 +2110,81 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 			"tls_fingerprint", acc.IsTLSFingerprintEnabled())
 	}
 	return accounts, useMixed, nil
+}
+
+func withSmartDispatchTried(ctx context.Context) context.Context {
+	return context.WithValue(ctx, smartDispatchTriedContextKey, true)
+}
+
+func smartDispatchTried(ctx context.Context) bool {
+	v, _ := ctx.Value(smartDispatchTriedContextKey).(bool)
+	return v
+}
+
+func (s *GatewayService) trySmartDispatchRefill(ctx context.Context, group *Group, groupID *int64, platform string, useMixed bool, requestedModel string, excludedIDs map[int64]struct{}) bool {
+	if s == nil || s.smartDispatcher == nil || groupID == nil || smartDispatchTried(ctx) {
+		return false
+	}
+	if group == nil {
+		group = s.groupFromContext(ctx, *groupID)
+	}
+	if group == nil && s.groupRepo != nil {
+		if loaded, err := s.groupRepo.GetByID(ctx, *groupID); err == nil {
+			group = loaded
+		}
+	}
+	if group == nil || !group.SmartDispatchEnabled {
+		return false
+	}
+
+	refillCtx := ctx
+	candidateAllow := func(acc *Account) bool {
+		if acc == nil {
+			return false
+		}
+		if !s.isAccountAllowedForPlatform(acc, platform, useMixed) {
+			return false
+		}
+		if group.RequirePrivacySet && !acc.IsPrivacySet() {
+			return false
+		}
+		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(refillCtx, acc, requestedModel) {
+			return false
+		}
+		if !s.isAccountSchedulableForModelSelection(refillCtx, acc, requestedModel) {
+			return false
+		}
+		if !s.isAccountSchedulableForQuota(acc) {
+			return false
+		}
+		if !s.isAccountSchedulableForWindowCost(refillCtx, acc, false) {
+			return false
+		}
+		if !s.isAccountSchedulableForRPM(refillCtx, acc, false) {
+			return false
+		}
+		return true
+	}
+
+	result, err := s.smartDispatcher.Refill(ctx, SmartDispatchRefillRequest{
+		TargetGroup:    group,
+		Platform:       platform,
+		UseMixed:       useMixed,
+		ExcludedIDs:    excludedIDs,
+		CandidateAllow: candidateAllow,
+	})
+	if err != nil {
+		logger.LegacyPrintf("service.gateway", "[SmartDispatch] refill failed: group_id=%d platform=%s model=%s err=%v", *groupID, platform, requestedModel, err)
+		return false
+	}
+	if result == nil || !result.Attempted {
+		return false
+	}
+	if result.TargetAlreadyAvailable || len(result.MovedAccountIDs) > 0 {
+		logger.LegacyPrintf("service.gateway", "[SmartDispatch] refill triggered: group_id=%d platform=%s model=%s moved=%v target_available=%v", *groupID, platform, requestedModel, result.MovedAccountIDs, result.TargetAlreadyAvailable)
+		return true
+	}
+	return false
 }
 
 // IsSingleAntigravityAccountGroup 检查指定分组是否只有一个 antigravity 平台的可调度账号。

@@ -335,6 +335,56 @@ func (_c *GroupCreate) SetRequestCompatEnabled(v bool) *GroupCreate {
 	return _c
 }
 
+// SetNillableRequestCompatEnabled sets the "request_compat_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableRequestCompatEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetRequestCompatEnabled(*v)
+	}
+	return _c
+}
+
+// SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
+func (_c *GroupCreate) SetSmartDispatchEnabled(v bool) *GroupCreate {
+	_c.mutation.SetSmartDispatchEnabled(v)
+	return _c
+}
+
+// SetNillableSmartDispatchEnabled sets the "smart_dispatch_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSmartDispatchEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetSmartDispatchEnabled(*v)
+	}
+	return _c
+}
+
+// SetSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field.
+func (_c *GroupCreate) SetSmartDispatchSourceGroupID(v int64) *GroupCreate {
+	_c.mutation.SetSmartDispatchSourceGroupID(v)
+	return _c
+}
+
+// SetNillableSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSmartDispatchSourceGroupID(v *int64) *GroupCreate {
+	if v != nil {
+		_c.SetSmartDispatchSourceGroupID(*v)
+	}
+	return _c
+}
+
+// SetSmartDispatchCount sets the "smart_dispatch_count" field.
+func (_c *GroupCreate) SetSmartDispatchCount(v int) *GroupCreate {
+	_c.mutation.SetSmartDispatchCount(v)
+	return _c
+}
+
+// SetNillableSmartDispatchCount sets the "smart_dispatch_count" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSmartDispatchCount(v *int) *GroupCreate {
+	if v != nil {
+		_c.SetSmartDispatchCount(*v)
+	}
+	return _c
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_c *GroupCreate) SetModelRouting(v map[string][]int64) *GroupCreate {
 	_c.mutation.SetModelRouting(v)
@@ -632,6 +682,14 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultRequestCompatEnabled
 		_c.mutation.SetRequestCompatEnabled(v)
 	}
+	if _, ok := _c.mutation.SmartDispatchEnabled(); !ok {
+		v := group.DefaultSmartDispatchEnabled
+		_c.mutation.SetSmartDispatchEnabled(v)
+	}
+	if _, ok := _c.mutation.SmartDispatchCount(); !ok {
+		v := group.DefaultSmartDispatchCount
+		_c.mutation.SetSmartDispatchCount(v)
+	}
 	if _, ok := _c.mutation.ModelRoutingEnabled(); !ok {
 		v := group.DefaultModelRoutingEnabled
 		_c.mutation.SetModelRoutingEnabled(v)
@@ -722,6 +780,20 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.ClaudeCodeOnly(); !ok {
 		return &ValidationError{Name: "claude_code_only", err: errors.New(`ent: missing required field "Group.claude_code_only"`)}
+	}
+	if _, ok := _c.mutation.RequestCompatEnabled(); !ok {
+		return &ValidationError{Name: "request_compat_enabled", err: errors.New(`ent: missing required field "Group.request_compat_enabled"`)}
+	}
+	if _, ok := _c.mutation.SmartDispatchEnabled(); !ok {
+		return &ValidationError{Name: "smart_dispatch_enabled", err: errors.New(`ent: missing required field "Group.smart_dispatch_enabled"`)}
+	}
+	if _, ok := _c.mutation.SmartDispatchCount(); !ok {
+		return &ValidationError{Name: "smart_dispatch_count", err: errors.New(`ent: missing required field "Group.smart_dispatch_count"`)}
+	}
+	if v, ok := _c.mutation.SmartDispatchCount(); ok {
+		if err := group.SmartDispatchCountValidator(v); err != nil {
+			return &ValidationError{Name: "smart_dispatch_count", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_count": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.ModelRoutingEnabled(); !ok {
 		return &ValidationError{Name: "model_routing_enabled", err: errors.New(`ent: missing required field "Group.model_routing_enabled"`)}
@@ -873,6 +945,18 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RequestCompatEnabled(); ok {
 		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
 		_node.RequestCompatEnabled = value
+	}
+	if value, ok := _c.mutation.SmartDispatchEnabled(); ok {
+		_spec.SetField(group.FieldSmartDispatchEnabled, field.TypeBool, value)
+		_node.SmartDispatchEnabled = value
+	}
+	if value, ok := _c.mutation.SmartDispatchSourceGroupID(); ok {
+		_spec.SetField(group.FieldSmartDispatchSourceGroupID, field.TypeInt64, value)
+		_node.SmartDispatchSourceGroupID = &value
+	}
+	if value, ok := _c.mutation.SmartDispatchCount(); ok {
+		_spec.SetField(group.FieldSmartDispatchCount, field.TypeInt, value)
+		_node.SmartDispatchCount = value
 	}
 	if value, ok := _c.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -1463,6 +1547,60 @@ func (u *GroupUpsert) SetRequestCompatEnabled(v bool) *GroupUpsert {
 // UpdateRequestCompatEnabled sets the "request_compat_enabled" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateRequestCompatEnabled() *GroupUpsert {
 	u.SetExcluded(group.FieldRequestCompatEnabled)
+	return u
+}
+
+// SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
+func (u *GroupUpsert) SetSmartDispatchEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldSmartDispatchEnabled, v)
+	return u
+}
+
+// UpdateSmartDispatchEnabled sets the "smart_dispatch_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSmartDispatchEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldSmartDispatchEnabled)
+	return u
+}
+
+// SetSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsert) SetSmartDispatchSourceGroupID(v int64) *GroupUpsert {
+	u.Set(group.FieldSmartDispatchSourceGroupID, v)
+	return u
+}
+
+// UpdateSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSmartDispatchSourceGroupID() *GroupUpsert {
+	u.SetExcluded(group.FieldSmartDispatchSourceGroupID)
+	return u
+}
+
+// AddSmartDispatchSourceGroupID adds v to the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsert) AddSmartDispatchSourceGroupID(v int64) *GroupUpsert {
+	u.Add(group.FieldSmartDispatchSourceGroupID, v)
+	return u
+}
+
+// ClearSmartDispatchSourceGroupID clears the value of the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsert) ClearSmartDispatchSourceGroupID() *GroupUpsert {
+	u.SetNull(group.FieldSmartDispatchSourceGroupID)
+	return u
+}
+
+// SetSmartDispatchCount sets the "smart_dispatch_count" field.
+func (u *GroupUpsert) SetSmartDispatchCount(v int) *GroupUpsert {
+	u.Set(group.FieldSmartDispatchCount, v)
+	return u
+}
+
+// UpdateSmartDispatchCount sets the "smart_dispatch_count" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSmartDispatchCount() *GroupUpsert {
+	u.SetExcluded(group.FieldSmartDispatchCount)
+	return u
+}
+
+// AddSmartDispatchCount adds v to the "smart_dispatch_count" field.
+func (u *GroupUpsert) AddSmartDispatchCount(v int) *GroupUpsert {
+	u.Add(group.FieldSmartDispatchCount, v)
 	return u
 }
 
@@ -2102,6 +2240,69 @@ func (u *GroupUpsertOne) SetRequestCompatEnabled(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateRequestCompatEnabled() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRequestCompatEnabled()
+	})
+}
+
+// SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
+func (u *GroupUpsertOne) SetSmartDispatchEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchEnabled(v)
+	})
+}
+
+// UpdateSmartDispatchEnabled sets the "smart_dispatch_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSmartDispatchEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchEnabled()
+	})
+}
+
+// SetSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsertOne) SetSmartDispatchSourceGroupID(v int64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchSourceGroupID(v)
+	})
+}
+
+// AddSmartDispatchSourceGroupID adds v to the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsertOne) AddSmartDispatchSourceGroupID(v int64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSmartDispatchSourceGroupID(v)
+	})
+}
+
+// UpdateSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSmartDispatchSourceGroupID() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchSourceGroupID()
+	})
+}
+
+// ClearSmartDispatchSourceGroupID clears the value of the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsertOne) ClearSmartDispatchSourceGroupID() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSmartDispatchSourceGroupID()
+	})
+}
+
+// SetSmartDispatchCount sets the "smart_dispatch_count" field.
+func (u *GroupUpsertOne) SetSmartDispatchCount(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchCount(v)
+	})
+}
+
+// AddSmartDispatchCount adds v to the "smart_dispatch_count" field.
+func (u *GroupUpsertOne) AddSmartDispatchCount(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSmartDispatchCount(v)
+	})
+}
+
+// UpdateSmartDispatchCount sets the "smart_dispatch_count" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSmartDispatchCount() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchCount()
 	})
 }
 
@@ -2929,6 +3130,69 @@ func (u *GroupUpsertBulk) SetRequestCompatEnabled(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateRequestCompatEnabled() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRequestCompatEnabled()
+	})
+}
+
+// SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
+func (u *GroupUpsertBulk) SetSmartDispatchEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchEnabled(v)
+	})
+}
+
+// UpdateSmartDispatchEnabled sets the "smart_dispatch_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSmartDispatchEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchEnabled()
+	})
+}
+
+// SetSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsertBulk) SetSmartDispatchSourceGroupID(v int64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchSourceGroupID(v)
+	})
+}
+
+// AddSmartDispatchSourceGroupID adds v to the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsertBulk) AddSmartDispatchSourceGroupID(v int64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSmartDispatchSourceGroupID(v)
+	})
+}
+
+// UpdateSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSmartDispatchSourceGroupID() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchSourceGroupID()
+	})
+}
+
+// ClearSmartDispatchSourceGroupID clears the value of the "smart_dispatch_source_group_id" field.
+func (u *GroupUpsertBulk) ClearSmartDispatchSourceGroupID() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSmartDispatchSourceGroupID()
+	})
+}
+
+// SetSmartDispatchCount sets the "smart_dispatch_count" field.
+func (u *GroupUpsertBulk) SetSmartDispatchCount(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchCount(v)
+	})
+}
+
+// AddSmartDispatchCount adds v to the "smart_dispatch_count" field.
+func (u *GroupUpsertBulk) AddSmartDispatchCount(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSmartDispatchCount(v)
+	})
+}
+
+// UpdateSmartDispatchCount sets the "smart_dispatch_count" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSmartDispatchCount() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchCount()
 	})
 }
 

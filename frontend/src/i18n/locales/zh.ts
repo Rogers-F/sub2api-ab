@@ -1844,6 +1844,15 @@ export default {
         hint: '可选多个分组，账号会自动去重',
         hintEdit: '⚠️ 注意：这会替换当前分组的所有账号绑定'
       },
+      smartDispatch: {
+        title: '智能调度',
+        hint: '当此分组没有可调度账号时，从选定号池分组移动账号过来，并重试当前请求一次。',
+        sourceGroup: '号池分组',
+        noSource: '不使用号池',
+        count: '调度数量',
+        sourceRequired: '请选择智能调度号池分组',
+        countRequired: '调度数量必须至少为 1'
+      },
       modelRouting: {
         title: '模型路由配置',
         tooltip:

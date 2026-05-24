@@ -62,6 +62,12 @@ const (
 	FieldSignatureToolTextDowngradeEnabled = "signature_tool_text_downgrade_enabled"
 	// FieldRequestCompatEnabled holds the string denoting the request_compat_enabled field in the database.
 	FieldRequestCompatEnabled = "request_compat_enabled"
+	// FieldSmartDispatchEnabled holds the string denoting the smart_dispatch_enabled field in the database.
+	FieldSmartDispatchEnabled = "smart_dispatch_enabled"
+	// FieldSmartDispatchSourceGroupID holds the string denoting the smart_dispatch_source_group_id field in the database.
+	FieldSmartDispatchSourceGroupID = "smart_dispatch_source_group_id"
+	// FieldSmartDispatchCount holds the string denoting the smart_dispatch_count field in the database.
+	FieldSmartDispatchCount = "smart_dispatch_count"
 	// FieldModelRouting holds the string denoting the model_routing field in the database.
 	FieldModelRouting = "model_routing"
 	// FieldModelRoutingEnabled holds the string denoting the model_routing_enabled field in the database.
@@ -180,6 +186,9 @@ var Columns = []string{
 	FieldSignatureCompatEnabled,
 	FieldSignatureToolTextDowngradeEnabled,
 	FieldRequestCompatEnabled,
+	FieldSmartDispatchEnabled,
+	FieldSmartDispatchSourceGroupID,
+	FieldSmartDispatchCount,
 	FieldModelRouting,
 	FieldModelRoutingEnabled,
 	FieldMcpXMLInject,
@@ -249,6 +258,12 @@ var (
 	DefaultClaudeCodeOnly bool
 	// DefaultRequestCompatEnabled holds the default value on creation for the "request_compat_enabled" field.
 	DefaultRequestCompatEnabled bool
+	// DefaultSmartDispatchEnabled holds the default value on creation for the "smart_dispatch_enabled" field.
+	DefaultSmartDispatchEnabled bool
+	// DefaultSmartDispatchCount holds the default value on creation for the "smart_dispatch_count" field.
+	DefaultSmartDispatchCount int
+	// SmartDispatchCountValidator is a validator for the "smart_dispatch_count" field. It is called by the builders before save.
+	SmartDispatchCountValidator func(int) error
 	// DefaultModelRoutingEnabled holds the default value on creation for the "model_routing_enabled" field.
 	DefaultModelRoutingEnabled bool
 	// DefaultMcpXMLInject holds the default value on creation for the "mcp_xml_inject" field.
@@ -392,6 +407,21 @@ func BySignatureToolTextDowngradeEnabled(opts ...sql.OrderTermOption) OrderOptio
 // ByRequestCompatEnabled orders the results by the request_compat_enabled field.
 func ByRequestCompatEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequestCompatEnabled, opts...).ToFunc()
+}
+
+// BySmartDispatchEnabled orders the results by the smart_dispatch_enabled field.
+func BySmartDispatchEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSmartDispatchEnabled, opts...).ToFunc()
+}
+
+// BySmartDispatchSourceGroupID orders the results by the smart_dispatch_source_group_id field.
+func BySmartDispatchSourceGroupID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSmartDispatchSourceGroupID, opts...).ToFunc()
+}
+
+// BySmartDispatchCount orders the results by the smart_dispatch_count field.
+func BySmartDispatchCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSmartDispatchCount, opts...).ToFunc()
 }
 
 // ByModelRoutingEnabled orders the results by the model_routing_enabled field.

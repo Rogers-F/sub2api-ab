@@ -504,6 +504,11 @@ export interface AdminGroup extends Group {
 
   // 分组排序
   sort_order: number
+
+  // 智能调度配置（仅管理员可见）
+  smart_dispatch_enabled: boolean
+  smart_dispatch_source_group_id: number | null
+  smart_dispatch_count: number
 }
 
 export interface ApiKey {
@@ -587,6 +592,9 @@ export interface CreateGroupRequest {
   supported_model_scopes?: string[]
   require_oauth_only?: boolean
   require_privacy_set?: boolean
+  smart_dispatch_enabled?: boolean
+  smart_dispatch_source_group_id?: number | null
+  smart_dispatch_count?: number
   // 从指定分组复制账号
   copy_accounts_from_group_ids?: number[]
 }
@@ -615,6 +623,9 @@ export interface UpdateGroupRequest {
   supported_model_scopes?: string[]
   require_oauth_only?: boolean
   require_privacy_set?: boolean
+  smart_dispatch_enabled?: boolean
+  smart_dispatch_source_group_id?: number | null
+  smart_dispatch_count?: number
   copy_accounts_from_group_ids?: number[]
 }
 

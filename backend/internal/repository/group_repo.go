@@ -38,6 +38,10 @@ func newGroupRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor) *groupRep
 }
 
 func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) error {
+	smartDispatchCount := groupIn.SmartDispatchCount
+	if smartDispatchCount <= 0 {
+		smartDispatchCount = 1
+	}
 	builder := r.client.Group.Create().
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
@@ -66,7 +70,10 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetRequireOauthOnly(groupIn.RequireOAuthOnly).
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
-		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig)
+		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
+		SetSmartDispatchEnabled(groupIn.SmartDispatchEnabled).
+		SetNillableSmartDispatchSourceGroupID(groupIn.SmartDispatchSourceGroupID).
+		SetSmartDispatchCount(smartDispatchCount)
 
 	// 设置模型路由配置
 	if groupIn.ModelRouting != nil {
@@ -111,6 +118,10 @@ func (r *groupRepository) GetByIDLite(ctx context.Context, id int64) (*service.G
 }
 
 func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) error {
+	smartDispatchCount := groupIn.SmartDispatchCount
+	if smartDispatchCount <= 0 {
+		smartDispatchCount = 1
+	}
 	builder := r.client.Group.UpdateOneID(groupIn.ID).
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
@@ -134,7 +145,9 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetRequireOauthOnly(groupIn.RequireOAuthOnly).
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
-		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig)
+		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
+		SetSmartDispatchEnabled(groupIn.SmartDispatchEnabled).
+		SetSmartDispatchCount(smartDispatchCount)
 
 	// 显式处理可空字段：nil 需要 clear，非 nil 需要 set。
 	if groupIn.DailyLimitUSD != nil {
@@ -189,6 +202,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		builder = builder.SetSignatureToolTextDowngradeEnabled(*groupIn.SignatureToolTextDowngradeEnabled)
 	} else {
 		builder = builder.ClearSignatureToolTextDowngradeEnabled()
+	}
+	if groupIn.SmartDispatchSourceGroupID != nil {
+		builder = builder.SetSmartDispatchSourceGroupID(*groupIn.SmartDispatchSourceGroupID)
+	} else {
+		builder = builder.ClearSmartDispatchSourceGroupID()
 	}
 
 	// 处理 ModelRouting：nil 时清除，否则设置
@@ -746,6 +764,135 @@ func (r *groupRepository) BindAccountsToGroup(ctx context.Context, groupID int64
 	}
 
 	return nil
+}
+
+func (r *groupRepository) MoveAccountsForSmartDispatch(ctx context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64) ([]int64, bool, error) {
+	if targetGroupID <= 0 || sourceGroupID <= 0 || len(accountIDs) == 0 {
+		return nil, false, nil
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return nil, false, err
+	}
+	exec := r.client
+	if err == nil {
+		defer func() { _ = tx.Rollback() }()
+		exec = tx.Client()
+	}
+
+	if _, err := exec.ExecContext(ctx, "SELECT pg_advisory_xact_lock($1)", smartDispatchLockID(targetGroupID)); err != nil {
+		return nil, false, err
+	}
+
+	var targetAvailable int64
+	if err := scanSingleRow(ctx, exec, smartDispatchSchedulableCountSQL, []any{targetGroupID}, &targetAvailable); err != nil {
+		return nil, false, err
+	}
+	if targetAvailable > 0 {
+		if tx != nil {
+			if err := tx.Commit(); err != nil {
+				return nil, false, err
+			}
+		}
+		return nil, true, nil
+	}
+
+	rows, err := exec.QueryContext(ctx, `
+		SELECT a.id
+		FROM unnest($1::bigint[]) WITH ORDINALITY AS requested(id, ord)
+		JOIN accounts a ON a.id = requested.id
+		JOIN account_groups ag ON ag.account_id = a.id AND ag.group_id = $2
+		WHERE a.deleted_at IS NULL
+			AND a.status = 'active'
+			AND a.schedulable = true
+			AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= NOW())
+			AND (a.auto_pause_on_expired = false OR a.expires_at IS NULL OR a.expires_at > NOW())
+			AND (a.overload_until IS NULL OR a.overload_until <= NOW())
+			AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= NOW())
+		ORDER BY requested.ord
+	`, pq.Array(accountIDs), sourceGroupID)
+	if err != nil {
+		return nil, false, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	movedIDs := make([]int64, 0, len(accountIDs))
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, false, err
+		}
+		movedIDs = append(movedIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	if len(movedIDs) == 0 {
+		if tx != nil {
+			if err := tx.Commit(); err != nil {
+				return nil, false, err
+			}
+		}
+		return nil, false, nil
+	}
+
+	if _, err := exec.ExecContext(ctx, `
+		DELETE FROM account_groups
+		WHERE group_id = $1 AND account_id = ANY($2)
+	`, sourceGroupID, pq.Array(movedIDs)); err != nil {
+		return nil, false, err
+	}
+	if _, err := exec.ExecContext(ctx, `
+		INSERT INTO account_groups (account_id, group_id, priority, created_at)
+		SELECT unnest($1::bigint[]), $2, 50, NOW()
+		ON CONFLICT (account_id, group_id) DO NOTHING
+	`, pq.Array(movedIDs), targetGroupID); err != nil {
+		return nil, false, err
+	}
+
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return nil, false, err
+		}
+	}
+
+	sourceAndTargetPayload := buildSchedulerGroupPayload([]int64{sourceGroupID, targetGroupID})
+	for _, accountID := range movedIDs {
+		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountGroupsChanged, &accountID, nil, sourceAndTargetPayload); err != nil {
+			logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue smart dispatch account failed: account=%d source=%d target=%d err=%v", accountID, sourceGroupID, targetGroupID, err)
+		}
+	}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &sourceGroupID, nil); err != nil {
+		logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue smart dispatch source group failed: source=%d target=%d err=%v", sourceGroupID, targetGroupID, err)
+	}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &targetGroupID, nil); err != nil {
+		logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue smart dispatch target group failed: source=%d target=%d err=%v", sourceGroupID, targetGroupID, err)
+	}
+
+	return movedIDs, false, nil
+}
+
+const smartDispatchSchedulableCountSQL = `
+	SELECT COUNT(*)
+	FROM account_groups ag
+	JOIN accounts a ON a.id = ag.account_id
+	WHERE ag.group_id = $1
+		AND a.deleted_at IS NULL
+		AND a.status = 'active'
+		AND a.schedulable = true
+		AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= NOW())
+		AND (a.auto_pause_on_expired = false OR a.expires_at IS NULL OR a.expires_at > NOW())
+		AND (a.overload_until IS NULL OR a.overload_until <= NOW())
+		AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= NOW())
+`
+
+func smartDispatchLockID(groupID int64) int64 {
+	const namespace int64 = 72057594037927936
+	if groupID < 0 {
+		groupID = -groupID
+	}
+	return namespace + groupID
 }
 
 // UpdateSortOrders 批量更新分组排序

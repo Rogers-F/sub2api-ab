@@ -476,6 +476,80 @@
           </select>
           <p class="input-hint">{{ t("admin.groups.copyAccounts.hint") }}</p>
         </div>
+        <div class="border-t pt-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t("admin.groups.smartDispatch.title") }}
+              </label>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t("admin.groups.smartDispatch.hint") }}
+              </p>
+            </div>
+            <button
+              type="button"
+              @click="
+                createForm.smart_dispatch_enabled =
+                  !createForm.smart_dispatch_enabled
+              "
+              :class="[
+                'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
+                createForm.smart_dispatch_enabled
+                  ? 'bg-primary-500'
+                  : 'bg-gray-300 dark:bg-dark-600',
+              ]"
+            >
+              <span
+                :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  createForm.smart_dispatch_enabled
+                    ? 'translate-x-6'
+                    : 'translate-x-1',
+                ]"
+              />
+            </button>
+          </div>
+          <div
+            :class="[
+              'grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]',
+              !createForm.smart_dispatch_enabled &&
+                'pointer-events-none opacity-50',
+            ]"
+          >
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.smartDispatch.sourceGroup")
+              }}</label>
+              <select
+                v-model.number="createForm.smart_dispatch_source_group_id"
+                class="input"
+              >
+                <option :value="null">
+                  {{ t("admin.groups.smartDispatch.noSource") }}
+                </option>
+                <option
+                  v-for="opt in smartDispatchGroupOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.smartDispatch.count")
+              }}</label>
+              <input
+                v-model.number="createForm.smart_dispatch_count"
+                type="number"
+                min="1"
+                step="1"
+                class="input"
+              />
+            </div>
+          </div>
+        </div>
         <div>
           <label class="input-label">{{
             t("admin.groups.form.rateMultiplier")
@@ -1671,6 +1745,80 @@
           <p class="input-hint">
             {{ t("admin.groups.copyAccounts.hintEdit") }}
           </p>
+        </div>
+        <div class="border-t pt-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t("admin.groups.smartDispatch.title") }}
+              </label>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t("admin.groups.smartDispatch.hint") }}
+              </p>
+            </div>
+            <button
+              type="button"
+              @click="
+                editForm.smart_dispatch_enabled =
+                  !editForm.smart_dispatch_enabled
+              "
+              :class="[
+                'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
+                editForm.smart_dispatch_enabled
+                  ? 'bg-primary-500'
+                  : 'bg-gray-300 dark:bg-dark-600',
+              ]"
+            >
+              <span
+                :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  editForm.smart_dispatch_enabled
+                    ? 'translate-x-6'
+                    : 'translate-x-1',
+                ]"
+              />
+            </button>
+          </div>
+          <div
+            :class="[
+              'grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]',
+              !editForm.smart_dispatch_enabled &&
+                'pointer-events-none opacity-50',
+            ]"
+          >
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.smartDispatch.sourceGroup")
+              }}</label>
+              <select
+                v-model.number="editForm.smart_dispatch_source_group_id"
+                class="input"
+              >
+                <option :value="null">
+                  {{ t("admin.groups.smartDispatch.noSource") }}
+                </option>
+                <option
+                  v-for="opt in smartDispatchGroupOptionsForEdit"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.smartDispatch.count")
+              }}</label>
+              <input
+                v-model.number="editForm.smart_dispatch_count"
+                type="number"
+                min="1"
+                step="1"
+                class="input"
+              />
+            </div>
+          </div>
         </div>
         <div>
           <label class="input-label">{{
@@ -3057,6 +3205,30 @@ const copyAccountsGroupOptionsForEdit = computed(() => {
   }));
 });
 
+const smartDispatchGroupOptions = computed(() => {
+  return groups.value
+    .filter((g) => g.status === "active" && (g.account_count || 0) > 0)
+    .map((g) => ({
+      value: g.id,
+      label: `${g.name} · ${t("admin.groups.platforms." + g.platform)} · ${g.account_count || 0} ${t("admin.groups.accountsUnit")}`,
+    }));
+});
+
+const smartDispatchGroupOptionsForEdit = computed(() => {
+  const currentId = editingGroup.value?.id;
+  return groups.value
+    .filter(
+      (g) =>
+        g.status === "active" &&
+        (g.account_count || 0) > 0 &&
+        g.id !== currentId,
+    )
+    .map((g) => ({
+      value: g.id,
+      label: `${g.name} · ${t("admin.groups.platforms." + g.platform)} · ${g.account_count || 0} ${t("admin.groups.accountsUnit")}`,
+    }));
+});
+
 const groups = ref<AdminGroup[]>([]);
 const loading = ref(false);
 const usageMap = ref<Map<number, { today_cost: number; total_cost: number }>>(
@@ -3147,6 +3319,9 @@ const createForm = reactive({
   mcp_xml_inject: true,
   // 从分组复制账号
   copy_accounts_from_group_ids: [] as number[],
+  smart_dispatch_enabled: false,
+  smart_dispatch_source_group_id: null as number | null,
+  smart_dispatch_count: 1,
 });
 
 // 简单账号类型（用于模型路由选择）
@@ -3431,6 +3606,9 @@ const editForm = reactive({
   mcp_xml_inject: true,
   // 从分组复制账号
   copy_accounts_from_group_ids: [] as number[],
+  smart_dispatch_enabled: false,
+  smart_dispatch_source_group_id: null as number | null,
+  smart_dispatch_count: 1,
 });
 
 // 根据分组类型返回不同的删除确认消息
@@ -3606,6 +3784,9 @@ const closeCreateModal = () => {
   createForm.supported_model_scopes = ["claude", "gemini_text", "gemini_image"];
   createForm.mcp_xml_inject = true;
   createForm.copy_accounts_from_group_ids = [];
+  createForm.smart_dispatch_enabled = false;
+  createForm.smart_dispatch_source_group_id = null;
+  createForm.smart_dispatch_count = 1;
   createModelRoutingRules.value = [];
 };
 
@@ -3628,9 +3809,33 @@ const normalizeOptionalLimit = (
   return Number.isFinite(value) && value > 0 ? value : null;
 };
 
+const normalizeSmartDispatchCount = (
+  value: number | string | null | undefined,
+): number | null => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const parsed = typeof value === "string" ? Number(value.trim()) : value;
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
+};
+
 const handleCreateGroup = async () => {
   if (!createForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
+    return;
+  }
+  const smartDispatchCount = normalizeSmartDispatchCount(
+    createForm.smart_dispatch_count,
+  );
+  if (
+    createForm.smart_dispatch_enabled &&
+    !createForm.smart_dispatch_source_group_id
+  ) {
+    appStore.showError(t("admin.groups.smartDispatch.sourceRequired"));
+    return;
+  }
+  if (createForm.smart_dispatch_enabled && smartDispatchCount === null) {
+    appStore.showError(t("admin.groups.smartDispatch.countRequired"));
     return;
   }
   submitting.value = true;
@@ -3647,6 +3852,7 @@ const handleCreateGroup = async () => {
       monthly_limit_usd: normalizeOptionalLimit(
         createForm.monthly_limit_usd as number | string | null,
       ),
+      smart_dispatch_count: smartDispatchCount ?? 1,
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
       ),
@@ -3729,6 +3935,10 @@ const handleEdit = async (group: AdminGroup) => {
   ];
   editForm.mcp_xml_inject = group.mcp_xml_inject ?? true;
   editForm.copy_accounts_from_group_ids = []; // 复制账号字段每次编辑时重置为空
+  editForm.smart_dispatch_enabled = group.smart_dispatch_enabled || false;
+  editForm.smart_dispatch_source_group_id =
+    group.smart_dispatch_source_group_id ?? null;
+  editForm.smart_dispatch_count = group.smart_dispatch_count || 1;
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
@@ -3745,6 +3955,9 @@ const closeEditModal = () => {
   editingGroup.value = null;
   editModelRoutingRules.value = [];
   editForm.copy_accounts_from_group_ids = [];
+  editForm.smart_dispatch_enabled = false;
+  editForm.smart_dispatch_source_group_id = null;
+  editForm.smart_dispatch_count = 1;
   resetMessagesDispatchFormState(editForm);
 };
 
@@ -3752,6 +3965,20 @@ const handleUpdateGroup = async () => {
   if (!editingGroup.value) return;
   if (!editForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
+    return;
+  }
+  const smartDispatchCount = normalizeSmartDispatchCount(
+    editForm.smart_dispatch_count,
+  );
+  if (
+    editForm.smart_dispatch_enabled &&
+    !editForm.smart_dispatch_source_group_id
+  ) {
+    appStore.showError(t("admin.groups.smartDispatch.sourceRequired"));
+    return;
+  }
+  if (editForm.smart_dispatch_enabled && smartDispatchCount === null) {
+    appStore.showError(t("admin.groups.smartDispatch.countRequired"));
     return;
   }
 
@@ -3775,6 +4002,11 @@ const handleUpdateGroup = async () => {
         editForm.fallback_group_id_on_invalid_request === null
           ? 0
           : editForm.fallback_group_id_on_invalid_request,
+      smart_dispatch_source_group_id:
+        editForm.smart_dispatch_source_group_id === null
+          ? 0
+          : editForm.smart_dispatch_source_group_id,
+      smart_dispatch_count: smartDispatchCount ?? 1,
       model_routing: convertRoutingRulesToApiFormat(
         editModelRoutingRules.value,
       ),

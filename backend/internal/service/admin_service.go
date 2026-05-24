@@ -206,6 +206,10 @@ type CreateGroupInput struct {
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
 	// 从指定分组复制账号（创建分组后在同一事务内绑定）
 	CopyAccountsFromGroupIDs []int64
+	// 智能调度配置
+	SmartDispatchEnabled       bool
+	SmartDispatchSourceGroupID *int64
+	SmartDispatchCount         *int
 }
 
 type UpdateGroupInput struct {
@@ -246,6 +250,10 @@ type UpdateGroupInput struct {
 	MessagesDispatchModelConfig *OpenAIMessagesDispatchModelConfig
 	// 从指定分组复制账号（同步操作：先清空当前分组的账号绑定，再绑定源分组的账号）
 	CopyAccountsFromGroupIDs []int64
+	// 智能调度配置
+	SmartDispatchEnabled       *bool
+	SmartDispatchSourceGroupID *int64
+	SmartDispatchCount         *int
 }
 
 type CreateAccountInput struct {
@@ -1301,6 +1309,14 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		}
 	}
 
+	smartDispatchCount, err := resolveSmartDispatchCount(input.SmartDispatchCount)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateSmartDispatchConfig(ctx, 0, input.SmartDispatchEnabled, input.SmartDispatchSourceGroupID, smartDispatchCount); err != nil {
+		return nil, err
+	}
+
 	group := &Group{
 		Name:                              input.Name,
 		Description:                       input.Description,
@@ -1329,6 +1345,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		RequirePrivacySet:                 input.RequirePrivacySet,
 		DefaultMappedModel:                input.DefaultMappedModel,
 		MessagesDispatchModelConfig:       normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
+		SmartDispatchEnabled:              input.SmartDispatchEnabled,
+		SmartDispatchSourceGroupID:        input.SmartDispatchSourceGroupID,
+		SmartDispatchCount:                smartDispatchCount,
 	}
 	sanitizeGroupMessagesDispatchFields(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
@@ -1381,6 +1400,35 @@ func normalizePrice(price *float64) *float64 {
 		return nil
 	}
 	return price
+}
+
+func resolveSmartDispatchCount(count *int) (int, error) {
+	if count == nil {
+		return 1, nil
+	}
+	if *count < 1 {
+		return 0, fmt.Errorf("smart dispatch count must be > 0")
+	}
+	return *count, nil
+}
+
+func (s *adminServiceImpl) validateSmartDispatchConfig(ctx context.Context, currentGroupID int64, enabled bool, sourceGroupID *int64, count int) error {
+	if !enabled {
+		return nil
+	}
+	if sourceGroupID == nil || *sourceGroupID <= 0 {
+		return fmt.Errorf("smart dispatch source group is required")
+	}
+	if count < 1 {
+		return fmt.Errorf("smart dispatch count must be > 0")
+	}
+	if currentGroupID > 0 && *sourceGroupID == currentGroupID {
+		return fmt.Errorf("smart dispatch source group cannot be self")
+	}
+	if _, err := s.groupRepo.GetByIDLite(ctx, *sourceGroupID); err != nil {
+		return fmt.Errorf("smart dispatch source group not found: %w", err)
+	}
+	return nil
 }
 
 func normalizeFallbackAccountID(id *int64) *int64 {
@@ -1612,6 +1660,29 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		group.MessagesDispatchModelConfig = normalizeOpenAIMessagesDispatchModelConfig(*input.MessagesDispatchModelConfig)
 	}
 	sanitizeGroupMessagesDispatchFields(group)
+
+	if input.SmartDispatchEnabled != nil {
+		group.SmartDispatchEnabled = *input.SmartDispatchEnabled
+	}
+	if input.SmartDispatchSourceGroupID != nil {
+		if *input.SmartDispatchSourceGroupID > 0 {
+			group.SmartDispatchSourceGroupID = input.SmartDispatchSourceGroupID
+		} else {
+			group.SmartDispatchSourceGroupID = nil
+		}
+	}
+	if input.SmartDispatchCount != nil {
+		if *input.SmartDispatchCount < 1 {
+			return nil, fmt.Errorf("smart dispatch count must be > 0")
+		}
+		group.SmartDispatchCount = *input.SmartDispatchCount
+	}
+	if group.SmartDispatchCount == 0 {
+		group.SmartDispatchCount = 1
+	}
+	if err := s.validateSmartDispatchConfig(ctx, id, group.SmartDispatchEnabled, group.SmartDispatchSourceGroupID, group.SmartDispatchCount); err != nil {
+		return nil, err
+	}
 
 	if err := s.groupRepo.Update(ctx, group); err != nil {
 		return nil, err

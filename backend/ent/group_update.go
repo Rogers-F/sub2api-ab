@@ -470,6 +470,76 @@ func (_u *GroupUpdate) SetRequestCompatEnabled(v bool) *GroupUpdate {
 	return _u
 }
 
+// SetNillableRequestCompatEnabled sets the "request_compat_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableRequestCompatEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetRequestCompatEnabled(*v)
+	}
+	return _u
+}
+
+// SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
+func (_u *GroupUpdate) SetSmartDispatchEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetSmartDispatchEnabled(v)
+	return _u
+}
+
+// SetNillableSmartDispatchEnabled sets the "smart_dispatch_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSmartDispatchEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetSmartDispatchEnabled(*v)
+	}
+	return _u
+}
+
+// SetSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field.
+func (_u *GroupUpdate) SetSmartDispatchSourceGroupID(v int64) *GroupUpdate {
+	_u.mutation.ResetSmartDispatchSourceGroupID()
+	_u.mutation.SetSmartDispatchSourceGroupID(v)
+	return _u
+}
+
+// SetNillableSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSmartDispatchSourceGroupID(v *int64) *GroupUpdate {
+	if v != nil {
+		_u.SetSmartDispatchSourceGroupID(*v)
+	}
+	return _u
+}
+
+// AddSmartDispatchSourceGroupID adds value to the "smart_dispatch_source_group_id" field.
+func (_u *GroupUpdate) AddSmartDispatchSourceGroupID(v int64) *GroupUpdate {
+	_u.mutation.AddSmartDispatchSourceGroupID(v)
+	return _u
+}
+
+// ClearSmartDispatchSourceGroupID clears the value of the "smart_dispatch_source_group_id" field.
+func (_u *GroupUpdate) ClearSmartDispatchSourceGroupID() *GroupUpdate {
+	_u.mutation.ClearSmartDispatchSourceGroupID()
+	return _u
+}
+
+// SetSmartDispatchCount sets the "smart_dispatch_count" field.
+func (_u *GroupUpdate) SetSmartDispatchCount(v int) *GroupUpdate {
+	_u.mutation.ResetSmartDispatchCount()
+	_u.mutation.SetSmartDispatchCount(v)
+	return _u
+}
+
+// SetNillableSmartDispatchCount sets the "smart_dispatch_count" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSmartDispatchCount(v *int) *GroupUpdate {
+	if v != nil {
+		_u.SetSmartDispatchCount(*v)
+	}
+	return _u
+}
+
+// AddSmartDispatchCount adds value to the "smart_dispatch_count" field.
+func (_u *GroupUpdate) AddSmartDispatchCount(v int) *GroupUpdate {
+	_u.mutation.AddSmartDispatchCount(v)
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdate) SetModelRouting(v map[string][]int64) *GroupUpdate {
 	_u.mutation.SetModelRouting(v)
@@ -898,6 +968,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SmartDispatchCount(); ok {
+		if err := group.SmartDispatchCountValidator(v); err != nil {
+			return &ValidationError{Name: "smart_dispatch_count", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_count": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -1049,6 +1124,24 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.RequestCompatEnabled(); ok {
 		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SmartDispatchEnabled(); ok {
+		_spec.SetField(group.FieldSmartDispatchEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SmartDispatchSourceGroupID(); ok {
+		_spec.SetField(group.FieldSmartDispatchSourceGroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSmartDispatchSourceGroupID(); ok {
+		_spec.AddField(group.FieldSmartDispatchSourceGroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.SmartDispatchSourceGroupIDCleared() {
+		_spec.ClearField(group.FieldSmartDispatchSourceGroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SmartDispatchCount(); ok {
+		_spec.SetField(group.FieldSmartDispatchCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSmartDispatchCount(); ok {
+		_spec.AddField(group.FieldSmartDispatchCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -1839,6 +1932,76 @@ func (_u *GroupUpdateOne) SetRequestCompatEnabled(v bool) *GroupUpdateOne {
 	return _u
 }
 
+// SetNillableRequestCompatEnabled sets the "request_compat_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableRequestCompatEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetRequestCompatEnabled(*v)
+	}
+	return _u
+}
+
+// SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
+func (_u *GroupUpdateOne) SetSmartDispatchEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetSmartDispatchEnabled(v)
+	return _u
+}
+
+// SetNillableSmartDispatchEnabled sets the "smart_dispatch_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSmartDispatchEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSmartDispatchEnabled(*v)
+	}
+	return _u
+}
+
+// SetSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field.
+func (_u *GroupUpdateOne) SetSmartDispatchSourceGroupID(v int64) *GroupUpdateOne {
+	_u.mutation.ResetSmartDispatchSourceGroupID()
+	_u.mutation.SetSmartDispatchSourceGroupID(v)
+	return _u
+}
+
+// SetNillableSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSmartDispatchSourceGroupID(v *int64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSmartDispatchSourceGroupID(*v)
+	}
+	return _u
+}
+
+// AddSmartDispatchSourceGroupID adds value to the "smart_dispatch_source_group_id" field.
+func (_u *GroupUpdateOne) AddSmartDispatchSourceGroupID(v int64) *GroupUpdateOne {
+	_u.mutation.AddSmartDispatchSourceGroupID(v)
+	return _u
+}
+
+// ClearSmartDispatchSourceGroupID clears the value of the "smart_dispatch_source_group_id" field.
+func (_u *GroupUpdateOne) ClearSmartDispatchSourceGroupID() *GroupUpdateOne {
+	_u.mutation.ClearSmartDispatchSourceGroupID()
+	return _u
+}
+
+// SetSmartDispatchCount sets the "smart_dispatch_count" field.
+func (_u *GroupUpdateOne) SetSmartDispatchCount(v int) *GroupUpdateOne {
+	_u.mutation.ResetSmartDispatchCount()
+	_u.mutation.SetSmartDispatchCount(v)
+	return _u
+}
+
+// SetNillableSmartDispatchCount sets the "smart_dispatch_count" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSmartDispatchCount(v *int) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSmartDispatchCount(*v)
+	}
+	return _u
+}
+
+// AddSmartDispatchCount adds value to the "smart_dispatch_count" field.
+func (_u *GroupUpdateOne) AddSmartDispatchCount(v int) *GroupUpdateOne {
+	_u.mutation.AddSmartDispatchCount(v)
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdateOne) SetModelRouting(v map[string][]int64) *GroupUpdateOne {
 	_u.mutation.SetModelRouting(v)
@@ -2280,6 +2443,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SmartDispatchCount(); ok {
+		if err := group.SmartDispatchCountValidator(v); err != nil {
+			return &ValidationError{Name: "smart_dispatch_count", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_count": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -2448,6 +2616,24 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.RequestCompatEnabled(); ok {
 		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SmartDispatchEnabled(); ok {
+		_spec.SetField(group.FieldSmartDispatchEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SmartDispatchSourceGroupID(); ok {
+		_spec.SetField(group.FieldSmartDispatchSourceGroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSmartDispatchSourceGroupID(); ok {
+		_spec.AddField(group.FieldSmartDispatchSourceGroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.SmartDispatchSourceGroupIDCleared() {
+		_spec.ClearField(group.FieldSmartDispatchSourceGroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SmartDispatchCount(); ok {
+		_spec.SetField(group.FieldSmartDispatchCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSmartDispatchCount(); ok {
+		_spec.AddField(group.FieldSmartDispatchCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)

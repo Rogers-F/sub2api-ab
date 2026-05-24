@@ -719,6 +719,9 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		RequirePrivacySet:                 g.RequirePrivacySet,
 		DefaultMappedModel:                g.DefaultMappedModel,
 		MessagesDispatchModelConfig:       g.MessagesDispatchModelConfig,
+		SmartDispatchEnabled:              g.SmartDispatchEnabled,
+		SmartDispatchSourceGroupID:        g.SmartDispatchSourceGroupID,
+		SmartDispatchCount:                g.SmartDispatchCount,
 		CreatedAt:                         g.CreatedAt,
 		UpdatedAt:                         g.UpdatedAt,
 	}

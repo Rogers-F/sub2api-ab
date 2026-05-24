@@ -10200,6 +10200,11 @@ type GroupMutation struct {
 	signature_compat_enabled                *bool
 	signature_tool_text_downgrade_enabled   *bool
 	request_compat_enabled                  *bool
+	smart_dispatch_enabled                  *bool
+	smart_dispatch_source_group_id          *int64
+	addsmart_dispatch_source_group_id       *int64
+	smart_dispatch_count                    *int
+	addsmart_dispatch_count                 *int
 	model_routing                           *map[string][]int64
 	model_routing_enabled                   *bool
 	mcp_xml_inject                          *bool
@@ -11526,6 +11531,168 @@ func (m *GroupMutation) ResetRequestCompatEnabled() {
 	m.request_compat_enabled = nil
 }
 
+// SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
+func (m *GroupMutation) SetSmartDispatchEnabled(b bool) {
+	m.smart_dispatch_enabled = &b
+}
+
+// SmartDispatchEnabled returns the value of the "smart_dispatch_enabled" field in the mutation.
+func (m *GroupMutation) SmartDispatchEnabled() (r bool, exists bool) {
+	v := m.smart_dispatch_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSmartDispatchEnabled returns the old "smart_dispatch_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSmartDispatchEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSmartDispatchEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSmartDispatchEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSmartDispatchEnabled: %w", err)
+	}
+	return oldValue.SmartDispatchEnabled, nil
+}
+
+// ResetSmartDispatchEnabled resets all changes to the "smart_dispatch_enabled" field.
+func (m *GroupMutation) ResetSmartDispatchEnabled() {
+	m.smart_dispatch_enabled = nil
+}
+
+// SetSmartDispatchSourceGroupID sets the "smart_dispatch_source_group_id" field.
+func (m *GroupMutation) SetSmartDispatchSourceGroupID(i int64) {
+	m.smart_dispatch_source_group_id = &i
+	m.addsmart_dispatch_source_group_id = nil
+}
+
+// SmartDispatchSourceGroupID returns the value of the "smart_dispatch_source_group_id" field in the mutation.
+func (m *GroupMutation) SmartDispatchSourceGroupID() (r int64, exists bool) {
+	v := m.smart_dispatch_source_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSmartDispatchSourceGroupID returns the old "smart_dispatch_source_group_id" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSmartDispatchSourceGroupID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSmartDispatchSourceGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSmartDispatchSourceGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSmartDispatchSourceGroupID: %w", err)
+	}
+	return oldValue.SmartDispatchSourceGroupID, nil
+}
+
+// AddSmartDispatchSourceGroupID adds i to the "smart_dispatch_source_group_id" field.
+func (m *GroupMutation) AddSmartDispatchSourceGroupID(i int64) {
+	if m.addsmart_dispatch_source_group_id != nil {
+		*m.addsmart_dispatch_source_group_id += i
+	} else {
+		m.addsmart_dispatch_source_group_id = &i
+	}
+}
+
+// AddedSmartDispatchSourceGroupID returns the value that was added to the "smart_dispatch_source_group_id" field in this mutation.
+func (m *GroupMutation) AddedSmartDispatchSourceGroupID() (r int64, exists bool) {
+	v := m.addsmart_dispatch_source_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSmartDispatchSourceGroupID clears the value of the "smart_dispatch_source_group_id" field.
+func (m *GroupMutation) ClearSmartDispatchSourceGroupID() {
+	m.smart_dispatch_source_group_id = nil
+	m.addsmart_dispatch_source_group_id = nil
+	m.clearedFields[group.FieldSmartDispatchSourceGroupID] = struct{}{}
+}
+
+// SmartDispatchSourceGroupIDCleared returns if the "smart_dispatch_source_group_id" field was cleared in this mutation.
+func (m *GroupMutation) SmartDispatchSourceGroupIDCleared() bool {
+	_, ok := m.clearedFields[group.FieldSmartDispatchSourceGroupID]
+	return ok
+}
+
+// ResetSmartDispatchSourceGroupID resets all changes to the "smart_dispatch_source_group_id" field.
+func (m *GroupMutation) ResetSmartDispatchSourceGroupID() {
+	m.smart_dispatch_source_group_id = nil
+	m.addsmart_dispatch_source_group_id = nil
+	delete(m.clearedFields, group.FieldSmartDispatchSourceGroupID)
+}
+
+// SetSmartDispatchCount sets the "smart_dispatch_count" field.
+func (m *GroupMutation) SetSmartDispatchCount(i int) {
+	m.smart_dispatch_count = &i
+	m.addsmart_dispatch_count = nil
+}
+
+// SmartDispatchCount returns the value of the "smart_dispatch_count" field in the mutation.
+func (m *GroupMutation) SmartDispatchCount() (r int, exists bool) {
+	v := m.smart_dispatch_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSmartDispatchCount returns the old "smart_dispatch_count" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSmartDispatchCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSmartDispatchCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSmartDispatchCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSmartDispatchCount: %w", err)
+	}
+	return oldValue.SmartDispatchCount, nil
+}
+
+// AddSmartDispatchCount adds i to the "smart_dispatch_count" field.
+func (m *GroupMutation) AddSmartDispatchCount(i int) {
+	if m.addsmart_dispatch_count != nil {
+		*m.addsmart_dispatch_count += i
+	} else {
+		m.addsmart_dispatch_count = &i
+	}
+}
+
+// AddedSmartDispatchCount returns the value that was added to the "smart_dispatch_count" field in this mutation.
+func (m *GroupMutation) AddedSmartDispatchCount() (r int, exists bool) {
+	v := m.addsmart_dispatch_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSmartDispatchCount resets all changes to the "smart_dispatch_count" field.
+func (m *GroupMutation) ResetSmartDispatchCount() {
+	m.smart_dispatch_count = nil
+	m.addsmart_dispatch_count = nil
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (m *GroupMutation) SetModelRouting(value map[string][]int64) {
 	m.model_routing = &value
@@ -12292,7 +12459,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 36)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -12361,6 +12528,15 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.request_compat_enabled != nil {
 		fields = append(fields, group.FieldRequestCompatEnabled)
+	}
+	if m.smart_dispatch_enabled != nil {
+		fields = append(fields, group.FieldSmartDispatchEnabled)
+	}
+	if m.smart_dispatch_source_group_id != nil {
+		fields = append(fields, group.FieldSmartDispatchSourceGroupID)
+	}
+	if m.smart_dispatch_count != nil {
+		fields = append(fields, group.FieldSmartDispatchCount)
 	}
 	if m.model_routing != nil {
 		fields = append(fields, group.FieldModelRouting)
@@ -12446,6 +12622,12 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.SignatureToolTextDowngradeEnabled()
 	case group.FieldRequestCompatEnabled:
 		return m.RequestCompatEnabled()
+	case group.FieldSmartDispatchEnabled:
+		return m.SmartDispatchEnabled()
+	case group.FieldSmartDispatchSourceGroupID:
+		return m.SmartDispatchSourceGroupID()
+	case group.FieldSmartDispatchCount:
+		return m.SmartDispatchCount()
 	case group.FieldModelRouting:
 		return m.ModelRouting()
 	case group.FieldModelRoutingEnabled:
@@ -12521,6 +12703,12 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSignatureToolTextDowngradeEnabled(ctx)
 	case group.FieldRequestCompatEnabled:
 		return m.OldRequestCompatEnabled(ctx)
+	case group.FieldSmartDispatchEnabled:
+		return m.OldSmartDispatchEnabled(ctx)
+	case group.FieldSmartDispatchSourceGroupID:
+		return m.OldSmartDispatchSourceGroupID(ctx)
+	case group.FieldSmartDispatchCount:
+		return m.OldSmartDispatchCount(ctx)
 	case group.FieldModelRouting:
 		return m.OldModelRouting(ctx)
 	case group.FieldModelRoutingEnabled:
@@ -12711,6 +12899,27 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRequestCompatEnabled(v)
 		return nil
+	case group.FieldSmartDispatchEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSmartDispatchEnabled(v)
+		return nil
+	case group.FieldSmartDispatchSourceGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSmartDispatchSourceGroupID(v)
+		return nil
+	case group.FieldSmartDispatchCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSmartDispatchCount(v)
+		return nil
 	case group.FieldModelRouting:
 		v, ok := value.(map[string][]int64)
 		if !ok {
@@ -12819,6 +13028,12 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addfallback_group_id_on_invalid_request != nil {
 		fields = append(fields, group.FieldFallbackGroupIDOnInvalidRequest)
 	}
+	if m.addsmart_dispatch_source_group_id != nil {
+		fields = append(fields, group.FieldSmartDispatchSourceGroupID)
+	}
+	if m.addsmart_dispatch_count != nil {
+		fields = append(fields, group.FieldSmartDispatchCount)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, group.FieldSortOrder)
 	}
@@ -12850,6 +13065,10 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedFallbackGroupID()
 	case group.FieldFallbackGroupIDOnInvalidRequest:
 		return m.AddedFallbackGroupIDOnInvalidRequest()
+	case group.FieldSmartDispatchSourceGroupID:
+		return m.AddedSmartDispatchSourceGroupID()
+	case group.FieldSmartDispatchCount:
+		return m.AddedSmartDispatchCount()
 	case group.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -12931,6 +13150,20 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddFallbackGroupIDOnInvalidRequest(v)
 		return nil
+	case group.FieldSmartDispatchSourceGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSmartDispatchSourceGroupID(v)
+		return nil
+	case group.FieldSmartDispatchCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSmartDispatchCount(v)
+		return nil
 	case group.FieldSortOrder:
 		v, ok := value.(int)
 		if !ok {
@@ -12981,6 +13214,9 @@ func (m *GroupMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(group.FieldSignatureToolTextDowngradeEnabled) {
 		fields = append(fields, group.FieldSignatureToolTextDowngradeEnabled)
+	}
+	if m.FieldCleared(group.FieldSmartDispatchSourceGroupID) {
+		fields = append(fields, group.FieldSmartDispatchSourceGroupID)
 	}
 	if m.FieldCleared(group.FieldModelRouting) {
 		fields = append(fields, group.FieldModelRouting)
@@ -13034,6 +13270,9 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldSignatureToolTextDowngradeEnabled:
 		m.ClearSignatureToolTextDowngradeEnabled()
+		return nil
+	case group.FieldSmartDispatchSourceGroupID:
+		m.ClearSmartDispatchSourceGroupID()
 		return nil
 	case group.FieldModelRouting:
 		m.ClearModelRouting()
@@ -13114,6 +13353,15 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldRequestCompatEnabled:
 		m.ResetRequestCompatEnabled()
+		return nil
+	case group.FieldSmartDispatchEnabled:
+		m.ResetSmartDispatchEnabled()
+		return nil
+	case group.FieldSmartDispatchSourceGroupID:
+		m.ResetSmartDispatchSourceGroupID()
+		return nil
+	case group.FieldSmartDispatchCount:
+		m.ResetSmartDispatchCount()
 		return nil
 	case group.FieldModelRouting:
 		m.ResetModelRouting()

@@ -709,6 +709,40 @@ func (s *AccountRepoSuite) TestTempUnschedulableFieldsLoadedByGetByIDAndGetByIDs
 	s.Require().Equal("", cleared.TempUnschedulableReason)
 }
 
+func (s *AccountRepoSuite) TestSetTempUnschedulableRefillsSmartDispatchGroupWhenLastNormalAccountDrops() {
+	source := mustCreateGroup(s.T(), s.client, &service.Group{Name: "smart-source"})
+	target := mustCreateGroup(s.T(), s.client, &service.Group{Name: "smart-target"})
+	_, err := s.client.Group.UpdateOneID(target.ID).
+		SetSmartDispatchEnabled(true).
+		SetSmartDispatchSourceGroupID(source.ID).
+		SetSmartDispatchCount(1).
+		Save(s.ctx)
+	s.Require().NoError(err)
+
+	targetAccount := mustCreateAccount(s.T(), s.client, &service.Account{Name: "target-last-normal"})
+	sourceAccount := mustCreateAccount(s.T(), s.client, &service.Account{Name: "source-normal"})
+	mustBindAccountToGroup(s.T(), s.client, targetAccount.ID, target.ID, 1)
+	mustBindAccountToGroup(s.T(), s.client, sourceAccount.ID, source.ID, 1)
+
+	until := time.Now().Add(15 * time.Minute).UTC()
+	s.Require().NoError(s.repo.SetTempUnschedulable(s.ctx, targetAccount.ID, until, "test temp drop"))
+
+	targetBindings, err := s.client.AccountGroup.Query().
+		Where(accountgroup.GroupIDEQ(target.ID)).
+		Order(dbent.Asc(accountgroup.FieldAccountID)).
+		All(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Len(targetBindings, 2)
+	s.Require().Equal(targetAccount.ID, targetBindings[0].AccountID)
+	s.Require().Equal(sourceAccount.ID, targetBindings[1].AccountID)
+
+	sourceStillBound, err := s.client.AccountGroup.Query().
+		Where(accountgroup.GroupIDEQ(source.ID), accountgroup.AccountIDEQ(sourceAccount.ID)).
+		Exist(s.ctx)
+	s.Require().NoError(err)
+	s.Require().False(sourceStillBound, "smart dispatch should truly move the source account out of the pool group")
+}
+
 // --- UpdateLastUsed ---
 
 func (s *AccountRepoSuite) TestUpdateLastUsed() {

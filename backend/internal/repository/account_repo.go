@@ -49,6 +49,12 @@ type accountRepository struct {
 	// Used to proactively sync account snapshot to cache when status changes,
 	// ensuring sticky sessions can promptly detect unavailable accounts.
 	schedulerCache service.SchedulerCache
+
+	tempUnschedulableSmartDispatchRefiller tempUnschedulableSmartDispatchRefiller
+}
+
+type tempUnschedulableSmartDispatchRefiller interface {
+	RefillForTempUnschedulableAccount(ctx context.Context, accountID int64) error
 }
 
 var schedulerNeutralExtraKeyPrefixes = []string{
@@ -73,7 +79,9 @@ func NewAccountRepository(client *dbent.Client, sqlDB *sql.DB, schedulerCache se
 // newAccountRepositoryWithSQL 是内部构造函数，支持依赖注入 SQL 执行器。
 // 这种设计便于单元测试时注入 mock 对象。
 func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedulerCache service.SchedulerCache) *accountRepository {
-	return &accountRepository{client: client, sql: sqlq, schedulerCache: schedulerCache}
+	repo := &accountRepository{client: client, sql: sqlq, schedulerCache: schedulerCache}
+	repo.tempUnschedulableSmartDispatchRefiller = repo
+	return repo
 }
 
 func (r *accountRepository) Create(ctx context.Context, account *service.Account) error {
@@ -1148,7 +1156,99 @@ func (r *accountRepository) SetTempUnschedulable(ctx context.Context, id int64, 
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue temp unschedulable failed: account=%d err=%v", id, err)
 	}
 	r.syncSchedulerAccountSnapshot(ctx, id)
+	if r.tempUnschedulableSmartDispatchRefiller != nil {
+		if err := r.tempUnschedulableSmartDispatchRefiller.RefillForTempUnschedulableAccount(ctx, id); err != nil {
+			logger.LegacyPrintf("repository.account", "[SmartDispatch] temp unschedulable refill failed: account=%d err=%v", id, err)
+		}
+	}
 	return nil
+}
+
+func (r *accountRepository) RefillForTempUnschedulableAccount(ctx context.Context, accountID int64) error {
+	if r == nil || r.client == nil || r.sql == nil || accountID <= 0 {
+		return nil
+	}
+
+	groups, err := r.listSmartDispatchGroupsForTempUnschedulableAccount(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if len(groups) == 0 {
+		return nil
+	}
+
+	dispatcher := service.NewSmartDispatchService(r, newGroupRepositoryWithSQL(r.client, r.sql))
+	excludedIDs := map[int64]struct{}{accountID: {}}
+	var refillErrs []error
+	for i := range groups {
+		group := &groups[i]
+		sourceGroupID := int64(0)
+		if group.SmartDispatchSourceGroupID != nil {
+			sourceGroupID = *group.SmartDispatchSourceGroupID
+		}
+
+		result, err := dispatcher.Refill(ctx, service.SmartDispatchRefillRequest{
+			TargetGroup: group,
+			ExcludedIDs: excludedIDs,
+		})
+		if err != nil {
+			logger.LegacyPrintf("repository.account", "[SmartDispatch] temp unschedulable refill failed: account=%d target_group=%d source_group=%d err=%v", accountID, group.ID, sourceGroupID, err)
+			refillErrs = append(refillErrs, err)
+			continue
+		}
+		if result != nil && result.Attempted {
+			logger.LegacyPrintf("repository.account", "[SmartDispatch] temp unschedulable refill attempted: account=%d target_group=%d source_group=%d moved=%v target_already_normal=%v", accountID, group.ID, sourceGroupID, result.MovedAccountIDs, result.TargetAlreadyNormal)
+		}
+	}
+	return errors.Join(refillErrs...)
+}
+
+func (r *accountRepository) listSmartDispatchGroupsForTempUnschedulableAccount(ctx context.Context, accountID int64) ([]service.Group, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT g.id,
+			g.smart_dispatch_source_group_id,
+			COALESCE(NULLIF(g.smart_dispatch_count, 0), 1)
+		FROM groups g
+		JOIN account_groups ag ON ag.group_id = g.id
+		WHERE ag.account_id = $1
+			AND g.deleted_at IS NULL
+			AND g.smart_dispatch_enabled = true
+			AND g.smart_dispatch_source_group_id IS NOT NULL
+			AND g.smart_dispatch_source_group_id > 0
+			AND g.smart_dispatch_source_group_id <> g.id
+		ORDER BY g.id ASC
+	`, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	groups := make([]service.Group, 0)
+	for rows.Next() {
+		var (
+			groupID       int64
+			sourceGroupID int64
+			count         int
+		)
+		if err := rows.Scan(&groupID, &sourceGroupID, &count); err != nil {
+			return nil, err
+		}
+		if count <= 0 {
+			count = 1
+		}
+		sourceGroupIDCopy := sourceGroupID
+		groups = append(groups, service.Group{
+			ID:                         groupID,
+			Hydrated:                   true,
+			SmartDispatchEnabled:       true,
+			SmartDispatchSourceGroupID: &sourceGroupIDCopy,
+			SmartDispatchCount:         count,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return groups, nil
 }
 
 func (r *accountRepository) ClearTempUnschedulable(ctx context.Context, id int64) error {

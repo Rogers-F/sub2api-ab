@@ -24,7 +24,9 @@ func (r *recordingTempUnschedulableSmartDispatchRefiller) RefillForTempUnschedul
 func TestSetTempUnschedulableInvokesSmartDispatchRefill(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	const accountID int64 = 42
 	until := time.Now().Add(10 * time.Minute).UTC()
@@ -48,7 +50,9 @@ func TestSetTempUnschedulableInvokesSmartDispatchRefill(t *testing.T) {
 func TestSetTempUnschedulableIgnoresSmartDispatchRefillError(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	const accountID int64 = 43
 	until := time.Now().Add(10 * time.Minute).UTC()

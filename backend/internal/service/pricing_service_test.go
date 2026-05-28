@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,6 +40,27 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.InDelta(t, 2.0, pricing.LongContextInputCostMultiplier, 1e-12)
 	require.InDelta(t, 1.5, pricing.LongContextOutputCostMultiplier, 1e-12)
 	require.True(t, pricing.SupportsServiceTier)
+}
+
+func TestFallbackPricingContainsClaudeOpus48CompleteOpus47Fields(t *testing.T) {
+	body, err := os.ReadFile("../../resources/model-pricing/model_prices_and_context_window.json")
+	require.NoError(t, err)
+
+	svc := &PricingService{}
+	pricingMap, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+
+	pricing := pricingMap["claude-opus-4-8"]
+	require.NotNil(t, pricing)
+	require.InDelta(t, 5e-6, pricing.InputCostPerToken, 1e-12)
+	require.InDelta(t, 25e-6, pricing.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 6.25e-6, pricing.CacheCreationInputTokenCost, 1e-12)
+	require.InDelta(t, 10e-6, pricing.CacheCreationInputTokenCostAbove1hr, 1e-12)
+	require.InDelta(t, 0.5e-6, pricing.CacheReadInputTokenCost, 1e-12)
+	require.InDelta(t, 10e-6, pricing.InputCostPerTokenAbove200kTokens, 1e-12)
+	require.InDelta(t, 37.5e-6, pricing.OutputCostPerTokenAbove200kTokens, 1e-12)
+	require.InDelta(t, 12.5e-6, pricing.CacheCreationInputTokenCostAbove200kTokens, 1e-12)
+	require.InDelta(t, 1e-6, pricing.CacheReadInputTokenCostAbove200kTokens, 1e-12)
 }
 
 func TestGetModelPricing_Gpt53CodexSparkUsesGpt51CodexPricing(t *testing.T) {
@@ -82,6 +104,24 @@ func TestGetModelPricing_ClaudeJupiterUsesOpus47Pricing(t *testing.T) {
 
 	got := svc.GetModelPricing("claude-jupiter-v1-p")
 	require.Same(t, opus47Pricing, got)
+}
+
+func TestGetModelPricing_ClaudeOpus48UsesItsOwnOpus47PricedEntry(t *testing.T) {
+	opus48Pricing := &LiteLLMModelPricing{InputCostPerToken: 5e-6, OutputCostPerToken: 25e-6}
+	opus47Pricing := &LiteLLMModelPricing{InputCostPerToken: 5e-6}
+	opus46Pricing := &LiteLLMModelPricing{InputCostPerToken: 4e-6}
+
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"claude-opus-4-8": opus48Pricing,
+			"claude-opus-4-7": opus47Pricing,
+			"claude-opus-4-6": opus46Pricing,
+		},
+	}
+
+	got := svc.GetModelPricing("claude-opus-4-8")
+	require.Same(t, opus48Pricing, got)
+	require.InDelta(t, opus47Pricing.InputCostPerToken, got.InputCostPerToken, 1e-12)
 }
 
 func TestGetModelPricing_OpenAIFallbackMatchedLoggedAsInfo(t *testing.T) {

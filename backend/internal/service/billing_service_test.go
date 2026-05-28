@@ -108,6 +108,29 @@ func TestGetModelPricing_FallbackClaudeJupiterUsesOpus47Pricing(t *testing.T) {
 	require.InDelta(t, opus47.CacheReadPricePerToken, jupiter.CacheReadPricePerToken, 1e-12)
 }
 
+func TestGetModelPricing_FallbackClaudeOpus48UsesOpus47Pricing(t *testing.T) {
+	svc := newTestBillingService()
+
+	opus48, err := svc.GetModelPricing("claude-opus-4-8")
+	require.NoError(t, err)
+
+	opus47, err := svc.GetModelPricing("claude-opus-4-7")
+	require.NoError(t, err)
+
+	require.InDelta(t, opus47.InputPricePerToken, opus48.InputPricePerToken, 1e-12)
+	require.InDelta(t, opus47.OutputPricePerToken, opus48.OutputPricePerToken, 1e-12)
+	require.InDelta(t, opus47.CacheCreationPricePerToken, opus48.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, opus47.CacheCreation5mPrice, opus48.CacheCreation5mPrice, 1e-12)
+	require.InDelta(t, opus47.CacheCreation1hPrice, opus48.CacheCreation1hPrice, 1e-12)
+	require.InDelta(t, opus47.CacheReadPricePerToken, opus48.CacheReadPricePerToken, 1e-12)
+	require.True(t, opus48.SupportsCacheBreakdown)
+	require.InDelta(t, 5e-6, opus48.InputPricePerToken, 1e-12)
+	require.InDelta(t, 25e-6, opus48.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 6.25e-6, opus48.CacheCreation5mPrice, 1e-12)
+	require.InDelta(t, 10e-6, opus48.CacheCreation1hPrice, 1e-12)
+	require.InDelta(t, 0.5e-6, opus48.CacheReadPricePerToken, 1e-12)
+}
+
 func TestGetModelPricing_CaseInsensitive(t *testing.T) {
 	svc := newTestBillingService()
 

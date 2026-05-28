@@ -283,6 +283,10 @@ func (s *BillingService) initFallbackPricing() {
 func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	modelLower := strings.ToLower(model)
 
+	if pricingAliasForModel(modelLower) == claudeOpus47PricingTarget {
+		return s.fallbackPrices["claude-opus-4.7"]
+	}
+
 	// 按模型系列匹配
 	if strings.Contains(modelLower, "opus") {
 		if strings.Contains(modelLower, "4.7") || strings.Contains(modelLower, "4-7") {

@@ -619,6 +619,12 @@ func (s *PricingService) buildModelLookupCandidates(modelLower string) []string 
 		normalizeModelNameForPricing(modelLower),
 		modelLower,
 	}
+	if alias := pricingAliasForModel(modelLower); alias != "" {
+		candidates = append([]string{
+			normalizeModelNameForPricing(alias),
+			alias,
+		}, candidates...)
+	}
 	candidates = append(candidates,
 		strings.TrimPrefix(modelLower, "models/"),
 		lastSegment(modelLower),

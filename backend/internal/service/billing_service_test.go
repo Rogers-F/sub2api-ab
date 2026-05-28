@@ -93,6 +93,21 @@ func TestGetModelPricing_FallbackMatchesByFamily(t *testing.T) {
 	}
 }
 
+func TestGetModelPricing_FallbackClaudeJupiterUsesOpus47Pricing(t *testing.T) {
+	svc := newTestBillingService()
+
+	jupiter, err := svc.GetModelPricing("claude-jupiter-v1-p")
+	require.NoError(t, err)
+
+	opus47, err := svc.GetModelPricing("claude-opus-4-7")
+	require.NoError(t, err)
+
+	require.InDelta(t, opus47.InputPricePerToken, jupiter.InputPricePerToken, 1e-12)
+	require.InDelta(t, opus47.OutputPricePerToken, jupiter.OutputPricePerToken, 1e-12)
+	require.InDelta(t, opus47.CacheCreationPricePerToken, jupiter.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, opus47.CacheReadPricePerToken, jupiter.CacheReadPricePerToken, 1e-12)
+}
+
 func TestGetModelPricing_CaseInsensitive(t *testing.T) {
 	svc := newTestBillingService()
 

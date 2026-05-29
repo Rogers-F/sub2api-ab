@@ -8,6 +8,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetModelDisplayName_Opus47(t *testing.T) {
+	require.Equal(t, "Claude Opus 4.7", GetModelDisplayName("claude-opus-4-7"))
+	require.Contains(t, buildModelIdentityText("claude-opus-4-7"), "Model Claude Opus 4.7")
+}
+
+func TestGetModelDisplayName_Opus48(t *testing.T) {
+	require.Equal(t, "Claude Opus 4.8", GetModelDisplayName("claude-opus-4-8"))
+	require.Contains(t, buildModelIdentityText("claude-opus-4-8"), "Model Claude Opus 4.8")
+}
+
+func TestAntigravityClaudeModelsIncludeOpus48(t *testing.T) {
+	for _, model := range claudeModels {
+		if model.ID == "claude-opus-4-8" {
+			require.Equal(t, "Claude Opus 4.8", model.DisplayName)
+			return
+		}
+	}
+	t.Fatalf("expected claude-opus-4-8 in Antigravity Claude model list")
+}
+
 // TestBuildParts_ThinkingBlockWithoutSignature 测试thinking block无signature时的处理
 func TestBuildParts_ThinkingBlockWithoutSignature(t *testing.T) {
 	tests := []struct {

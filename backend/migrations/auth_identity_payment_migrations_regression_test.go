@@ -130,6 +130,18 @@ func TestMigration124BackfillsLegacyOIDCSecurityFlagsSafely(t *testing.T) {
 	require.Contains(t, sql, "'false'")
 }
 
+func TestMigration129AddsClaudeOpus48ToPersistedAntigravityMappings(t *testing.T) {
+	content, err := FS.ReadFile("129_add_claude_opus48_to_antigravity_mapping.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "claude-opus-4-8")
+	require.Contains(t, sql, "'{model_mapping,claude-opus-4-8}'")
+	require.Contains(t, sql, `'"claude-opus-4-8"'::jsonb`)
+	require.Contains(t, sql, "platform = 'antigravity'")
+	require.Contains(t, sql, "credentials->'model_mapping' IS NOT NULL")
+}
+
 func TestMigration126AddsGroupSignatureCompatSwitches(t *testing.T) {
 	content, err := FS.ReadFile("126_add_group_signature_compat_switches.sql")
 	require.NoError(t, err)

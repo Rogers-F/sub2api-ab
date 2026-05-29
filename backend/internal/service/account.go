@@ -453,6 +453,8 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 	if len(result) > 0 {
 		if a.Platform == domain.PlatformAntigravity {
 			ensureAntigravityDefaultPassthroughs(result, []string{
+				"claude-opus-4-8",
+				"claude-opus-4-7",
 				"gemini-3-flash",
 				"gemini-3.1-pro-high",
 				"gemini-3.1-pro-low",
@@ -505,11 +507,6 @@ func ensureAntigravityDefaultPassthrough(mapping map[string]string, model string
 	}
 	if _, exists := mapping[model]; exists {
 		return
-	}
-	for pattern := range mapping {
-		if matchWildcard(pattern, model) {
-			return
-		}
 	}
 	mapping[model] = model
 }

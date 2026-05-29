@@ -77,6 +77,18 @@ func TestAntigravityGatewayService_GetMappedModel(t *testing.T) {
 
 		// 3. 默认映射中的透传（映射到自己）
 		{
+			name:           "默认映射透传 - claude-opus-4-7",
+			requestedModel: "claude-opus-4-7",
+			accountMapping: nil,
+			expected:       "claude-opus-4-7",
+		},
+		{
+			name:           "默认映射透传 - claude-opus-4-8",
+			requestedModel: "claude-opus-4-8",
+			accountMapping: nil,
+			expected:       "claude-opus-4-8",
+		},
+		{
 			name:           "默认映射透传 - claude-sonnet-4-6",
 			requestedModel: "claude-sonnet-4-6",
 			accountMapping: nil,
@@ -229,6 +241,36 @@ func TestAntigravityGatewayService_IsModelSupported(t *testing.T) {
 	}
 }
 
+func TestMapAntigravityModel_AddsOpus47PassthroughToPersistedMapping(t *testing.T) {
+	account := &Account{
+		Platform: PlatformAntigravity,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"claude-opus-4-6":          "claude-opus-4-6-thinking",
+				"claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
+				"claude-sonnet-4-6":        "claude-sonnet-4-6",
+			},
+		},
+	}
+
+	require.Equal(t, "claude-opus-4-7", mapAntigravityModel(account, "claude-opus-4-7"))
+}
+
+func TestMapAntigravityModel_AddsOpus48PassthroughToPersistedMapping(t *testing.T) {
+	account := &Account{
+		Platform: PlatformAntigravity,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"claude-opus-4-6":          "claude-opus-4-6-thinking",
+				"claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
+				"claude-sonnet-4-6":        "claude-sonnet-4-6",
+			},
+		},
+	}
+
+	require.Equal(t, "claude-opus-4-8", mapAntigravityModel(account, "claude-opus-4-8"))
+}
+
 // TestMapAntigravityModel_WildcardTargetEqualsRequest 测试通配符映射目标恰好等于请求模型名的 edge case
 // 例如 {"claude-*": "claude-sonnet-4-5"}，请求 "claude-sonnet-4-5" 时应该通过
 func TestMapAntigravityModel_WildcardTargetEqualsRequest(t *testing.T) {
@@ -261,6 +303,23 @@ func TestMapAntigravityModel_WildcardTargetEqualsRequest(t *testing.T) {
 			modelMapping:   map[string]any{"claude-sonnet-4-5": "claude-sonnet-4-5"},
 			requestedModel: "claude-sonnet-4-5",
 			expected:       "claude-sonnet-4-5",
+		},
+		{
+			name: "exact opus 4.7 passthrough wins over stale opus wildcard",
+			modelMapping: map[string]any{
+				"claude-opus-*":   "claude-opus-4-6-thinking",
+				"claude-opus-4-7": "claude-opus-4-7",
+			},
+			requestedModel: "claude-opus-4-7",
+			expected:       "claude-opus-4-7",
+		},
+		{
+			name: "exact opus 4.8 passthrough wins over stale opus wildcard",
+			modelMapping: map[string]any{
+				"claude-opus-*": "claude-opus-4-6-thinking",
+			},
+			requestedModel: "claude-opus-4-8",
+			expected:       "claude-opus-4-8",
 		},
 		{
 			name:           "multiple wildcards target equals one request",

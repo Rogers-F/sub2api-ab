@@ -982,6 +982,58 @@ func TestGatewayService_FailoverOnUpstreamRequestError_RecordsFailoverEvent(t *t
 	require.Equal(t, "https://api.anthropic.com/v1/messages", events[0].UpstreamURL)
 }
 
+func TestGatewayService_AnthropicAPIKeyPassthrough_ExtraUsage400TriggersFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	body := []byte(`{"error":{"message":"Third-party apps now draw from your extra usage, not your plan limits. Add more at claude.ai/settings/usage and keep going.","type":"invalid_request_error"},"request_id":"req_011CbbhBrFyQBnx2C2g9YFVc","type":"error"}`)
+	upstream := &anthropicHTTPUpstreamRecorder{
+		resp: &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Header: http.Header{
+				"Content-Type": []string{"application/json"},
+				"x-request-id": []string{"req_011CbbhBrFyQBnx2C2g9YFVc"},
+			},
+			Body: io.NopCloser(bytes.NewReader(body)),
+		},
+	}
+	svc := &GatewayService{
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{Enabled: false},
+			},
+		},
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, newAnthropicAPIKeyAccountForTest(), []byte(`{"model":"claude-opus-4-8"}`), "claude-opus-4-8", "claude-opus-4-8", false, time.Now())
+
+	require.Nil(t, result)
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadRequest, failoverErr.StatusCode)
+	require.Equal(t, body, failoverErr.ResponseBody)
+	require.False(t, c.Writer.Written(), "extra-usage 400 should trigger account failover instead of writing the upstream 400")
+
+	eventsAny, ok := c.Get(OpsUpstreamErrorsKey)
+	require.True(t, ok)
+	events, ok := eventsAny.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.NotEmpty(t, events)
+	require.Equal(t, "failover_on_400", events[len(events)-1].Kind)
+	require.True(t, events[len(events)-1].Passthrough)
+	require.Contains(t, events[len(events)-1].Message, "Third-party apps now draw")
+}
+
+func TestGatewayService_ShouldFailoverOn400_ExtraUsage(t *testing.T) {
+	svc := &GatewayService{}
+	body := []byte(`{"error":{"message":"Third-party apps now draw from your extra usage, not your plan limits. Add more at claude.ai/settings/usage and keep going.","type":"invalid_request_error"}}`)
+
+	require.True(t, svc.shouldFailoverOn400(body))
+}
+
 func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_EmptyResponseBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()

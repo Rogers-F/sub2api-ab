@@ -6805,7 +6805,7 @@ func (s *GatewayService) maybeFailoverBadRequestResponse(
 	resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
 	allowCompatibility400 := s != nil && s.cfg != nil && s.cfg.Gateway.FailoverOn400
-	if !s.shouldFailoverOn400ByDefault(respBody) && !(allowCompatibility400 && s.shouldFailoverOn400(respBody)) {
+	if !s.shouldFailoverOn400ByDefault(respBody) && (!allowCompatibility400 || !s.shouldFailoverOn400(respBody)) {
 		return false, nil
 	}
 

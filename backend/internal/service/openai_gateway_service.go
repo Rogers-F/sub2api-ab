@@ -2035,7 +2035,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			if stripped {
 				originalBody = strippedBody
 				body = strippedBody
-				reqModel, reqStream, promptCacheKey = extractOpenAIRequestMetaFromBody(body)
+				reqModel, reqStream, _ = extractOpenAIRequestMetaFromBody(body)
 			}
 		}
 		// 透传分支只需要轻量提取字段，避免热路径全量 Unmarshal。

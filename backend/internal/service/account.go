@@ -455,10 +455,12 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 			ensureAntigravityDefaultPassthroughs(result, []string{
 				"claude-opus-4-8",
 				"claude-opus-4-7",
+			}, true)
+			ensureAntigravityDefaultPassthroughs(result, []string{
 				"gemini-3-flash",
 				"gemini-3.1-pro-high",
 				"gemini-3.1-pro-low",
-			})
+			}, false)
 		}
 		return result
 	}
@@ -501,19 +503,26 @@ func modelMappingSignature(rawMapping map[string]any) uint64 {
 	return h.Sum64()
 }
 
-func ensureAntigravityDefaultPassthrough(mapping map[string]string, model string) {
+func ensureAntigravityDefaultPassthrough(mapping map[string]string, model string, overrideWildcard bool) {
 	if mapping == nil || model == "" {
 		return
 	}
 	if _, exists := mapping[model]; exists {
 		return
 	}
+	if !overrideWildcard {
+		for pattern := range mapping {
+			if matchWildcard(pattern, model) {
+				return
+			}
+		}
+	}
 	mapping[model] = model
 }
 
-func ensureAntigravityDefaultPassthroughs(mapping map[string]string, models []string) {
+func ensureAntigravityDefaultPassthroughs(mapping map[string]string, models []string, overrideWildcard bool) {
 	for _, model := range models {
-		ensureAntigravityDefaultPassthrough(mapping, model)
+		ensureAntigravityDefaultPassthrough(mapping, model, overrideWildcard)
 	}
 }
 

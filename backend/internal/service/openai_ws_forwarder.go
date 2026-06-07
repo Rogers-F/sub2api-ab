@@ -2523,6 +2523,15 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			normalized = next
 		}
+		if account != nil && account.IsOpenAIImageGenerationStripEnabled() {
+			next, stripped, stripErr := stripOpenAIResponsesImageGenerationFromBody(normalized)
+			if stripErr != nil {
+				return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", stripErr)
+			}
+			if stripped {
+				normalized = next
+			}
+		}
 
 		return openAIWSClientPayload{
 			payloadRaw:         normalized,

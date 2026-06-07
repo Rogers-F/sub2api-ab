@@ -1276,6 +1276,17 @@ func (a *Account) IsCodexCLIOnlyEnabled() bool {
 	return ok && enabled
 }
 
+// IsOpenAIImageGenerationStripEnabled 返回 OpenAI 账号是否剥离 Responses image_generation 工具。
+// 字段：accounts.extra.openai_strip_image_generation。
+// 字段缺失或类型不正确时，按 false（关闭）处理。
+func (a *Account) IsOpenAIImageGenerationStripEnabled() bool {
+	if a == nil || !a.IsOpenAI() || a.Extra == nil {
+		return false
+	}
+	enabled, ok := a.Extra["openai_strip_image_generation"].(bool)
+	return ok && enabled
+}
+
 // WindowCostSchedulability 窗口费用调度状态
 type WindowCostSchedulability int
 

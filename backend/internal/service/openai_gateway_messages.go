@@ -142,6 +142,15 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 			}
 		}
 	}
+	if account.IsOpenAIImageGenerationStripEnabled() {
+		strippedBody, stripped, stripErr := stripOpenAIResponsesImageGenerationFromBody(responsesBody)
+		if stripErr != nil {
+			return nil, fmt.Errorf("strip image_generation from responses body: %w", stripErr)
+		}
+		if stripped {
+			responsesBody = strippedBody
+		}
+	}
 
 	// 5. Get access token
 	token, _, err := s.GetAccessToken(ctx, account)

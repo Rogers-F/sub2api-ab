@@ -135,6 +135,39 @@ func TestAccount_IsCodexCLIOnlyEnabled(t *testing.T) {
 	})
 }
 
+func TestAccount_IsOpenAIImageGenerationStripEnabled(t *testing.T) {
+	t.Run("OpenAI账号开启", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra: map[string]any{
+				"openai_strip_image_generation": true,
+			},
+		}
+		require.True(t, account.IsOpenAIImageGenerationStripEnabled())
+	})
+
+	t.Run("字段缺失默认关闭", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra:    map[string]any{},
+		}
+		require.False(t, account.IsOpenAIImageGenerationStripEnabled())
+	})
+
+	t.Run("非OpenAI账号始终关闭", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAnthropic,
+			Type:     AccountTypeOAuth,
+			Extra: map[string]any{
+				"openai_strip_image_generation": true,
+			},
+		}
+		require.False(t, account.IsOpenAIImageGenerationStripEnabled())
+	})
+}
+
 func TestAccount_IsOpenAIResponsesWebSocketV2Enabled(t *testing.T) {
 	t.Run("OAuth使用OAuth专用开关", func(t *testing.T) {
 		account := &Account{

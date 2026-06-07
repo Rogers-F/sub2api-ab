@@ -196,6 +196,23 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.openai_codex_preset_instructions).toBe(true)
   })
 
+  it('saves the OpenAI image_generation stripping switch into extra', async () => {
+    const account = buildAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await wrapper.setProps({ show: true })
+
+    await wrapper.get('[data-testid="openai-strip-image-generation-toggle"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.openai_strip_image_generation).toBe(true)
+  })
+
   it('writes false when disabling an existing OpenAI Codex preset instructions switch', async () => {
     const account = buildAccount()
     account.extra = { openai_codex_preset_instructions: true }

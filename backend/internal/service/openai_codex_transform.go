@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -345,6 +346,77 @@ func ensureOpenAIResponsesImageGenerationTool(reqBody map[string]any) bool {
 
 	reqBody["tools"] = append(tools, tool)
 	return true
+}
+
+func isOpenAIResponsesImageGenerationTool(rawTool any) bool {
+	toolMap, ok := rawTool.(map[string]any)
+	if !ok {
+		return false
+	}
+	return strings.TrimSpace(firstNonEmptyString(toolMap["type"])) == "image_generation"
+}
+
+func isOpenAIResponsesImageGenerationToolChoice(rawChoice any) bool {
+	choiceMap, ok := rawChoice.(map[string]any)
+	if !ok {
+		return false
+	}
+	return strings.TrimSpace(firstNonEmptyString(choiceMap["type"])) == "image_generation"
+}
+
+func stripOpenAIResponsesImageGeneration(reqBody map[string]any) bool {
+	if len(reqBody) == 0 {
+		return false
+	}
+
+	modified := false
+	removedAllTools := false
+	if rawTools, ok := reqBody["tools"]; ok && rawTools != nil {
+		if tools, ok := rawTools.([]any); ok {
+			filtered := make([]any, 0, len(tools))
+			removedImageTool := false
+			for _, rawTool := range tools {
+				if isOpenAIResponsesImageGenerationTool(rawTool) {
+					removedImageTool = true
+					continue
+				}
+				filtered = append(filtered, rawTool)
+			}
+			if removedImageTool {
+				if len(filtered) == 0 {
+					delete(reqBody, "tools")
+					removedAllTools = true
+				} else {
+					reqBody["tools"] = filtered
+				}
+				modified = true
+			}
+		}
+	}
+
+	if rawChoice, ok := reqBody["tool_choice"]; ok {
+		if isOpenAIResponsesImageGenerationToolChoice(rawChoice) || removedAllTools {
+			delete(reqBody, "tool_choice")
+			modified = true
+		}
+	}
+
+	return modified
+}
+
+func stripOpenAIResponsesImageGenerationFromBody(body []byte) ([]byte, bool, error) {
+	var reqBody map[string]any
+	if err := json.Unmarshal(body, &reqBody); err != nil {
+		return body, false, err
+	}
+	if !stripOpenAIResponsesImageGeneration(reqBody) {
+		return body, false, nil
+	}
+	updated, err := json.Marshal(reqBody)
+	if err != nil {
+		return body, false, err
+	}
+	return updated, true, nil
 }
 
 func applyCodexImageGenerationBridgeInstructions(reqBody map[string]any) bool {

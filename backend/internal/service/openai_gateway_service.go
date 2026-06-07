@@ -2025,7 +2025,19 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return nil, errors.New("openai ws v1 is temporarily unsupported; use ws v2")
 	}
 	passthroughEnabled := account.IsOpenAIPassthroughEnabled()
+	stripImageGeneration := account.IsOpenAIImageGenerationStripEnabled()
 	if passthroughEnabled {
+		if stripImageGeneration {
+			strippedBody, stripped, stripErr := stripOpenAIResponsesImageGenerationFromBody(originalBody)
+			if stripErr != nil {
+				return nil, fmt.Errorf("strip image_generation from passthrough request: %w", stripErr)
+			}
+			if stripped {
+				originalBody = strippedBody
+				body = strippedBody
+				reqModel, reqStream, promptCacheKey = extractOpenAIRequestMetaFromBody(body)
+			}
+		}
 		// 透传分支只需要轻量提取字段，避免热路径全量 Unmarshal。
 		reasoningEffort := extractOpenAIReasoningEffortFromBody(body, reqModel)
 		return s.forwardOpenAIPassthrough(ctx, c, account, originalBody, reqModel, reasoningEffort, reqStream, startTime)
@@ -2110,17 +2122,17 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		markPatchSet("instructions", "You are a helpful coding assistant.")
 	}
 
-	if isCodexCLI && ensureOpenAIResponsesImageGenerationTool(reqBody) {
+	if isCodexCLI && !stripImageGeneration && ensureOpenAIResponsesImageGenerationTool(reqBody) {
 		bodyModified = true
 		disablePatch()
 		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Injected /responses image_generation tool for Codex client")
 	}
-	if normalizeOpenAIResponsesImageGenerationTools(reqBody) {
+	if !stripImageGeneration && normalizeOpenAIResponsesImageGenerationTools(reqBody) {
 		bodyModified = true
 		disablePatch()
 		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Normalized /responses image_generation tool payload")
 	}
-	if isCodexCLI && applyCodexImageGenerationBridgeInstructions(reqBody) {
+	if isCodexCLI && !stripImageGeneration && applyCodexImageGenerationBridgeInstructions(reqBody) {
 		bodyModified = true
 		disablePatch()
 		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Added Codex image_generation bridge instructions")
@@ -2148,6 +2160,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			billingModel,
 			upstreamModel,
 		)
+	}
+	if stripImageGeneration && stripOpenAIResponsesImageGeneration(reqBody) {
+		bodyModified = true
+		disablePatch()
+		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Stripped /responses image_generation tool for account")
 	}
 
 	// OpenAI OAuth 账号走 ChatGPT internal Codex endpoint，需要将模型名规范化为

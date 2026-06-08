@@ -50,11 +50,11 @@ type accountRepository struct {
 	// ensuring sticky sessions can promptly detect unavailable accounts.
 	schedulerCache service.SchedulerCache
 
-	tempUnschedulableSmartDispatchRefiller tempUnschedulableSmartDispatchRefiller
+	smartDispatchRefiller smartDispatchRefiller
 }
 
-type tempUnschedulableSmartDispatchRefiller interface {
-	RefillForTempUnschedulableAccount(ctx context.Context, accountID int64) error
+type smartDispatchRefiller interface {
+	RefillForUnavailableAccount(ctx context.Context, accountID int64) error
 }
 
 var schedulerNeutralExtraKeyPrefixes = []string{
@@ -80,7 +80,7 @@ func NewAccountRepository(client *dbent.Client, sqlDB *sql.DB, schedulerCache se
 // 这种设计便于单元测试时注入 mock 对象。
 func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedulerCache service.SchedulerCache) *accountRepository {
 	repo := &accountRepository{client: client, sql: sqlq, schedulerCache: schedulerCache}
-	repo.tempUnschedulableSmartDispatchRefiller = repo
+	repo.smartDispatchRefiller = repo
 	return repo
 }
 
@@ -1075,6 +1075,7 @@ func (r *accountRepository) SetRateLimited(ctx context.Context, id int64, resetA
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue rate limit failed: account=%d err=%v", id, err)
 	}
 	r.syncSchedulerAccountSnapshot(ctx, id)
+	r.refillSmartDispatchForUnavailableAccount(ctx, id, "rate limit")
 	return nil
 }
 
@@ -1156,20 +1157,25 @@ func (r *accountRepository) SetTempUnschedulable(ctx context.Context, id int64, 
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue temp unschedulable failed: account=%d err=%v", id, err)
 	}
 	r.syncSchedulerAccountSnapshot(ctx, id)
-	if r.tempUnschedulableSmartDispatchRefiller != nil {
-		if err := r.tempUnschedulableSmartDispatchRefiller.RefillForTempUnschedulableAccount(ctx, id); err != nil {
-			logger.LegacyPrintf("repository.account", "[SmartDispatch] temp unschedulable refill failed: account=%d err=%v", id, err)
-		}
-	}
+	r.refillSmartDispatchForUnavailableAccount(ctx, id, "temp unschedulable")
 	return nil
 }
 
-func (r *accountRepository) RefillForTempUnschedulableAccount(ctx context.Context, accountID int64) error {
+func (r *accountRepository) refillSmartDispatchForUnavailableAccount(ctx context.Context, accountID int64, reason string) {
+	if r.smartDispatchRefiller == nil {
+		return
+	}
+	if err := r.smartDispatchRefiller.RefillForUnavailableAccount(ctx, accountID); err != nil {
+		logger.LegacyPrintf("repository.account", "[SmartDispatch] %s refill failed: account=%d err=%v", reason, accountID, err)
+	}
+}
+
+func (r *accountRepository) RefillForUnavailableAccount(ctx context.Context, accountID int64) error {
 	if r == nil || r.client == nil || r.sql == nil || accountID <= 0 {
 		return nil
 	}
 
-	groups, err := r.listSmartDispatchGroupsForTempUnschedulableAccount(ctx, accountID)
+	groups, err := r.listSmartDispatchGroupsForUnavailableAccount(ctx, accountID)
 	if err != nil {
 		return err
 	}
@@ -1192,18 +1198,18 @@ func (r *accountRepository) RefillForTempUnschedulableAccount(ctx context.Contex
 			ExcludedIDs: excludedIDs,
 		})
 		if err != nil {
-			logger.LegacyPrintf("repository.account", "[SmartDispatch] temp unschedulable refill failed: account=%d target_group=%d source_group=%d err=%v", accountID, group.ID, sourceGroupID, err)
+			logger.LegacyPrintf("repository.account", "[SmartDispatch] unavailable refill failed: account=%d target_group=%d source_group=%d err=%v", accountID, group.ID, sourceGroupID, err)
 			refillErrs = append(refillErrs, err)
 			continue
 		}
 		if result != nil && result.Attempted {
-			logger.LegacyPrintf("repository.account", "[SmartDispatch] temp unschedulable refill attempted: account=%d target_group=%d source_group=%d moved=%v target_already_normal=%v", accountID, group.ID, sourceGroupID, result.MovedAccountIDs, result.TargetAlreadyNormal)
+			logger.LegacyPrintf("repository.account", "[SmartDispatch] unavailable refill attempted: account=%d target_group=%d source_group=%d moved=%v target_already_normal=%v", accountID, group.ID, sourceGroupID, result.MovedAccountIDs, result.TargetAlreadyNormal)
 		}
 	}
 	return errors.Join(refillErrs...)
 }
 
-func (r *accountRepository) listSmartDispatchGroupsForTempUnschedulableAccount(ctx context.Context, accountID int64) ([]service.Group, error) {
+func (r *accountRepository) listSmartDispatchGroupsForUnavailableAccount(ctx context.Context, accountID int64) ([]service.Group, error) {
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT g.id,
 			g.smart_dispatch_source_group_id,

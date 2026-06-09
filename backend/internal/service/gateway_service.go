@@ -1165,12 +1165,8 @@ func (s *GatewayService) buildOAuthMetadataUserID(parsed *ParsedRequest, account
 		userID = generateClientID()
 	}
 
-	sessionHash := s.GenerateSessionHash(parsed)
-	sessionID := uuid.NewString()
-	if sessionHash != "" {
-		seed := fmt.Sprintf("%d::%s", account.ID, sessionHash)
-		sessionID = generateSessionUUID(seed)
-	}
+	seed := buildStableOAuthMetadataSessionSeed(account.ID, sessionContextDiscriminator(parsed.SessionContext), s.firstUserTextForMetadataSession(parsed))
+	sessionID := generateSessionUUID(seed)
 
 	// 根据指纹 UA 版本选择输出格式
 	var uaVersion string
@@ -1179,6 +1175,42 @@ func (s *GatewayService) buildOAuthMetadataUserID(parsed *ParsedRequest, account
 	}
 	accountUUID := strings.TrimSpace(account.GetExtraString("account_uuid"))
 	return FormatMetadataUserID(userID, accountUUID, sessionID, uaVersion)
+}
+
+func (s *GatewayService) firstUserTextForMetadataSession(parsed *ParsedRequest) string {
+	if parsed == nil {
+		return ""
+	}
+	for _, msg := range parsed.Messages {
+		msgMap, ok := msg.(map[string]any)
+		if !ok {
+			continue
+		}
+		if role, _ := msgMap["role"].(string); role != "user" {
+			continue
+		}
+		if content, exists := msgMap["content"]; exists {
+			return s.extractTextFromContent(content)
+		}
+	}
+	return ""
+}
+
+func buildStableOAuthMetadataSessionSeed(accountID int64, clientDiscriminator, firstUserText string) string {
+	var b strings.Builder
+	b.WriteString(strconv.FormatInt(accountID, 10))
+	b.WriteString("::")
+	b.WriteString(clientDiscriminator)
+	b.WriteString("::")
+	b.WriteString(firstUserText)
+	return b.String()
+}
+
+func sessionContextDiscriminator(sc *SessionContext) string {
+	if sc == nil {
+		return ""
+	}
+	return sc.ClientIP + ":" + NormalizeSessionUserAgent(sc.UserAgent) + ":" + strconv.FormatInt(sc.APIKeyID, 10)
 }
 
 // GenerateSessionUUID creates a deterministic UUID4 from a seed string.

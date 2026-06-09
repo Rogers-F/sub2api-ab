@@ -1197,13 +1197,7 @@ func (s *GatewayService) firstUserTextForMetadataSession(parsed *ParsedRequest) 
 }
 
 func buildStableOAuthMetadataSessionSeed(accountID int64, clientDiscriminator, firstUserText string) string {
-	var b strings.Builder
-	b.WriteString(strconv.FormatInt(accountID, 10))
-	b.WriteString("::")
-	b.WriteString(clientDiscriminator)
-	b.WriteString("::")
-	b.WriteString(firstUserText)
-	return b.String()
+	return strconv.FormatInt(accountID, 10) + "::" + clientDiscriminator + "::" + firstUserText
 }
 
 func sessionContextDiscriminator(sc *SessionContext) string {

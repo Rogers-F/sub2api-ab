@@ -116,6 +116,30 @@ func TestDeriveOpenAIContentSessionSeed_ChatCompletions_StructuredContent(t *tes
 	require.Contains(t, seed, "|first_user=")
 }
 
+func TestDeriveOpenAIContentSessionSeed_AnthropicMessagesCacheControlIgnoresUnmarkedSiblingText(t *testing.T) {
+	mk := func(cacheableText, nonce string) []byte {
+		return []byte(`{
+			"model": "claude-opus-4-7",
+			"messages": [
+				{
+					"role": "user",
+					"content": [
+						{"type": "text", "text": "` + cacheableText + `", "cache_control": {"type": "ephemeral"}},
+						{"type": "text", "text": "Probe nonce: ` + nonce + `"}
+					]
+				}
+			]
+		}`)
+	}
+
+	s1 := deriveOpenAIContentSessionSeed(mk("stable cacheable prefix", "nonce-1"))
+	s2 := deriveOpenAIContentSessionSeed(mk("stable cacheable prefix", "nonce-2"))
+	require.Equal(t, s1, s2, "unmarked sibling text must not perturb content-derived sticky session seed")
+
+	s3 := deriveOpenAIContentSessionSeed(mk("changed cacheable prefix", "nonce-2"))
+	require.NotEqual(t, s1, s3, "changing the cache_control text should change the content-derived sticky session seed")
+}
+
 func TestDeriveOpenAIContentSessionSeed_ResponsesAPI_InputString(t *testing.T) {
 	body := []byte(`{"model":"gpt-5.4","input":"Hello, how are you?"}`)
 	seed := deriveOpenAIContentSessionSeed(body)

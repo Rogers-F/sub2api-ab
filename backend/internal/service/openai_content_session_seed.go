@@ -53,13 +53,13 @@ func deriveOpenAIContentSessionSeed(body []byte) string {
 			case "system", "developer":
 				_, _ = b.WriteString("|system=")
 				if c := msg.Get("content"); c.Exists() {
-					_, _ = b.WriteString(normalizeCompatSeedJSON(json.RawMessage(c.Raw)))
+					_, _ = b.WriteString(normalizeCompatContentForSessionSeed(c))
 				}
 			case "user":
 				if !firstUserCaptured {
 					_, _ = b.WriteString("|first_user=")
 					if c := msg.Get("content"); c.Exists() {
-						_, _ = b.WriteString(normalizeCompatSeedJSON(json.RawMessage(c.Raw)))
+						_, _ = b.WriteString(normalizeCompatContentForSessionSeed(c))
 					}
 					firstUserCaptured = true
 				}
@@ -77,13 +77,13 @@ func deriveOpenAIContentSessionSeed(body []byte) string {
 				case "system", "developer":
 					_, _ = b.WriteString("|system=")
 					if c := item.Get("content"); c.Exists() {
-						_, _ = b.WriteString(normalizeCompatSeedJSON(json.RawMessage(c.Raw)))
+						_, _ = b.WriteString(normalizeCompatContentForSessionSeed(c))
 					}
 				case "user":
 					if !firstUserCaptured {
 						_, _ = b.WriteString("|first_user=")
 						if c := item.Get("content"); c.Exists() {
-							_, _ = b.WriteString(normalizeCompatSeedJSON(json.RawMessage(c.Raw)))
+							_, _ = b.WriteString(normalizeCompatContentForSessionSeed(c))
 						}
 						firstUserCaptured = true
 					}
@@ -104,4 +104,22 @@ func deriveOpenAIContentSessionSeed(body []byte) string {
 		return ""
 	}
 	return contentSessionSeedPrefix + b.String()
+}
+
+func normalizeCompatContentForSessionSeed(content gjson.Result) string {
+	if content.IsArray() {
+		var cacheableTexts []string
+		content.ForEach(func(_, part gjson.Result) bool {
+			if part.Get("cache_control.type").String() == "ephemeral" {
+				if text := part.Get("text").String(); text != "" {
+					cacheableTexts = append(cacheableTexts, text)
+				}
+			}
+			return true
+		})
+		if len(cacheableTexts) > 0 {
+			return "cache_control=" + strings.Join(cacheableTexts, "\n")
+		}
+	}
+	return normalizeCompatSeedJSON(json.RawMessage(content.Raw))
 }

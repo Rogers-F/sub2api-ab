@@ -385,6 +385,20 @@ func (_c *GroupCreate) SetNillableSmartDispatchCount(v *int) *GroupCreate {
 	return _c
 }
 
+// SetSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field.
+func (_c *GroupCreate) SetSmartDispatchMinNormalAccounts(v int) *GroupCreate {
+	_c.mutation.SetSmartDispatchMinNormalAccounts(v)
+	return _c
+}
+
+// SetNillableSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSmartDispatchMinNormalAccounts(v *int) *GroupCreate {
+	if v != nil {
+		_c.SetSmartDispatchMinNormalAccounts(*v)
+	}
+	return _c
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_c *GroupCreate) SetModelRouting(v map[string][]int64) *GroupCreate {
 	_c.mutation.SetModelRouting(v)
@@ -690,6 +704,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultSmartDispatchCount
 		_c.mutation.SetSmartDispatchCount(v)
 	}
+	if _, ok := _c.mutation.SmartDispatchMinNormalAccounts(); !ok {
+		v := group.DefaultSmartDispatchMinNormalAccounts
+		_c.mutation.SetSmartDispatchMinNormalAccounts(v)
+	}
 	if _, ok := _c.mutation.ModelRoutingEnabled(); !ok {
 		v := group.DefaultModelRoutingEnabled
 		_c.mutation.SetModelRoutingEnabled(v)
@@ -793,6 +811,14 @@ func (_c *GroupCreate) check() error {
 	if v, ok := _c.mutation.SmartDispatchCount(); ok {
 		if err := group.SmartDispatchCountValidator(v); err != nil {
 			return &ValidationError{Name: "smart_dispatch_count", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_count": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SmartDispatchMinNormalAccounts(); !ok {
+		return &ValidationError{Name: "smart_dispatch_min_normal_accounts", err: errors.New(`ent: missing required field "Group.smart_dispatch_min_normal_accounts"`)}
+	}
+	if v, ok := _c.mutation.SmartDispatchMinNormalAccounts(); ok {
+		if err := group.SmartDispatchMinNormalAccountsValidator(v); err != nil {
+			return &ValidationError{Name: "smart_dispatch_min_normal_accounts", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_min_normal_accounts": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.ModelRoutingEnabled(); !ok {
@@ -957,6 +983,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.SmartDispatchCount(); ok {
 		_spec.SetField(group.FieldSmartDispatchCount, field.TypeInt, value)
 		_node.SmartDispatchCount = value
+	}
+	if value, ok := _c.mutation.SmartDispatchMinNormalAccounts(); ok {
+		_spec.SetField(group.FieldSmartDispatchMinNormalAccounts, field.TypeInt, value)
+		_node.SmartDispatchMinNormalAccounts = value
 	}
 	if value, ok := _c.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -1601,6 +1631,24 @@ func (u *GroupUpsert) UpdateSmartDispatchCount() *GroupUpsert {
 // AddSmartDispatchCount adds v to the "smart_dispatch_count" field.
 func (u *GroupUpsert) AddSmartDispatchCount(v int) *GroupUpsert {
 	u.Add(group.FieldSmartDispatchCount, v)
+	return u
+}
+
+// SetSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field.
+func (u *GroupUpsert) SetSmartDispatchMinNormalAccounts(v int) *GroupUpsert {
+	u.Set(group.FieldSmartDispatchMinNormalAccounts, v)
+	return u
+}
+
+// UpdateSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSmartDispatchMinNormalAccounts() *GroupUpsert {
+	u.SetExcluded(group.FieldSmartDispatchMinNormalAccounts)
+	return u
+}
+
+// AddSmartDispatchMinNormalAccounts adds v to the "smart_dispatch_min_normal_accounts" field.
+func (u *GroupUpsert) AddSmartDispatchMinNormalAccounts(v int) *GroupUpsert {
+	u.Add(group.FieldSmartDispatchMinNormalAccounts, v)
 	return u
 }
 
@@ -2303,6 +2351,27 @@ func (u *GroupUpsertOne) AddSmartDispatchCount(v int) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateSmartDispatchCount() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateSmartDispatchCount()
+	})
+}
+
+// SetSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field.
+func (u *GroupUpsertOne) SetSmartDispatchMinNormalAccounts(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchMinNormalAccounts(v)
+	})
+}
+
+// AddSmartDispatchMinNormalAccounts adds v to the "smart_dispatch_min_normal_accounts" field.
+func (u *GroupUpsertOne) AddSmartDispatchMinNormalAccounts(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSmartDispatchMinNormalAccounts(v)
+	})
+}
+
+// UpdateSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSmartDispatchMinNormalAccounts() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchMinNormalAccounts()
 	})
 }
 
@@ -3193,6 +3262,27 @@ func (u *GroupUpsertBulk) AddSmartDispatchCount(v int) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateSmartDispatchCount() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateSmartDispatchCount()
+	})
+}
+
+// SetSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field.
+func (u *GroupUpsertBulk) SetSmartDispatchMinNormalAccounts(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSmartDispatchMinNormalAccounts(v)
+	})
+}
+
+// AddSmartDispatchMinNormalAccounts adds v to the "smart_dispatch_min_normal_accounts" field.
+func (u *GroupUpsertBulk) AddSmartDispatchMinNormalAccounts(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSmartDispatchMinNormalAccounts(v)
+	})
+}
+
+// UpdateSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSmartDispatchMinNormalAccounts() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSmartDispatchMinNormalAccounts()
 	})
 }
 

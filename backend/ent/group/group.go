@@ -68,6 +68,8 @@ const (
 	FieldSmartDispatchSourceGroupID = "smart_dispatch_source_group_id"
 	// FieldSmartDispatchCount holds the string denoting the smart_dispatch_count field in the database.
 	FieldSmartDispatchCount = "smart_dispatch_count"
+	// FieldSmartDispatchMinNormalAccounts holds the string denoting the smart_dispatch_min_normal_accounts field in the database.
+	FieldSmartDispatchMinNormalAccounts = "smart_dispatch_min_normal_accounts"
 	// FieldModelRouting holds the string denoting the model_routing field in the database.
 	FieldModelRouting = "model_routing"
 	// FieldModelRoutingEnabled holds the string denoting the model_routing_enabled field in the database.
@@ -189,6 +191,7 @@ var Columns = []string{
 	FieldSmartDispatchEnabled,
 	FieldSmartDispatchSourceGroupID,
 	FieldSmartDispatchCount,
+	FieldSmartDispatchMinNormalAccounts,
 	FieldModelRouting,
 	FieldModelRoutingEnabled,
 	FieldMcpXMLInject,
@@ -264,6 +267,10 @@ var (
 	DefaultSmartDispatchCount int
 	// SmartDispatchCountValidator is a validator for the "smart_dispatch_count" field. It is called by the builders before save.
 	SmartDispatchCountValidator func(int) error
+	// DefaultSmartDispatchMinNormalAccounts holds the default value on creation for the "smart_dispatch_min_normal_accounts" field.
+	DefaultSmartDispatchMinNormalAccounts int
+	// SmartDispatchMinNormalAccountsValidator is a validator for the "smart_dispatch_min_normal_accounts" field. It is called by the builders before save.
+	SmartDispatchMinNormalAccountsValidator func(int) error
 	// DefaultModelRoutingEnabled holds the default value on creation for the "model_routing_enabled" field.
 	DefaultModelRoutingEnabled bool
 	// DefaultMcpXMLInject holds the default value on creation for the "mcp_xml_inject" field.
@@ -422,6 +429,11 @@ func BySmartDispatchSourceGroupID(opts ...sql.OrderTermOption) OrderOption {
 // BySmartDispatchCount orders the results by the smart_dispatch_count field.
 func BySmartDispatchCount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSmartDispatchCount, opts...).ToFunc()
+}
+
+// BySmartDispatchMinNormalAccounts orders the results by the smart_dispatch_min_normal_accounts field.
+func BySmartDispatchMinNormalAccounts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSmartDispatchMinNormalAccounts, opts...).ToFunc()
 }
 
 // ByModelRoutingEnabled orders the results by the model_routing_enabled field.

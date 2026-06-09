@@ -1760,12 +1760,14 @@ export default {
       },
       smartDispatch: {
         title: 'Smart Dispatch',
-        hint: 'When this group has no normal accounts, move accounts from the selected pool group and retry the request once.',
+        hint: 'When this group has fewer normal accounts than the minimum, move accounts from the selected pool group and retry the request once.',
         sourceGroup: 'Pool Group',
         noSource: 'No Pool Group',
         count: 'Move Count',
+        minNormalAccounts: 'Min Normal',
         sourceRequired: 'Please select a smart dispatch pool group',
-        countRequired: 'Move count must be at least 1'
+        countRequired: 'Move count must be at least 1',
+        minNormalAccountsRequired: 'Minimum normal accounts must be at least 1'
       },
       modelRouting: {
         title: 'Model Routing',

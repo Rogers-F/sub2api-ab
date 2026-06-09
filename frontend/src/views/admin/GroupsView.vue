@@ -511,7 +511,7 @@
           </div>
           <div
             :class="[
-              'grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]',
+              'grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]',
               !createForm.smart_dispatch_enabled &&
                 'pointer-events-none opacity-50',
             ]"
@@ -542,6 +542,18 @@
               }}</label>
               <input
                 v-model.number="createForm.smart_dispatch_count"
+                type="number"
+                min="1"
+                step="1"
+                class="input"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.smartDispatch.minNormalAccounts")
+              }}</label>
+              <input
+                v-model.number="createForm.smart_dispatch_min_normal_accounts"
                 type="number"
                 min="1"
                 step="1"
@@ -1781,7 +1793,7 @@
           </div>
           <div
             :class="[
-              'grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]',
+              'grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]',
               !editForm.smart_dispatch_enabled &&
                 'pointer-events-none opacity-50',
             ]"
@@ -1812,6 +1824,18 @@
               }}</label>
               <input
                 v-model.number="editForm.smart_dispatch_count"
+                type="number"
+                min="1"
+                step="1"
+                class="input"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.smartDispatch.minNormalAccounts")
+              }}</label>
+              <input
+                v-model.number="editForm.smart_dispatch_min_normal_accounts"
                 type="number"
                 min="1"
                 step="1"
@@ -3322,6 +3346,7 @@ const createForm = reactive({
   smart_dispatch_enabled: false,
   smart_dispatch_source_group_id: null as number | null,
   smart_dispatch_count: 1,
+  smart_dispatch_min_normal_accounts: 1,
 });
 
 // 简单账号类型（用于模型路由选择）
@@ -3609,6 +3634,7 @@ const editForm = reactive({
   smart_dispatch_enabled: false,
   smart_dispatch_source_group_id: null as number | null,
   smart_dispatch_count: 1,
+  smart_dispatch_min_normal_accounts: 1,
 });
 
 // 根据分组类型返回不同的删除确认消息
@@ -3787,6 +3813,7 @@ const closeCreateModal = () => {
   createForm.smart_dispatch_enabled = false;
   createForm.smart_dispatch_source_group_id = null;
   createForm.smart_dispatch_count = 1;
+  createForm.smart_dispatch_min_normal_accounts = 1;
   createModelRoutingRules.value = [];
 };
 
@@ -3827,6 +3854,9 @@ const handleCreateGroup = async () => {
   const smartDispatchCount = normalizeSmartDispatchCount(
     createForm.smart_dispatch_count,
   );
+  const smartDispatchMinNormalAccounts = normalizeSmartDispatchCount(
+    createForm.smart_dispatch_min_normal_accounts,
+  );
   if (
     createForm.smart_dispatch_enabled &&
     !createForm.smart_dispatch_source_group_id
@@ -3836,6 +3866,15 @@ const handleCreateGroup = async () => {
   }
   if (createForm.smart_dispatch_enabled && smartDispatchCount === null) {
     appStore.showError(t("admin.groups.smartDispatch.countRequired"));
+    return;
+  }
+  if (
+    createForm.smart_dispatch_enabled &&
+    smartDispatchMinNormalAccounts === null
+  ) {
+    appStore.showError(
+      t("admin.groups.smartDispatch.minNormalAccountsRequired"),
+    );
     return;
   }
   submitting.value = true;
@@ -3853,6 +3892,7 @@ const handleCreateGroup = async () => {
         createForm.monthly_limit_usd as number | string | null,
       ),
       smart_dispatch_count: smartDispatchCount ?? 1,
+      smart_dispatch_min_normal_accounts: smartDispatchMinNormalAccounts ?? 1,
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
       ),
@@ -3939,6 +3979,8 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.smart_dispatch_source_group_id =
     group.smart_dispatch_source_group_id ?? null;
   editForm.smart_dispatch_count = group.smart_dispatch_count || 1;
+  editForm.smart_dispatch_min_normal_accounts =
+    group.smart_dispatch_min_normal_accounts || 1;
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
@@ -3958,6 +4000,7 @@ const closeEditModal = () => {
   editForm.smart_dispatch_enabled = false;
   editForm.smart_dispatch_source_group_id = null;
   editForm.smart_dispatch_count = 1;
+  editForm.smart_dispatch_min_normal_accounts = 1;
   resetMessagesDispatchFormState(editForm);
 };
 
@@ -3970,6 +4013,9 @@ const handleUpdateGroup = async () => {
   const smartDispatchCount = normalizeSmartDispatchCount(
     editForm.smart_dispatch_count,
   );
+  const smartDispatchMinNormalAccounts = normalizeSmartDispatchCount(
+    editForm.smart_dispatch_min_normal_accounts,
+  );
   if (
     editForm.smart_dispatch_enabled &&
     !editForm.smart_dispatch_source_group_id
@@ -3979,6 +4025,15 @@ const handleUpdateGroup = async () => {
   }
   if (editForm.smart_dispatch_enabled && smartDispatchCount === null) {
     appStore.showError(t("admin.groups.smartDispatch.countRequired"));
+    return;
+  }
+  if (
+    editForm.smart_dispatch_enabled &&
+    smartDispatchMinNormalAccounts === null
+  ) {
+    appStore.showError(
+      t("admin.groups.smartDispatch.minNormalAccountsRequired"),
+    );
     return;
   }
 
@@ -4007,6 +4062,7 @@ const handleUpdateGroup = async () => {
           ? 0
           : editForm.smart_dispatch_source_group_id,
       smart_dispatch_count: smartDispatchCount ?? 1,
+      smart_dispatch_min_normal_accounts: smartDispatchMinNormalAccounts ?? 1,
       model_routing: convertRoutingRulesToApiFormat(
         editModelRoutingRules.value,
       ),

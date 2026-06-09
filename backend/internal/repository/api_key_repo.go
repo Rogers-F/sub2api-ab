@@ -722,6 +722,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		SmartDispatchEnabled:              g.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        g.SmartDispatchSourceGroupID,
 		SmartDispatchCount:                g.SmartDispatchCount,
+		SmartDispatchMinNormalAccounts:    g.SmartDispatchMinNormalAccounts,
 		CreatedAt:                         g.CreatedAt,
 		UpdatedAt:                         g.UpdatedAt,
 	}

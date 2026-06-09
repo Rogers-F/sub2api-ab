@@ -120,7 +120,11 @@ func (Group) Fields() []ent.Field {
 		field.Int("smart_dispatch_count").
 			Default(1).
 			Positive().
-			Comment("目标分组无正常状态账号时一次移动的账号数"),
+			Comment("目标分组正常账号不足时一次移动的账号数"),
+		field.Int("smart_dispatch_min_normal_accounts").
+			Default(1).
+			Positive().
+			Comment("智能调度目标分组最少保有的正常账号数"),
 
 		// 模型路由配置 (added by migration 040)
 		field.JSON("model_routing", map[string][]int64{}).

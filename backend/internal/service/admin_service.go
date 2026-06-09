@@ -207,9 +207,10 @@ type CreateGroupInput struct {
 	// 从指定分组复制账号（创建分组后在同一事务内绑定）
 	CopyAccountsFromGroupIDs []int64
 	// 智能调度配置
-	SmartDispatchEnabled       bool
-	SmartDispatchSourceGroupID *int64
-	SmartDispatchCount         *int
+	SmartDispatchEnabled           bool
+	SmartDispatchSourceGroupID     *int64
+	SmartDispatchCount             *int
+	SmartDispatchMinNormalAccounts *int
 }
 
 type UpdateGroupInput struct {
@@ -251,9 +252,10 @@ type UpdateGroupInput struct {
 	// 从指定分组复制账号（同步操作：先清空当前分组的账号绑定，再绑定源分组的账号）
 	CopyAccountsFromGroupIDs []int64
 	// 智能调度配置
-	SmartDispatchEnabled       *bool
-	SmartDispatchSourceGroupID *int64
-	SmartDispatchCount         *int
+	SmartDispatchEnabled           *bool
+	SmartDispatchSourceGroupID     *int64
+	SmartDispatchCount             *int
+	SmartDispatchMinNormalAccounts *int
 }
 
 type CreateAccountInput struct {
@@ -1313,7 +1315,11 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
-	if err := s.validateSmartDispatchConfig(ctx, 0, input.SmartDispatchEnabled, input.SmartDispatchSourceGroupID, smartDispatchCount); err != nil {
+	smartDispatchMinNormalAccounts, err := resolveSmartDispatchMinNormalAccounts(input.SmartDispatchMinNormalAccounts)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateSmartDispatchConfig(ctx, 0, input.SmartDispatchEnabled, input.SmartDispatchSourceGroupID, smartDispatchCount, smartDispatchMinNormalAccounts); err != nil {
 		return nil, err
 	}
 
@@ -1348,6 +1354,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		SmartDispatchEnabled:              input.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        input.SmartDispatchSourceGroupID,
 		SmartDispatchCount:                smartDispatchCount,
+		SmartDispatchMinNormalAccounts:    smartDispatchMinNormalAccounts,
 	}
 	sanitizeGroupMessagesDispatchFields(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
@@ -1412,7 +1419,17 @@ func resolveSmartDispatchCount(count *int) (int, error) {
 	return *count, nil
 }
 
-func (s *adminServiceImpl) validateSmartDispatchConfig(ctx context.Context, currentGroupID int64, enabled bool, sourceGroupID *int64, count int) error {
+func resolveSmartDispatchMinNormalAccounts(count *int) (int, error) {
+	if count == nil {
+		return 1, nil
+	}
+	if *count < 1 {
+		return 0, fmt.Errorf("smart dispatch min normal accounts must be > 0")
+	}
+	return *count, nil
+}
+
+func (s *adminServiceImpl) validateSmartDispatchConfig(ctx context.Context, currentGroupID int64, enabled bool, sourceGroupID *int64, count int, minNormalAccounts int) error {
 	if !enabled {
 		return nil
 	}
@@ -1421,6 +1438,9 @@ func (s *adminServiceImpl) validateSmartDispatchConfig(ctx context.Context, curr
 	}
 	if count < 1 {
 		return fmt.Errorf("smart dispatch count must be > 0")
+	}
+	if minNormalAccounts < 1 {
+		return fmt.Errorf("smart dispatch min normal accounts must be > 0")
 	}
 	if currentGroupID > 0 && *sourceGroupID == currentGroupID {
 		return fmt.Errorf("smart dispatch source group cannot be self")
@@ -1677,10 +1697,19 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 		group.SmartDispatchCount = *input.SmartDispatchCount
 	}
+	if input.SmartDispatchMinNormalAccounts != nil {
+		if *input.SmartDispatchMinNormalAccounts < 1 {
+			return nil, fmt.Errorf("smart dispatch min normal accounts must be > 0")
+		}
+		group.SmartDispatchMinNormalAccounts = *input.SmartDispatchMinNormalAccounts
+	}
 	if group.SmartDispatchCount == 0 {
 		group.SmartDispatchCount = 1
 	}
-	if err := s.validateSmartDispatchConfig(ctx, id, group.SmartDispatchEnabled, group.SmartDispatchSourceGroupID, group.SmartDispatchCount); err != nil {
+	if group.SmartDispatchMinNormalAccounts == 0 {
+		group.SmartDispatchMinNormalAccounts = 1
+	}
+	if err := s.validateSmartDispatchConfig(ctx, id, group.SmartDispatchEnabled, group.SmartDispatchSourceGroupID, group.SmartDispatchCount, group.SmartDispatchMinNormalAccounts); err != nil {
 		return nil, err
 	}
 

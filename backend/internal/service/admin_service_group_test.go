@@ -146,7 +146,7 @@ func (s *groupRepoStubForAdmin) UpdateSortOrders(_ context.Context, _ []GroupSor
 	return nil
 }
 
-func (s *groupRepoStubForAdmin) MoveAccountsForSmartDispatch(_ context.Context, _, _ int64, _ []int64) ([]int64, bool, error) {
+func (s *groupRepoStubForAdmin) MoveAccountsForSmartDispatch(_ context.Context, _, _ int64, _ []int64, _ int) ([]int64, bool, error) {
 	panic("unexpected MoveAccountsForSmartDispatch call")
 }
 
@@ -176,12 +176,13 @@ func TestAdminService_CreateGroup_SmartDispatchConfig(t *testing.T) {
 	svc := &adminServiceImpl{groupRepo: repo}
 
 	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
-		Name:                       "target",
-		Platform:                   PlatformAnthropic,
-		RateMultiplier:             1,
-		SmartDispatchEnabled:       true,
-		SmartDispatchSourceGroupID: &sourceID,
-		SmartDispatchCount:         ptrGroupInt(2),
+		Name:                           "target",
+		Platform:                       PlatformAnthropic,
+		RateMultiplier:                 1,
+		SmartDispatchEnabled:           true,
+		SmartDispatchSourceGroupID:     &sourceID,
+		SmartDispatchCount:             ptrGroupInt(2),
+		SmartDispatchMinNormalAccounts: ptrGroupInt(3),
 	})
 
 	require.NoError(t, err)
@@ -190,6 +191,7 @@ func TestAdminService_CreateGroup_SmartDispatchConfig(t *testing.T) {
 	require.True(t, repo.created.SmartDispatchEnabled)
 	require.Equal(t, sourceID, *repo.created.SmartDispatchSourceGroupID)
 	require.Equal(t, 2, repo.created.SmartDispatchCount)
+	require.Equal(t, 3, repo.created.SmartDispatchMinNormalAccounts)
 }
 
 func TestAdminService_CreateGroup_SmartDispatchRejectsMissingSource(t *testing.T) {
@@ -221,9 +223,10 @@ func TestAdminService_UpdateGroup_SmartDispatchConfig(t *testing.T) {
 	svc := &adminServiceImpl{groupRepo: repo}
 
 	group, err := svc.UpdateGroup(context.Background(), targetID, &UpdateGroupInput{
-		SmartDispatchEnabled:       ptrBool(true),
-		SmartDispatchSourceGroupID: &sourceID,
-		SmartDispatchCount:         ptrGroupInt(3),
+		SmartDispatchEnabled:           ptrBool(true),
+		SmartDispatchSourceGroupID:     &sourceID,
+		SmartDispatchCount:             ptrGroupInt(3),
+		SmartDispatchMinNormalAccounts: ptrGroupInt(4),
 	})
 
 	require.NoError(t, err)
@@ -232,6 +235,31 @@ func TestAdminService_UpdateGroup_SmartDispatchConfig(t *testing.T) {
 	require.True(t, repo.updated.SmartDispatchEnabled)
 	require.Equal(t, sourceID, *repo.updated.SmartDispatchSourceGroupID)
 	require.Equal(t, 3, repo.updated.SmartDispatchCount)
+	require.Equal(t, 4, repo.updated.SmartDispatchMinNormalAccounts)
+}
+
+func TestAdminService_CreateGroup_SmartDispatchRejectsInvalidMinNormalAccounts(t *testing.T) {
+	sourceID := int64(42)
+	repo := &groupRepoStubForAdmin{
+		groupsByID: map[int64]*Group{
+			sourceID: {ID: sourceID, Name: "pool", Platform: PlatformAnthropic, Status: StatusActive},
+		},
+	}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	_, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:                           "target",
+		Platform:                       PlatformAnthropic,
+		RateMultiplier:                 1,
+		SmartDispatchEnabled:           true,
+		SmartDispatchSourceGroupID:     &sourceID,
+		SmartDispatchCount:             ptrGroupInt(1),
+		SmartDispatchMinNormalAccounts: ptrGroupInt(0),
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "smart dispatch min normal accounts must be > 0")
+	require.Nil(t, repo.created)
 }
 
 func TestAdminService_UpdateGroup_SmartDispatchRejectsSelfSource(t *testing.T) {

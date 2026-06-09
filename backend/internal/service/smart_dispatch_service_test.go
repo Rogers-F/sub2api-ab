@@ -26,15 +26,21 @@ func (f *fakeSmartDispatchAccountRepo) ListSchedulableByGroupIDAndPlatforms(_ co
 }
 
 type fakeSmartDispatchMover struct {
-	movedTarget int64
-	movedSource int64
-	movedIDs    []int64
+	movedTarget      int64
+	movedSource      int64
+	movedIDs         []int64
+	movedMinNormal   int
+	targetNormalFunc func(minNormal int) bool
 }
 
-func (f *fakeSmartDispatchMover) MoveAccountsForSmartDispatch(_ context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64) ([]int64, bool, error) {
+func (f *fakeSmartDispatchMover) MoveAccountsForSmartDispatch(_ context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64, minNormalAccounts int) ([]int64, bool, error) {
 	f.movedTarget = targetGroupID
 	f.movedSource = sourceGroupID
 	f.movedIDs = append([]int64(nil), accountIDs...)
+	f.movedMinNormal = minNormalAccounts
+	if f.targetNormalFunc != nil {
+		return nil, f.targetNormalFunc(minNormalAccounts), nil
+	}
 	return accountIDs, false, nil
 }
 
@@ -67,6 +73,7 @@ func TestSmartDispatchService_RefillMovesConfiguredCountAndSkipsExcluded(t *test
 	require.Equal(t, target.ID, mover.movedTarget)
 	require.Equal(t, sourceID, mover.movedSource)
 	require.Equal(t, []int64{1, 3}, mover.movedIDs)
+	require.Equal(t, 1, mover.movedMinNormal)
 }
 
 func TestSmartDispatchService_RefillDoesNotFilterByRequestPlatformOrModel(t *testing.T) {
@@ -92,6 +99,90 @@ func TestSmartDispatchService_RefillDoesNotFilterByRequestPlatformOrModel(t *tes
 
 	require.NoError(t, err)
 	require.Equal(t, []int64{8}, result.MovedAccountIDs)
+}
+
+func TestSmartDispatchService_RefillPassesConfiguredMinimumNormalAccounts(t *testing.T) {
+	sourceID := int64(20)
+	target := &Group{
+		ID:                             10,
+		Platform:                       PlatformAnthropic,
+		SmartDispatchEnabled:           true,
+		SmartDispatchSourceGroupID:     &sourceID,
+		SmartDispatchCount:             2,
+		SmartDispatchMinNormalAccounts: 3,
+	}
+	accountRepo := &fakeSmartDispatchAccountRepo{
+		byGroup: []Account{
+			{ID: 1, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
+			{ID: 2, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
+		},
+	}
+	mover := &fakeSmartDispatchMover{}
+	svc := NewSmartDispatchService(accountRepo, mover)
+
+	result, err := svc.Refill(context.Background(), SmartDispatchRefillRequest{
+		TargetGroup: target,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, []int64{1, 2}, result.MovedAccountIDs)
+	require.Equal(t, 3, mover.movedMinNormal)
+}
+
+func TestSmartDispatchService_RefillSelectsMinimumNormalAccountsWhenLargerThanMoveCount(t *testing.T) {
+	sourceID := int64(20)
+	target := &Group{
+		ID:                             10,
+		Platform:                       PlatformAnthropic,
+		SmartDispatchEnabled:           true,
+		SmartDispatchSourceGroupID:     &sourceID,
+		SmartDispatchCount:             1,
+		SmartDispatchMinNormalAccounts: 3,
+	}
+	accountRepo := &fakeSmartDispatchAccountRepo{
+		byGroup: []Account{
+			{ID: 1, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
+			{ID: 2, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
+			{ID: 3, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
+		},
+	}
+	mover := &fakeSmartDispatchMover{}
+	svc := NewSmartDispatchService(accountRepo, mover)
+
+	result, err := svc.Refill(context.Background(), SmartDispatchRefillRequest{
+		TargetGroup: target,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, []int64{1, 2, 3}, result.MovedAccountIDs)
+	require.Equal(t, []int64{1, 2, 3}, mover.movedIDs)
+	require.Equal(t, 3, mover.movedMinNormal)
+}
+
+func TestSmartDispatchService_RefillTreatsZeroMinimumAsDefaultOne(t *testing.T) {
+	sourceID := int64(20)
+	target := &Group{
+		ID:                         10,
+		Platform:                   PlatformAnthropic,
+		SmartDispatchEnabled:       true,
+		SmartDispatchSourceGroupID: &sourceID,
+		SmartDispatchCount:         1,
+	}
+	accountRepo := &fakeSmartDispatchAccountRepo{
+		byGroup: []Account{
+			{ID: 1, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true},
+		},
+	}
+	mover := &fakeSmartDispatchMover{}
+	svc := NewSmartDispatchService(accountRepo, mover)
+
+	result, err := svc.Refill(context.Background(), SmartDispatchRefillRequest{
+		TargetGroup: target,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, []int64{1}, result.MovedAccountIDs)
+	require.Equal(t, 1, mover.movedMinNormal)
 }
 
 func TestSmartDispatchService_RefillNoopsWhenDisabled(t *testing.T) {

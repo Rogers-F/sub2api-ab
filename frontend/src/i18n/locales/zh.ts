@@ -1846,12 +1846,14 @@ export default {
       },
       smartDispatch: {
         title: '智能调度',
-        hint: '当此分组没有状态为正常的账号时，从选定号池分组移动账号过来，并重试当前请求一次。',
+        hint: '当此分组正常账号数低于最低值时，从选定号池分组移动账号过来，并重试当前请求一次。',
         sourceGroup: '号池分组',
         noSource: '不使用号池',
         count: '调度数量',
+        minNormalAccounts: '最低正常数',
         sourceRequired: '请选择智能调度号池分组',
-        countRequired: '调度数量必须至少为 1'
+        countRequired: '调度数量必须至少为 1',
+        minNormalAccountsRequired: '最低正常账号数必须至少为 1'
       },
       modelRouting: {
         title: '模型路由配置',

@@ -69,8 +69,10 @@ type Group struct {
 	SmartDispatchEnabled bool `json:"smart_dispatch_enabled,omitempty"`
 	// 智能调度号池分组 ID
 	SmartDispatchSourceGroupID *int64 `json:"smart_dispatch_source_group_id,omitempty"`
-	// 目标分组无正常状态账号时一次移动的账号数
+	// 目标分组正常账号不足时一次移动的账号数
 	SmartDispatchCount int `json:"smart_dispatch_count,omitempty"`
+	// 智能调度目标分组最少保有的正常账号数
+	SmartDispatchMinNormalAccounts int `json:"smart_dispatch_min_normal_accounts,omitempty"`
 	// 模型路由配置：模型模式 -> 优先账号ID列表
 	ModelRouting map[string][]int64 `json:"model_routing,omitempty"`
 	// 是否启用模型路由配置
@@ -203,7 +205,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k:
 			values[i] = new(sql.NullFloat64)
-		case group.FieldID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSmartDispatchSourceGroupID, group.FieldSmartDispatchCount, group.FieldSortOrder:
+		case group.FieldID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSmartDispatchSourceGroupID, group.FieldSmartDispatchCount, group.FieldSmartDispatchMinNormalAccounts, group.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
 		case group.FieldName, group.FieldDescription, group.FieldStatus, group.FieldPlatform, group.FieldSubscriptionType, group.FieldDefaultMappedModel:
 			values[i] = new(sql.NullString)
@@ -398,6 +400,12 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field smart_dispatch_count", values[i])
 			} else if value.Valid {
 				_m.SmartDispatchCount = int(value.Int64)
+			}
+		case group.FieldSmartDispatchMinNormalAccounts:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field smart_dispatch_min_normal_accounts", values[i])
+			} else if value.Valid {
+				_m.SmartDispatchMinNormalAccounts = int(value.Int64)
 			}
 		case group.FieldModelRouting:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -644,6 +652,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("smart_dispatch_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SmartDispatchCount))
+	builder.WriteString(", ")
+	builder.WriteString("smart_dispatch_min_normal_accounts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SmartDispatchMinNormalAccounts))
 	builder.WriteString(", ")
 	builder.WriteString("model_routing=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ModelRouting))

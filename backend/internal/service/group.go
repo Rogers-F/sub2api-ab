@@ -65,10 +65,11 @@ type Group struct {
 	DefaultMappedModel          string
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
 
-	// 智能调度：目标分组无正常状态账号时从号池分组移动账号过来。
-	SmartDispatchEnabled       bool
-	SmartDispatchSourceGroupID *int64
-	SmartDispatchCount         int
+	// 智能调度：目标分组正常状态账号不足时从号池分组移动账号过来。
+	SmartDispatchEnabled           bool
+	SmartDispatchSourceGroupID     *int64
+	SmartDispatchCount             int
+	SmartDispatchMinNormalAccounts int
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

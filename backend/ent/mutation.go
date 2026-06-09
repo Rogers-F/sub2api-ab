@@ -10205,6 +10205,8 @@ type GroupMutation struct {
 	addsmart_dispatch_source_group_id       *int64
 	smart_dispatch_count                    *int
 	addsmart_dispatch_count                 *int
+	smart_dispatch_min_normal_accounts      *int
+	addsmart_dispatch_min_normal_accounts   *int
 	model_routing                           *map[string][]int64
 	model_routing_enabled                   *bool
 	mcp_xml_inject                          *bool
@@ -11693,6 +11695,62 @@ func (m *GroupMutation) ResetSmartDispatchCount() {
 	m.addsmart_dispatch_count = nil
 }
 
+// SetSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field.
+func (m *GroupMutation) SetSmartDispatchMinNormalAccounts(i int) {
+	m.smart_dispatch_min_normal_accounts = &i
+	m.addsmart_dispatch_min_normal_accounts = nil
+}
+
+// SmartDispatchMinNormalAccounts returns the value of the "smart_dispatch_min_normal_accounts" field in the mutation.
+func (m *GroupMutation) SmartDispatchMinNormalAccounts() (r int, exists bool) {
+	v := m.smart_dispatch_min_normal_accounts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSmartDispatchMinNormalAccounts returns the old "smart_dispatch_min_normal_accounts" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSmartDispatchMinNormalAccounts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSmartDispatchMinNormalAccounts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSmartDispatchMinNormalAccounts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSmartDispatchMinNormalAccounts: %w", err)
+	}
+	return oldValue.SmartDispatchMinNormalAccounts, nil
+}
+
+// AddSmartDispatchMinNormalAccounts adds i to the "smart_dispatch_min_normal_accounts" field.
+func (m *GroupMutation) AddSmartDispatchMinNormalAccounts(i int) {
+	if m.addsmart_dispatch_min_normal_accounts != nil {
+		*m.addsmart_dispatch_min_normal_accounts += i
+	} else {
+		m.addsmart_dispatch_min_normal_accounts = &i
+	}
+}
+
+// AddedSmartDispatchMinNormalAccounts returns the value that was added to the "smart_dispatch_min_normal_accounts" field in this mutation.
+func (m *GroupMutation) AddedSmartDispatchMinNormalAccounts() (r int, exists bool) {
+	v := m.addsmart_dispatch_min_normal_accounts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSmartDispatchMinNormalAccounts resets all changes to the "smart_dispatch_min_normal_accounts" field.
+func (m *GroupMutation) ResetSmartDispatchMinNormalAccounts() {
+	m.smart_dispatch_min_normal_accounts = nil
+	m.addsmart_dispatch_min_normal_accounts = nil
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (m *GroupMutation) SetModelRouting(value map[string][]int64) {
 	m.model_routing = &value
@@ -12459,7 +12517,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 36)
+	fields := make([]string, 0, 37)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -12537,6 +12595,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.smart_dispatch_count != nil {
 		fields = append(fields, group.FieldSmartDispatchCount)
+	}
+	if m.smart_dispatch_min_normal_accounts != nil {
+		fields = append(fields, group.FieldSmartDispatchMinNormalAccounts)
 	}
 	if m.model_routing != nil {
 		fields = append(fields, group.FieldModelRouting)
@@ -12628,6 +12689,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.SmartDispatchSourceGroupID()
 	case group.FieldSmartDispatchCount:
 		return m.SmartDispatchCount()
+	case group.FieldSmartDispatchMinNormalAccounts:
+		return m.SmartDispatchMinNormalAccounts()
 	case group.FieldModelRouting:
 		return m.ModelRouting()
 	case group.FieldModelRoutingEnabled:
@@ -12709,6 +12772,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSmartDispatchSourceGroupID(ctx)
 	case group.FieldSmartDispatchCount:
 		return m.OldSmartDispatchCount(ctx)
+	case group.FieldSmartDispatchMinNormalAccounts:
+		return m.OldSmartDispatchMinNormalAccounts(ctx)
 	case group.FieldModelRouting:
 		return m.OldModelRouting(ctx)
 	case group.FieldModelRoutingEnabled:
@@ -12920,6 +12985,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSmartDispatchCount(v)
 		return nil
+	case group.FieldSmartDispatchMinNormalAccounts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSmartDispatchMinNormalAccounts(v)
+		return nil
 	case group.FieldModelRouting:
 		v, ok := value.(map[string][]int64)
 		if !ok {
@@ -13034,6 +13106,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addsmart_dispatch_count != nil {
 		fields = append(fields, group.FieldSmartDispatchCount)
 	}
+	if m.addsmart_dispatch_min_normal_accounts != nil {
+		fields = append(fields, group.FieldSmartDispatchMinNormalAccounts)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, group.FieldSortOrder)
 	}
@@ -13069,6 +13144,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedSmartDispatchSourceGroupID()
 	case group.FieldSmartDispatchCount:
 		return m.AddedSmartDispatchCount()
+	case group.FieldSmartDispatchMinNormalAccounts:
+		return m.AddedSmartDispatchMinNormalAccounts()
 	case group.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -13163,6 +13240,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddSmartDispatchCount(v)
+		return nil
+	case group.FieldSmartDispatchMinNormalAccounts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSmartDispatchMinNormalAccounts(v)
 		return nil
 	case group.FieldSortOrder:
 		v, ok := value.(int)
@@ -13362,6 +13446,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldSmartDispatchCount:
 		m.ResetSmartDispatchCount()
+		return nil
+	case group.FieldSmartDispatchMinNormalAccounts:
+		m.ResetSmartDispatchMinNormalAccounts()
 		return nil
 	case group.FieldModelRouting:
 		m.ResetModelRouting()

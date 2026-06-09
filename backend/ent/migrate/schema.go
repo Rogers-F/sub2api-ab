@@ -493,6 +493,7 @@ var (
 		{Name: "smart_dispatch_enabled", Type: field.TypeBool, Default: false},
 		{Name: "smart_dispatch_source_group_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "smart_dispatch_count", Type: field.TypeInt, Default: 1},
+		{Name: "smart_dispatch_min_normal_accounts", Type: field.TypeInt, Default: 1},
 		{Name: "model_routing", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "model_routing_enabled", Type: field.TypeBool, Default: false},
 		{Name: "mcp_xml_inject", Type: field.TypeBool, Default: true},
@@ -538,7 +539,7 @@ var (
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[31]},
+				Columns: []*schema.Column{GroupsColumns[32]},
 			},
 			{
 				Name:    "group_smart_dispatch_source_group_id",

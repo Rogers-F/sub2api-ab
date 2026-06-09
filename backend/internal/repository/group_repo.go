@@ -42,6 +42,10 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 	if smartDispatchCount <= 0 {
 		smartDispatchCount = 1
 	}
+	smartDispatchMinNormalAccounts := groupIn.SmartDispatchMinNormalAccounts
+	if smartDispatchMinNormalAccounts <= 0 {
+		smartDispatchMinNormalAccounts = 1
+	}
 	builder := r.client.Group.Create().
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
@@ -73,7 +77,8 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
 		SetSmartDispatchEnabled(groupIn.SmartDispatchEnabled).
 		SetNillableSmartDispatchSourceGroupID(groupIn.SmartDispatchSourceGroupID).
-		SetSmartDispatchCount(smartDispatchCount)
+		SetSmartDispatchCount(smartDispatchCount).
+		SetSmartDispatchMinNormalAccounts(smartDispatchMinNormalAccounts)
 
 	// 设置模型路由配置
 	if groupIn.ModelRouting != nil {
@@ -122,6 +127,10 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 	if smartDispatchCount <= 0 {
 		smartDispatchCount = 1
 	}
+	smartDispatchMinNormalAccounts := groupIn.SmartDispatchMinNormalAccounts
+	if smartDispatchMinNormalAccounts <= 0 {
+		smartDispatchMinNormalAccounts = 1
+	}
 	builder := r.client.Group.UpdateOneID(groupIn.ID).
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
@@ -147,7 +156,8 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
 		SetSmartDispatchEnabled(groupIn.SmartDispatchEnabled).
-		SetSmartDispatchCount(smartDispatchCount)
+		SetSmartDispatchCount(smartDispatchCount).
+		SetSmartDispatchMinNormalAccounts(smartDispatchMinNormalAccounts)
 
 	// 显式处理可空字段：nil 需要 clear，非 nil 需要 set。
 	if groupIn.DailyLimitUSD != nil {
@@ -766,9 +776,12 @@ func (r *groupRepository) BindAccountsToGroup(ctx context.Context, groupID int64
 	return nil
 }
 
-func (r *groupRepository) MoveAccountsForSmartDispatch(ctx context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64) ([]int64, bool, error) {
+func (r *groupRepository) MoveAccountsForSmartDispatch(ctx context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64, minNormalAccounts int) ([]int64, bool, error) {
 	if targetGroupID <= 0 || sourceGroupID <= 0 || len(accountIDs) == 0 {
 		return nil, false, nil
+	}
+	if minNormalAccounts <= 0 {
+		minNormalAccounts = 1
 	}
 
 	tx, err := r.client.Tx(ctx)
@@ -789,13 +802,26 @@ func (r *groupRepository) MoveAccountsForSmartDispatch(ctx context.Context, targ
 	if err := scanSingleRow(ctx, exec, smartDispatchNormalCountSQL, []any{targetGroupID}, &targetNormal); err != nil {
 		return nil, false, err
 	}
-	if targetNormal > 0 {
+	if targetNormal >= int64(minNormalAccounts) {
 		if tx != nil {
 			if err := tx.Commit(); err != nil {
 				return nil, false, err
 			}
 		}
 		return nil, true, nil
+	}
+	missingNormal := int64(minNormalAccounts) - targetNormal
+	if missingNormal <= 0 {
+		if tx != nil {
+			if err := tx.Commit(); err != nil {
+				return nil, false, err
+			}
+		}
+		return nil, true, nil
+	}
+	moveLimit := int(missingNormal)
+	if targetNormal == 0 && len(accountIDs) > moveLimit {
+		moveLimit = len(accountIDs)
 	}
 
 	rows, err := exec.QueryContext(ctx, `
@@ -811,7 +837,8 @@ func (r *groupRepository) MoveAccountsForSmartDispatch(ctx context.Context, targ
 			AND (a.overload_until IS NULL OR a.overload_until <= NOW())
 			AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= NOW())
 		ORDER BY requested.ord
-	`, pq.Array(accountIDs), sourceGroupID)
+		LIMIT $3
+	`, pq.Array(accountIDs), sourceGroupID, moveLimit)
 	if err != nil {
 		return nil, false, err
 	}

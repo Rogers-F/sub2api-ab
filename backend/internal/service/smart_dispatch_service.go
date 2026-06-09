@@ -10,7 +10,7 @@ type SmartDispatchAccountLister interface {
 }
 
 type SmartDispatchMover interface {
-	MoveAccountsForSmartDispatch(ctx context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64) (movedIDs []int64, targetAlreadyNormal bool, err error)
+	MoveAccountsForSmartDispatch(ctx context.Context, targetGroupID, sourceGroupID int64, accountIDs []int64, minNormalAccounts int) (movedIDs []int64, targetAlreadyNormal bool, err error)
 }
 
 type SmartDispatcher interface {
@@ -51,6 +51,14 @@ func (s *SmartDispatchService) Refill(ctx context.Context, req SmartDispatchRefi
 	if count <= 0 {
 		count = 1
 	}
+	minNormalAccounts := group.SmartDispatchMinNormalAccounts
+	if minNormalAccounts <= 0 {
+		minNormalAccounts = 1
+	}
+	candidateCount := count
+	if minNormalAccounts > candidateCount {
+		candidateCount = minNormalAccounts
+	}
 	sourceGroupID := *group.SmartDispatchSourceGroupID
 
 	accounts, err := s.accountRepo.ListSchedulableByGroupID(ctx, sourceGroupID)
@@ -62,7 +70,7 @@ func (s *SmartDispatchService) Refill(ctx context.Context, req SmartDispatchRefi
 		return result, nil
 	}
 
-	selected := make([]int64, 0, count)
+	selected := make([]int64, 0, candidateCount)
 	for i := range accounts {
 		acc := &accounts[i]
 		if req.ExcludedIDs != nil {
@@ -74,7 +82,7 @@ func (s *SmartDispatchService) Refill(ctx context.Context, req SmartDispatchRefi
 			continue
 		}
 		selected = append(selected, acc.ID)
-		if len(selected) >= count {
+		if len(selected) >= candidateCount {
 			break
 		}
 	}
@@ -83,7 +91,7 @@ func (s *SmartDispatchService) Refill(ctx context.Context, req SmartDispatchRefi
 		return result, nil
 	}
 
-	movedIDs, targetAlreadyNormal, err := s.mover.MoveAccountsForSmartDispatch(ctx, group.ID, sourceGroupID, selected)
+	movedIDs, targetAlreadyNormal, err := s.mover.MoveAccountsForSmartDispatch(ctx, group.ID, sourceGroupID, selected, minNormalAccounts)
 	if err != nil {
 		return result, fmt.Errorf("move smart dispatch accounts: %w", err)
 	}

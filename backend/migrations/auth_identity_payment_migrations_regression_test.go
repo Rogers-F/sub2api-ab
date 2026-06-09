@@ -172,3 +172,14 @@ func TestMigration128ChecksumMatchesPublishedSmartDispatchRelease(t *testing.T) 
 		hex.EncodeToString(sum[:]),
 	)
 }
+
+func TestMigration130AddsSmartDispatchMinNormalAccounts(t *testing.T) {
+	content, err := FS.ReadFile("130_add_group_smart_dispatch_min_normal_accounts.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "smart_dispatch_min_normal_accounts")
+	require.Contains(t, sql, "INTEGER NOT NULL DEFAULT 1")
+	require.Contains(t, sql, "groups_smart_dispatch_min_normal_accounts_positive")
+	require.Contains(t, sql, "CHECK (smart_dispatch_min_normal_accounts > 0)")
+}

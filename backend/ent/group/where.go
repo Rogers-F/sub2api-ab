@@ -185,6 +185,11 @@ func SmartDispatchCount(v int) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSmartDispatchCount, v))
 }
 
+// SmartDispatchMinNormalAccounts applies equality check predicate on the "smart_dispatch_min_normal_accounts" field. It's identical to SmartDispatchMinNormalAccountsEQ.
+func SmartDispatchMinNormalAccounts(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchMinNormalAccounts, v))
+}
+
 // ModelRoutingEnabled applies equality check predicate on the "model_routing_enabled" field. It's identical to ModelRoutingEnabledEQ.
 func ModelRoutingEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldModelRoutingEnabled, v))
@@ -1333,6 +1338,46 @@ func SmartDispatchCountLT(v int) predicate.Group {
 // SmartDispatchCountLTE applies the LTE predicate on the "smart_dispatch_count" field.
 func SmartDispatchCountLTE(v int) predicate.Group {
 	return predicate.Group(sql.FieldLTE(FieldSmartDispatchCount, v))
+}
+
+// SmartDispatchMinNormalAccountsEQ applies the EQ predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSmartDispatchMinNormalAccounts, v))
+}
+
+// SmartDispatchMinNormalAccountsNEQ applies the NEQ predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsNEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSmartDispatchMinNormalAccounts, v))
+}
+
+// SmartDispatchMinNormalAccountsIn applies the In predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldSmartDispatchMinNormalAccounts, vs...))
+}
+
+// SmartDispatchMinNormalAccountsNotIn applies the NotIn predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsNotIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldSmartDispatchMinNormalAccounts, vs...))
+}
+
+// SmartDispatchMinNormalAccountsGT applies the GT predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsGT(v int) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldSmartDispatchMinNormalAccounts, v))
+}
+
+// SmartDispatchMinNormalAccountsGTE applies the GTE predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsGTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldSmartDispatchMinNormalAccounts, v))
+}
+
+// SmartDispatchMinNormalAccountsLT applies the LT predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsLT(v int) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldSmartDispatchMinNormalAccounts, v))
+}
+
+// SmartDispatchMinNormalAccountsLTE applies the LTE predicate on the "smart_dispatch_min_normal_accounts" field.
+func SmartDispatchMinNormalAccountsLTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldSmartDispatchMinNormalAccounts, v))
 }
 
 // ModelRoutingIsNil applies the IsNil predicate on the "model_routing" field.

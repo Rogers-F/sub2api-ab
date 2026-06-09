@@ -509,6 +509,7 @@ export interface AdminGroup extends Group {
   smart_dispatch_enabled: boolean
   smart_dispatch_source_group_id: number | null
   smart_dispatch_count: number
+  smart_dispatch_min_normal_accounts: number
 }
 
 export interface ApiKey {
@@ -595,6 +596,7 @@ export interface CreateGroupRequest {
   smart_dispatch_enabled?: boolean
   smart_dispatch_source_group_id?: number | null
   smart_dispatch_count?: number
+  smart_dispatch_min_normal_accounts?: number
   // 从指定分组复制账号
   copy_accounts_from_group_ids?: number[]
 }
@@ -626,6 +628,7 @@ export interface UpdateGroupRequest {
   smart_dispatch_enabled?: boolean
   smart_dispatch_source_group_id?: number | null
   smart_dispatch_count?: number
+  smart_dispatch_min_normal_accounts?: number
   copy_accounts_from_group_ids?: number[]
 }
 

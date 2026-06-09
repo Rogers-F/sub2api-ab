@@ -1213,7 +1213,8 @@ func (r *accountRepository) listSmartDispatchGroupsForUnavailableAccount(ctx con
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT g.id,
 			g.smart_dispatch_source_group_id,
-			COALESCE(NULLIF(g.smart_dispatch_count, 0), 1)
+			COALESCE(NULLIF(g.smart_dispatch_count, 0), 1),
+			COALESCE(NULLIF(g.smart_dispatch_min_normal_accounts, 0), 1)
 		FROM groups g
 		JOIN account_groups ag ON ag.group_id = g.id
 		WHERE ag.account_id = $1
@@ -1235,20 +1236,25 @@ func (r *accountRepository) listSmartDispatchGroupsForUnavailableAccount(ctx con
 			groupID       int64
 			sourceGroupID int64
 			count         int
+			minNormal     int
 		)
-		if err := rows.Scan(&groupID, &sourceGroupID, &count); err != nil {
+		if err := rows.Scan(&groupID, &sourceGroupID, &count, &minNormal); err != nil {
 			return nil, err
 		}
 		if count <= 0 {
 			count = 1
 		}
+		if minNormal <= 0 {
+			minNormal = 1
+		}
 		sourceGroupIDCopy := sourceGroupID
 		groups = append(groups, service.Group{
-			ID:                         groupID,
-			Hydrated:                   true,
-			SmartDispatchEnabled:       true,
-			SmartDispatchSourceGroupID: &sourceGroupIDCopy,
-			SmartDispatchCount:         count,
+			ID:                             groupID,
+			Hydrated:                       true,
+			SmartDispatchEnabled:           true,
+			SmartDispatchSourceGroupID:     &sourceGroupIDCopy,
+			SmartDispatchCount:             count,
+			SmartDispatchMinNormalAccounts: minNormal,
 		})
 	}
 	if err := rows.Err(); err != nil {

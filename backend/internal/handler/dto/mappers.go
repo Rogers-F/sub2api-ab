@@ -157,6 +157,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		SmartDispatchEnabled:              g.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        g.SmartDispatchSourceGroupID,
 		SmartDispatchCount:                g.SmartDispatchCount,
+		SmartDispatchMinNormalAccounts:    g.SmartDispatchMinNormalAccounts,
 	}
 	if len(g.AccountGroups) > 0 {
 		out.AccountGroups = make([]AccountGroup, 0, len(g.AccountGroups))

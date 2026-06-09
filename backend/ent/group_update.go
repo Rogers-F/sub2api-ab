@@ -540,6 +540,27 @@ func (_u *GroupUpdate) AddSmartDispatchCount(v int) *GroupUpdate {
 	return _u
 }
 
+// SetSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field.
+func (_u *GroupUpdate) SetSmartDispatchMinNormalAccounts(v int) *GroupUpdate {
+	_u.mutation.ResetSmartDispatchMinNormalAccounts()
+	_u.mutation.SetSmartDispatchMinNormalAccounts(v)
+	return _u
+}
+
+// SetNillableSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSmartDispatchMinNormalAccounts(v *int) *GroupUpdate {
+	if v != nil {
+		_u.SetSmartDispatchMinNormalAccounts(*v)
+	}
+	return _u
+}
+
+// AddSmartDispatchMinNormalAccounts adds value to the "smart_dispatch_min_normal_accounts" field.
+func (_u *GroupUpdate) AddSmartDispatchMinNormalAccounts(v int) *GroupUpdate {
+	_u.mutation.AddSmartDispatchMinNormalAccounts(v)
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdate) SetModelRouting(v map[string][]int64) *GroupUpdate {
 	_u.mutation.SetModelRouting(v)
@@ -973,6 +994,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "smart_dispatch_count", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SmartDispatchMinNormalAccounts(); ok {
+		if err := group.SmartDispatchMinNormalAccountsValidator(v); err != nil {
+			return &ValidationError{Name: "smart_dispatch_min_normal_accounts", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_min_normal_accounts": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -1142,6 +1168,12 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedSmartDispatchCount(); ok {
 		_spec.AddField(group.FieldSmartDispatchCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SmartDispatchMinNormalAccounts(); ok {
+		_spec.SetField(group.FieldSmartDispatchMinNormalAccounts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSmartDispatchMinNormalAccounts(); ok {
+		_spec.AddField(group.FieldSmartDispatchMinNormalAccounts, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
@@ -2002,6 +2034,27 @@ func (_u *GroupUpdateOne) AddSmartDispatchCount(v int) *GroupUpdateOne {
 	return _u
 }
 
+// SetSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field.
+func (_u *GroupUpdateOne) SetSmartDispatchMinNormalAccounts(v int) *GroupUpdateOne {
+	_u.mutation.ResetSmartDispatchMinNormalAccounts()
+	_u.mutation.SetSmartDispatchMinNormalAccounts(v)
+	return _u
+}
+
+// SetNillableSmartDispatchMinNormalAccounts sets the "smart_dispatch_min_normal_accounts" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSmartDispatchMinNormalAccounts(v *int) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSmartDispatchMinNormalAccounts(*v)
+	}
+	return _u
+}
+
+// AddSmartDispatchMinNormalAccounts adds value to the "smart_dispatch_min_normal_accounts" field.
+func (_u *GroupUpdateOne) AddSmartDispatchMinNormalAccounts(v int) *GroupUpdateOne {
+	_u.mutation.AddSmartDispatchMinNormalAccounts(v)
+	return _u
+}
+
 // SetModelRouting sets the "model_routing" field.
 func (_u *GroupUpdateOne) SetModelRouting(v map[string][]int64) *GroupUpdateOne {
 	_u.mutation.SetModelRouting(v)
@@ -2448,6 +2501,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "smart_dispatch_count", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SmartDispatchMinNormalAccounts(); ok {
+		if err := group.SmartDispatchMinNormalAccountsValidator(v); err != nil {
+			return &ValidationError{Name: "smart_dispatch_min_normal_accounts", err: fmt.Errorf(`ent: validator failed for field "Group.smart_dispatch_min_normal_accounts": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -2634,6 +2692,12 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.AddedSmartDispatchCount(); ok {
 		_spec.AddField(group.FieldSmartDispatchCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SmartDispatchMinNormalAccounts(); ok {
+		_spec.SetField(group.FieldSmartDispatchMinNormalAccounts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSmartDispatchMinNormalAccounts(); ok {
+		_spec.AddField(group.FieldSmartDispatchMinNormalAccounts, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)

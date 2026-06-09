@@ -144,9 +144,10 @@ type AdminGroup struct {
 	SortOrder int `json:"sort_order"`
 
 	// 智能调度配置（仅管理员可见）
-	SmartDispatchEnabled       bool   `json:"smart_dispatch_enabled"`
-	SmartDispatchSourceGroupID *int64 `json:"smart_dispatch_source_group_id"`
-	SmartDispatchCount         int    `json:"smart_dispatch_count"`
+	SmartDispatchEnabled           bool   `json:"smart_dispatch_enabled"`
+	SmartDispatchSourceGroupID     *int64 `json:"smart_dispatch_source_group_id"`
+	SmartDispatchCount             int    `json:"smart_dispatch_count"`
+	SmartDispatchMinNormalAccounts int    `json:"smart_dispatch_min_normal_accounts"`
 }
 
 type Account struct {

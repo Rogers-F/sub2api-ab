@@ -116,9 +116,10 @@ type CreateGroupRequest struct {
 	// 从指定分组复制账号（创建后自动绑定）
 	CopyAccountsFromGroupIDs []int64 `json:"copy_accounts_from_group_ids"`
 	// 智能调度配置
-	SmartDispatchEnabled       bool   `json:"smart_dispatch_enabled"`
-	SmartDispatchSourceGroupID *int64 `json:"smart_dispatch_source_group_id"`
-	SmartDispatchCount         *int   `json:"smart_dispatch_count"`
+	SmartDispatchEnabled           bool   `json:"smart_dispatch_enabled"`
+	SmartDispatchSourceGroupID     *int64 `json:"smart_dispatch_source_group_id"`
+	SmartDispatchCount             *int   `json:"smart_dispatch_count"`
+	SmartDispatchMinNormalAccounts *int   `json:"smart_dispatch_min_normal_accounts"`
 }
 
 // UpdateGroupRequest represents update group request
@@ -158,9 +159,10 @@ type UpdateGroupRequest struct {
 	// 从指定分组复制账号（同步操作：先清空当前分组的账号绑定，再绑定源分组的账号）
 	CopyAccountsFromGroupIDs []int64 `json:"copy_accounts_from_group_ids"`
 	// 智能调度配置
-	SmartDispatchEnabled       *bool  `json:"smart_dispatch_enabled"`
-	SmartDispatchSourceGroupID *int64 `json:"smart_dispatch_source_group_id"`
-	SmartDispatchCount         *int   `json:"smart_dispatch_count"`
+	SmartDispatchEnabled           *bool  `json:"smart_dispatch_enabled"`
+	SmartDispatchSourceGroupID     *int64 `json:"smart_dispatch_source_group_id"`
+	SmartDispatchCount             *int   `json:"smart_dispatch_count"`
+	SmartDispatchMinNormalAccounts *int   `json:"smart_dispatch_min_normal_accounts"`
 }
 
 // List handles listing all groups with pagination
@@ -283,6 +285,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		SmartDispatchEnabled:              req.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        req.SmartDispatchSourceGroupID,
 		SmartDispatchCount:                req.SmartDispatchCount,
+		SmartDispatchMinNormalAccounts:    req.SmartDispatchMinNormalAccounts,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -340,6 +343,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		SmartDispatchEnabled:              req.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        req.SmartDispatchSourceGroupID,
 		SmartDispatchCount:                req.SmartDispatchCount,
+		SmartDispatchMinNormalAccounts:    req.SmartDispatchMinNormalAccounts,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

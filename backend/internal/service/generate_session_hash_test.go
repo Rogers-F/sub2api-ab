@@ -797,6 +797,43 @@ func TestGenerateSessionHash_CacheControlOverridesSessionContext(t *testing.T) {
 	require.Equal(t, h1, h2, "cache_control ephemeral has higher priority, SessionContext should not affect result")
 }
 
+func TestGenerateSessionHash_CacheControlMessageIgnoresUnmarkedSiblingText(t *testing.T) {
+	svc := &GatewayService{}
+
+	mk := func(cacheableText, nonce string) *ParsedRequest {
+		return &ParsedRequest{
+			Messages: []any{
+				map[string]any{
+					"role": "user",
+					"content": []any{
+						map[string]any{
+							"type":          "text",
+							"text":          cacheableText,
+							"cache_control": map[string]any{"type": "ephemeral"},
+						},
+						map[string]any{
+							"type": "text",
+							"text": "Probe nonce: " + nonce,
+						},
+					},
+				},
+			},
+			SessionContext: &SessionContext{
+				ClientIP:  "1.1.1.1",
+				UserAgent: "claude-cli/2.1.22",
+				APIKeyID:  48,
+			},
+		}
+	}
+
+	h1 := svc.GenerateSessionHash(mk("stable cacheable prefix", "nonce-1"))
+	h2 := svc.GenerateSessionHash(mk("stable cacheable prefix", "nonce-2"))
+	require.Equal(t, h1, h2, "unmarked sibling text must not perturb a cache_control-based sticky session hash")
+
+	h3 := svc.GenerateSessionHash(mk("changed cacheable prefix", "nonce-2"))
+	require.NotEqual(t, h1, h3, "changing the cache_control text should change the sticky session hash")
+}
+
 // ============ 边界情况 ============
 
 func TestGenerateSessionHash_EmptyMessages(t *testing.T) {

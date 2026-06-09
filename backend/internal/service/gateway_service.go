@@ -836,7 +836,6 @@ func (s *GatewayService) extractCacheableContent(parsed *ParsedRequest) string {
 			}
 		}
 	}
-	systemText := builder.String()
 
 	// 检查 messages 中的 cacheable 内容
 	for _, msg := range parsed.Messages {
@@ -846,7 +845,9 @@ func (s *GatewayService) extractCacheableContent(parsed *ParsedRequest) string {
 					if partMap, ok := part.(map[string]any); ok {
 						if cc, ok := partMap["cache_control"].(map[string]any); ok {
 							if cc["type"] == "ephemeral" {
-								return s.extractTextFromContent(msgMap["content"])
+								if text, ok := partMap["text"].(string); ok {
+									_, _ = builder.WriteString(text)
+								}
 							}
 						}
 					}
@@ -855,7 +856,7 @@ func (s *GatewayService) extractCacheableContent(parsed *ParsedRequest) string {
 		}
 	}
 
-	return systemText
+	return builder.String()
 }
 
 func (s *GatewayService) extractTextFromSystem(system any) string {

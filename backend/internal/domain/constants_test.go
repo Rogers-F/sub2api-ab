@@ -38,3 +38,15 @@ func TestDefaultBedrockModelMapping_IncludesClaudeOpus48(t *testing.T) {
 		t.Fatalf("unexpected bedrock mapping for claude-opus-4-8: got %q", got)
 	}
 }
+
+func TestDefaultBedrockModelMapping_IncludesClaudeFable5(t *testing.T) {
+	t.Parallel()
+
+	got, ok := DefaultBedrockModelMapping["claude-fable-5"]
+	if !ok {
+		t.Fatalf("expected bedrock mapping for claude-fable-5 to exist")
+	}
+	if got != "anthropic.claude-fable-5" {
+		t.Fatalf("unexpected bedrock mapping for claude-fable-5: got %q", got)
+	}
+}

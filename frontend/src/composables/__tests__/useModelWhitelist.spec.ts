@@ -43,6 +43,11 @@ describe('useModelWhitelist', () => {
     expect(getModelsByPlatform('antigravity')).toContain('claude-opus-4-8')
   })
 
+  it('账号模型列表包含 Claude Fable 5', () => {
+    expect(getModelsByPlatform('anthropic')).toContain('claude-fable-5')
+    expect(getModelsByPlatform('antigravity')).not.toContain('claude-fable-5')
+  })
+
   it('相关模型预设包含 Claude Opus 4.8 透传', () => {
     expect(getPresetMappingsByPlatform('anthropic')).toEqual(
       expect.arrayContaining([
@@ -60,6 +65,23 @@ describe('useModelWhitelist', () => {
           label: 'Opus 4.8',
           from: 'claude-opus-4-8',
           to: 'us.anthropic.claude-opus-4-8-v1'
+        })
+      ])
+    )
+  })
+
+  it('相关模型预设包含 Claude Fable 5', () => {
+    expect(getPresetMappingsByPlatform('anthropic')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Fable 5', from: 'claude-fable-5', to: 'claude-fable-5' })
+      ])
+    )
+    expect(getPresetMappingsByPlatform('bedrock')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Fable 5',
+          from: 'claude-fable-5',
+          to: 'anthropic.claude-fable-5'
         })
       ])
     )

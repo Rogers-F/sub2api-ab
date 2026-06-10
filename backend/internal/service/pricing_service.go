@@ -75,6 +75,16 @@ var (
 		Mode:                    "chat",
 		SupportsPromptCaching:   true,
 	}
+	claudeFable5FallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   10e-06,
+		OutputCostPerToken:                  50e-06,
+		CacheCreationInputTokenCost:         12.5e-06,
+		CacheCreationInputTokenCostAbove1hr: 20e-06,
+		CacheReadInputTokenCost:             1e-06,
+		LiteLLMProvider:                     "anthropic",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
 )
 
 // LiteLLMModelPricing LiteLLM价格数据结构
@@ -625,7 +635,16 @@ func (s *PricingService) GetModelPricing(modelName string) *LiteLLMModelPricing 
 		return pricing
 	}
 
-	// 5. OpenAI 模型回退策略
+	// 5. Claude 新模型静态兜底：远程价格源滞后时仍可正确计费。
+	for _, candidate := range lookupCandidates {
+		if strings.Contains(candidate, "claude-fable-5") {
+			logger.With(zap.String("component", "service.pricing")).
+				Info(fmt.Sprintf("[Pricing] Claude fallback matched %s -> %s", modelName, "claude-fable-5(static)"))
+			return claudeFable5FallbackPricing
+		}
+	}
+
+	// 6. OpenAI 模型回退策略
 	if strings.HasPrefix(lookupCandidates[0], "gpt-") {
 		return s.matchOpenAIModel(lookupCandidates[0])
 	}

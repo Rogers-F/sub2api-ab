@@ -68,6 +68,7 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetNillableSignatureCompatEnabled(groupIn.SignatureCompatEnabled).
 		SetNillableSignatureToolTextDowngradeEnabled(groupIn.SignatureToolTextDowngradeEnabled).
 		SetRequestCompatEnabled(groupIn.RequestCompatEnabled).
+		SetNormalizeMessageIDEnabled(groupIn.NormalizeMessageIDEnabled).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
 		SetMcpXMLInject(groupIn.MCPXMLInject).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
@@ -148,6 +149,7 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
 		SetRequestCompatEnabled(groupIn.RequestCompatEnabled).
+		SetNormalizeMessageIDEnabled(groupIn.NormalizeMessageIDEnabled).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
 		SetMcpXMLInject(groupIn.MCPXMLInject).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).

@@ -62,6 +62,8 @@ const (
 	FieldSignatureToolTextDowngradeEnabled = "signature_tool_text_downgrade_enabled"
 	// FieldRequestCompatEnabled holds the string denoting the request_compat_enabled field in the database.
 	FieldRequestCompatEnabled = "request_compat_enabled"
+	// FieldNormalizeMessageIDEnabled holds the string denoting the normalize_message_id_enabled field in the database.
+	FieldNormalizeMessageIDEnabled = "normalize_message_id_enabled"
 	// FieldSmartDispatchEnabled holds the string denoting the smart_dispatch_enabled field in the database.
 	FieldSmartDispatchEnabled = "smart_dispatch_enabled"
 	// FieldSmartDispatchSourceGroupID holds the string denoting the smart_dispatch_source_group_id field in the database.
@@ -188,6 +190,7 @@ var Columns = []string{
 	FieldSignatureCompatEnabled,
 	FieldSignatureToolTextDowngradeEnabled,
 	FieldRequestCompatEnabled,
+	FieldNormalizeMessageIDEnabled,
 	FieldSmartDispatchEnabled,
 	FieldSmartDispatchSourceGroupID,
 	FieldSmartDispatchCount,
@@ -261,6 +264,8 @@ var (
 	DefaultClaudeCodeOnly bool
 	// DefaultRequestCompatEnabled holds the default value on creation for the "request_compat_enabled" field.
 	DefaultRequestCompatEnabled bool
+	// DefaultNormalizeMessageIDEnabled holds the default value on creation for the "normalize_message_id_enabled" field.
+	DefaultNormalizeMessageIDEnabled bool
 	// DefaultSmartDispatchEnabled holds the default value on creation for the "smart_dispatch_enabled" field.
 	DefaultSmartDispatchEnabled bool
 	// DefaultSmartDispatchCount holds the default value on creation for the "smart_dispatch_count" field.
@@ -414,6 +419,11 @@ func BySignatureToolTextDowngradeEnabled(opts ...sql.OrderTermOption) OrderOptio
 // ByRequestCompatEnabled orders the results by the request_compat_enabled field.
 func ByRequestCompatEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequestCompatEnabled, opts...).ToFunc()
+}
+
+// ByNormalizeMessageIDEnabled orders the results by the normalize_message_id_enabled field.
+func ByNormalizeMessageIDEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNormalizeMessageIDEnabled, opts...).ToFunc()
 }
 
 // BySmartDispatchEnabled orders the results by the smart_dispatch_enabled field.

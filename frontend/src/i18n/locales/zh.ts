@@ -1827,6 +1827,12 @@ export default {
         enabled: '已开启请求兼容',
         disabled: '已关闭请求兼容'
       },
+      normalizeMessageId: {
+        title: '消息 ID 规范化',
+        hint: '开启后返回给客户的 Claude Messages id 会从 msg_xxx 改为 msg_bdrk_xxx，保留原始后缀。',
+        enabled: '已开启消息 ID 规范化',
+        disabled: '已关闭消息 ID 规范化'
+      },
       signatureCompat: {
         title: '签名兼容',
         hint: '控制 invalid thinking signature 这类错误的内部重试清理。继承表示使用全局/账号级行为。',

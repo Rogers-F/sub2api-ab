@@ -41,6 +41,8 @@ type Group struct {
 	SignatureToolTextDowngradeEnabled *bool
 	// 请求兼容开关。启用后可对部分上游请求格式兼容错误做内部重试。
 	RequestCompatEnabled bool
+	// 消息 ID 规范化开关。启用后将返回给客户端的 Claude Messages msg_ ID 规范为 msg_bdrk_ 前缀。
+	NormalizeMessageIDEnabled bool
 
 	// 模型路由配置
 	// key: 模型匹配模式（支持 * 通配符，如 "claude-opus-*"）

@@ -110,6 +110,9 @@ func (Group) Fields() []ent.Field {
 		field.Bool("request_compat_enabled").
 			Default(false).
 			Comment("请求兼容重试开关：处理部分上游请求格式兼容错误"),
+		field.Bool("normalize_message_id_enabled").
+			Default(false).
+			Comment("是否将返回客户端的 Claude Messages id 规范为 msg_bdrk_ 前缀"),
 		field.Bool("smart_dispatch_enabled").
 			Default(false).
 			Comment("是否启用智能调度补号"),

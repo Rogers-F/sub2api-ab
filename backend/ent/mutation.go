@@ -10200,6 +10200,7 @@ type GroupMutation struct {
 	signature_compat_enabled                *bool
 	signature_tool_text_downgrade_enabled   *bool
 	request_compat_enabled                  *bool
+	normalize_message_id_enabled            *bool
 	smart_dispatch_enabled                  *bool
 	smart_dispatch_source_group_id          *int64
 	addsmart_dispatch_source_group_id       *int64
@@ -11533,6 +11534,42 @@ func (m *GroupMutation) ResetRequestCompatEnabled() {
 	m.request_compat_enabled = nil
 }
 
+// SetNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field.
+func (m *GroupMutation) SetNormalizeMessageIDEnabled(b bool) {
+	m.normalize_message_id_enabled = &b
+}
+
+// NormalizeMessageIDEnabled returns the value of the "normalize_message_id_enabled" field in the mutation.
+func (m *GroupMutation) NormalizeMessageIDEnabled() (r bool, exists bool) {
+	v := m.normalize_message_id_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNormalizeMessageIDEnabled returns the old "normalize_message_id_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldNormalizeMessageIDEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNormalizeMessageIDEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNormalizeMessageIDEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNormalizeMessageIDEnabled: %w", err)
+	}
+	return oldValue.NormalizeMessageIDEnabled, nil
+}
+
+// ResetNormalizeMessageIDEnabled resets all changes to the "normalize_message_id_enabled" field.
+func (m *GroupMutation) ResetNormalizeMessageIDEnabled() {
+	m.normalize_message_id_enabled = nil
+}
+
 // SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
 func (m *GroupMutation) SetSmartDispatchEnabled(b bool) {
 	m.smart_dispatch_enabled = &b
@@ -12517,7 +12554,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 37)
+	fields := make([]string, 0, 38)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -12586,6 +12623,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.request_compat_enabled != nil {
 		fields = append(fields, group.FieldRequestCompatEnabled)
+	}
+	if m.normalize_message_id_enabled != nil {
+		fields = append(fields, group.FieldNormalizeMessageIDEnabled)
 	}
 	if m.smart_dispatch_enabled != nil {
 		fields = append(fields, group.FieldSmartDispatchEnabled)
@@ -12683,6 +12723,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.SignatureToolTextDowngradeEnabled()
 	case group.FieldRequestCompatEnabled:
 		return m.RequestCompatEnabled()
+	case group.FieldNormalizeMessageIDEnabled:
+		return m.NormalizeMessageIDEnabled()
 	case group.FieldSmartDispatchEnabled:
 		return m.SmartDispatchEnabled()
 	case group.FieldSmartDispatchSourceGroupID:
@@ -12766,6 +12808,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSignatureToolTextDowngradeEnabled(ctx)
 	case group.FieldRequestCompatEnabled:
 		return m.OldRequestCompatEnabled(ctx)
+	case group.FieldNormalizeMessageIDEnabled:
+		return m.OldNormalizeMessageIDEnabled(ctx)
 	case group.FieldSmartDispatchEnabled:
 		return m.OldSmartDispatchEnabled(ctx)
 	case group.FieldSmartDispatchSourceGroupID:
@@ -12963,6 +13007,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRequestCompatEnabled(v)
+		return nil
+	case group.FieldNormalizeMessageIDEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNormalizeMessageIDEnabled(v)
 		return nil
 	case group.FieldSmartDispatchEnabled:
 		v, ok := value.(bool)
@@ -13437,6 +13488,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldRequestCompatEnabled:
 		m.ResetRequestCompatEnabled()
+		return nil
+	case group.FieldNormalizeMessageIDEnabled:
+		m.ResetNormalizeMessageIDEnabled()
 		return nil
 	case group.FieldSmartDispatchEnabled:
 		m.ResetSmartDispatchEnabled()

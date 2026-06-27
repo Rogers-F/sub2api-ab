@@ -709,6 +709,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		SignatureCompatEnabled:            g.SignatureCompatEnabled,
 		SignatureToolTextDowngradeEnabled: g.SignatureToolTextDowngradeEnabled,
 		RequestCompatEnabled:              g.RequestCompatEnabled,
+		NormalizeMessageIDEnabled:         g.NormalizeMessageIDEnabled,
 		ModelRouting:                      g.ModelRouting,
 		ModelRoutingEnabled:               g.ModelRoutingEnabled,
 		MCPXMLInject:                      g.McpXMLInject,

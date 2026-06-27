@@ -1741,6 +1741,12 @@ export default {
         enabled: 'Request compatibility enabled',
         disabled: 'Request compatibility disabled'
       },
+      normalizeMessageId: {
+        title: 'Message ID Normalization',
+        hint: 'When enabled, Claude Messages ids returned to clients change from msg_xxx to msg_bdrk_xxx while preserving the original suffix.',
+        enabled: 'Message ID normalization enabled',
+        disabled: 'Message ID normalization disabled'
+      },
       signatureCompat: {
         title: 'Signature Compatibility',
         hint: 'Controls internal retry cleanup for invalid thinking signatures. Inherit keeps global/account-level behavior.',

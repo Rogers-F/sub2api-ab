@@ -343,6 +343,20 @@ func (_c *GroupCreate) SetNillableRequestCompatEnabled(v *bool) *GroupCreate {
 	return _c
 }
 
+// SetNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field.
+func (_c *GroupCreate) SetNormalizeMessageIDEnabled(v bool) *GroupCreate {
+	_c.mutation.SetNormalizeMessageIDEnabled(v)
+	return _c
+}
+
+// SetNillableNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableNormalizeMessageIDEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetNormalizeMessageIDEnabled(*v)
+	}
+	return _c
+}
+
 // SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
 func (_c *GroupCreate) SetSmartDispatchEnabled(v bool) *GroupCreate {
 	_c.mutation.SetSmartDispatchEnabled(v)
@@ -696,6 +710,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultRequestCompatEnabled
 		_c.mutation.SetRequestCompatEnabled(v)
 	}
+	if _, ok := _c.mutation.NormalizeMessageIDEnabled(); !ok {
+		v := group.DefaultNormalizeMessageIDEnabled
+		_c.mutation.SetNormalizeMessageIDEnabled(v)
+	}
 	if _, ok := _c.mutation.SmartDispatchEnabled(); !ok {
 		v := group.DefaultSmartDispatchEnabled
 		_c.mutation.SetSmartDispatchEnabled(v)
@@ -801,6 +819,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.RequestCompatEnabled(); !ok {
 		return &ValidationError{Name: "request_compat_enabled", err: errors.New(`ent: missing required field "Group.request_compat_enabled"`)}
+	}
+	if _, ok := _c.mutation.NormalizeMessageIDEnabled(); !ok {
+		return &ValidationError{Name: "normalize_message_id_enabled", err: errors.New(`ent: missing required field "Group.normalize_message_id_enabled"`)}
 	}
 	if _, ok := _c.mutation.SmartDispatchEnabled(); !ok {
 		return &ValidationError{Name: "smart_dispatch_enabled", err: errors.New(`ent: missing required field "Group.smart_dispatch_enabled"`)}
@@ -971,6 +992,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RequestCompatEnabled(); ok {
 		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
 		_node.RequestCompatEnabled = value
+	}
+	if value, ok := _c.mutation.NormalizeMessageIDEnabled(); ok {
+		_spec.SetField(group.FieldNormalizeMessageIDEnabled, field.TypeBool, value)
+		_node.NormalizeMessageIDEnabled = value
 	}
 	if value, ok := _c.mutation.SmartDispatchEnabled(); ok {
 		_spec.SetField(group.FieldSmartDispatchEnabled, field.TypeBool, value)
@@ -1577,6 +1602,18 @@ func (u *GroupUpsert) SetRequestCompatEnabled(v bool) *GroupUpsert {
 // UpdateRequestCompatEnabled sets the "request_compat_enabled" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateRequestCompatEnabled() *GroupUpsert {
 	u.SetExcluded(group.FieldRequestCompatEnabled)
+	return u
+}
+
+// SetNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field.
+func (u *GroupUpsert) SetNormalizeMessageIDEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldNormalizeMessageIDEnabled, v)
+	return u
+}
+
+// UpdateNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateNormalizeMessageIDEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldNormalizeMessageIDEnabled)
 	return u
 }
 
@@ -2288,6 +2325,20 @@ func (u *GroupUpsertOne) SetRequestCompatEnabled(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateRequestCompatEnabled() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRequestCompatEnabled()
+	})
+}
+
+// SetNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field.
+func (u *GroupUpsertOne) SetNormalizeMessageIDEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetNormalizeMessageIDEnabled(v)
+	})
+}
+
+// UpdateNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateNormalizeMessageIDEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateNormalizeMessageIDEnabled()
 	})
 }
 
@@ -3199,6 +3250,20 @@ func (u *GroupUpsertBulk) SetRequestCompatEnabled(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateRequestCompatEnabled() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRequestCompatEnabled()
+	})
+}
+
+// SetNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field.
+func (u *GroupUpsertBulk) SetNormalizeMessageIDEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetNormalizeMessageIDEnabled(v)
+	})
+}
+
+// UpdateNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateNormalizeMessageIDEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateNormalizeMessageIDEnabled()
 	})
 }
 

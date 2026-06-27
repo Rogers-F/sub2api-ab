@@ -65,6 +65,8 @@ type Group struct {
 	SignatureToolTextDowngradeEnabled *bool `json:"signature_tool_text_downgrade_enabled,omitempty"`
 	// 请求兼容重试开关：处理部分上游请求格式兼容错误
 	RequestCompatEnabled bool `json:"request_compat_enabled,omitempty"`
+	// 是否将返回客户端的 Claude Messages id 规范为 msg_bdrk_ 前缀
+	NormalizeMessageIDEnabled bool `json:"normalize_message_id_enabled,omitempty"`
 	// 是否启用智能调度补号
 	SmartDispatchEnabled bool `json:"smart_dispatch_enabled,omitempty"`
 	// 智能调度号池分组 ID
@@ -201,7 +203,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldMessagesDispatchModelConfig:
 			values[i] = new([]byte)
-		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldSignatureCompatEnabled, group.FieldSignatureToolTextDowngradeEnabled, group.FieldRequestCompatEnabled, group.FieldSmartDispatchEnabled, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet:
+		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldSignatureCompatEnabled, group.FieldSignatureToolTextDowngradeEnabled, group.FieldRequestCompatEnabled, group.FieldNormalizeMessageIDEnabled, group.FieldSmartDispatchEnabled, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet:
 			values[i] = new(sql.NullBool)
 		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k:
 			values[i] = new(sql.NullFloat64)
@@ -381,6 +383,12 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field request_compat_enabled", values[i])
 			} else if value.Valid {
 				_m.RequestCompatEnabled = value.Bool
+			}
+		case group.FieldNormalizeMessageIDEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field normalize_message_id_enabled", values[i])
+			} else if value.Valid {
+				_m.NormalizeMessageIDEnabled = value.Bool
 			}
 		case group.FieldSmartDispatchEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -641,6 +649,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("request_compat_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequestCompatEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("normalize_message_id_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.NormalizeMessageIDEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("smart_dispatch_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SmartDispatchEnabled))

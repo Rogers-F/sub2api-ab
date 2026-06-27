@@ -170,6 +170,11 @@ func RequestCompatEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldRequestCompatEnabled, v))
 }
 
+// NormalizeMessageIDEnabled applies equality check predicate on the "normalize_message_id_enabled" field. It's identical to NormalizeMessageIDEnabledEQ.
+func NormalizeMessageIDEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldNormalizeMessageIDEnabled, v))
+}
+
 // SmartDispatchEnabled applies equality check predicate on the "smart_dispatch_enabled" field. It's identical to SmartDispatchEnabledEQ.
 func SmartDispatchEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSmartDispatchEnabled, v))
@@ -1238,6 +1243,16 @@ func RequestCompatEnabledEQ(v bool) predicate.Group {
 // RequestCompatEnabledNEQ applies the NEQ predicate on the "request_compat_enabled" field.
 func RequestCompatEnabledNEQ(v bool) predicate.Group {
 	return predicate.Group(sql.FieldNEQ(FieldRequestCompatEnabled, v))
+}
+
+// NormalizeMessageIDEnabledEQ applies the EQ predicate on the "normalize_message_id_enabled" field.
+func NormalizeMessageIDEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldNormalizeMessageIDEnabled, v))
+}
+
+// NormalizeMessageIDEnabledNEQ applies the NEQ predicate on the "normalize_message_id_enabled" field.
+func NormalizeMessageIDEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldNormalizeMessageIDEnabled, v))
 }
 
 // SmartDispatchEnabledEQ applies the EQ predicate on the "smart_dispatch_enabled" field.

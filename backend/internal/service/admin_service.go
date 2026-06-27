@@ -192,6 +192,8 @@ type CreateGroupInput struct {
 	SignatureToolTextDowngradeEnabled *bool
 	// 请求兼容开关
 	RequestCompatEnabled bool
+	// 消息 ID 规范化开关
+	NormalizeMessageIDEnabled bool
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64
 	ModelRoutingEnabled bool // 是否启用模型路由
@@ -237,6 +239,8 @@ type UpdateGroupInput struct {
 	SignatureToolTextDowngradeEnabled *bool
 	// 请求兼容开关
 	RequestCompatEnabled *bool
+	// 消息 ID 规范化开关
+	NormalizeMessageIDEnabled *bool
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64
 	ModelRoutingEnabled *bool // 是否启用模型路由
@@ -1343,6 +1347,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		SignatureCompatEnabled:            input.SignatureCompatEnabled,
 		SignatureToolTextDowngradeEnabled: input.SignatureToolTextDowngradeEnabled,
 		RequestCompatEnabled:              input.RequestCompatEnabled,
+		NormalizeMessageIDEnabled:         input.NormalizeMessageIDEnabled,
 		ModelRouting:                      input.ModelRouting,
 		MCPXMLInject:                      mcpXMLInject,
 		SupportedModelScopes:              input.SupportedModelScopes,
@@ -1645,6 +1650,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	group.SignatureToolTextDowngradeEnabled = input.SignatureToolTextDowngradeEnabled
 	if input.RequestCompatEnabled != nil {
 		group.RequestCompatEnabled = *input.RequestCompatEnabled
+	}
+	if input.NormalizeMessageIDEnabled != nil {
+		group.NormalizeMessageIDEnabled = *input.NormalizeMessageIDEnabled
 	}
 
 	// 模型路由配置

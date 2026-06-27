@@ -1371,6 +1371,47 @@
             </p>
           </div>
           <div>
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <label class="input-label">{{
+                  t("admin.groups.normalizeMessageId.title")
+                }}</label>
+                <p class="input-hint">
+                  {{ t("admin.groups.normalizeMessageId.hint") }}
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="
+                  createForm.normalize_message_id_enabled =
+                    !createForm.normalize_message_id_enabled
+                "
+                :class="[
+                  'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
+                  createForm.normalize_message_id_enabled
+                    ? 'bg-primary-500'
+                    : 'bg-gray-300 dark:bg-dark-600',
+                ]"
+              >
+                <span
+                  :class="[
+                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                    createForm.normalize_message_id_enabled
+                      ? 'translate-x-6'
+                      : 'translate-x-1',
+                  ]"
+                />
+              </button>
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{
+                createForm.normalize_message_id_enabled
+                  ? t("admin.groups.normalizeMessageId.enabled")
+                  : t("admin.groups.normalizeMessageId.disabled")
+              }}
+            </p>
+          </div>
+          <div>
             <label class="input-label">{{
               t("admin.groups.signatureCompat.toolDowngradeTitle")
             }}</label>
@@ -2650,6 +2691,47 @@
             </p>
           </div>
           <div>
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <label class="input-label">{{
+                  t("admin.groups.normalizeMessageId.title")
+                }}</label>
+                <p class="input-hint">
+                  {{ t("admin.groups.normalizeMessageId.hint") }}
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="
+                  editForm.normalize_message_id_enabled =
+                    !editForm.normalize_message_id_enabled
+                "
+                :class="[
+                  'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
+                  editForm.normalize_message_id_enabled
+                    ? 'bg-primary-500'
+                    : 'bg-gray-300 dark:bg-dark-600',
+                ]"
+              >
+                <span
+                  :class="[
+                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                    editForm.normalize_message_id_enabled
+                      ? 'translate-x-6'
+                      : 'translate-x-1',
+                  ]"
+                />
+              </button>
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{
+                editForm.normalize_message_id_enabled
+                  ? t("admin.groups.normalizeMessageId.enabled")
+                  : t("admin.groups.normalizeMessageId.disabled")
+              }}
+            </p>
+          </div>
+          <div>
             <label class="input-label">{{
               t("admin.groups.signatureCompat.toolDowngradeTitle")
             }}</label>
@@ -3326,6 +3408,7 @@ const createForm = reactive({
   signature_compat_enabled: null as boolean | null,
   signature_tool_text_downgrade_enabled: null as boolean | null,
   request_compat_enabled: false,
+  normalize_message_id_enabled: false,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
   allow_messages_dispatch: false,
   opus_mapped_model: createMessagesDispatchDefaults.opus_mapped_model,
@@ -3613,6 +3696,7 @@ const editForm = reactive({
   signature_compat_enabled: null as boolean | null,
   signature_tool_text_downgrade_enabled: null as boolean | null,
   request_compat_enabled: false,
+  normalize_message_id_enabled: false,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
   allow_messages_dispatch: false,
   default_mapped_model: '',
@@ -3804,6 +3888,7 @@ const closeCreateModal = () => {
   createForm.signature_compat_enabled = null;
   createForm.signature_tool_text_downgrade_enabled = null;
   createForm.request_compat_enabled = false;
+  createForm.normalize_message_id_enabled = false;
   resetMessagesDispatchFormState(createForm);
   createForm.require_oauth_only = false;
   createForm.require_privacy_set = false;
@@ -3954,6 +4039,8 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.signature_tool_text_downgrade_enabled =
     group.signature_tool_text_downgrade_enabled ?? null;
   editForm.request_compat_enabled = group.request_compat_enabled || false;
+  editForm.normalize_message_id_enabled =
+    group.normalize_message_id_enabled || false;
   const messagesDispatchFormState = messagesDispatchConfigToFormState(
     group.messages_dispatch_model_config,
   );
@@ -4164,6 +4251,7 @@ watch(
     if (!["anthropic", "antigravity"].includes(newVal)) {
       createForm.fallback_group_id_on_invalid_request = null;
       createForm.request_compat_enabled = false;
+      createForm.normalize_message_id_enabled = false;
     }
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(createForm);
@@ -4181,6 +4269,7 @@ watch(
     if (!["anthropic", "antigravity"].includes(newVal)) {
       editForm.fallback_group_id_on_invalid_request = null;
       editForm.request_compat_enabled = false;
+      editForm.normalize_message_id_enabled = false;
     }
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(editForm);

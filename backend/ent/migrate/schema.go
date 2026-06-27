@@ -490,6 +490,7 @@ var (
 		{Name: "signature_compat_enabled", Type: field.TypeBool, Nullable: true},
 		{Name: "signature_tool_text_downgrade_enabled", Type: field.TypeBool, Nullable: true},
 		{Name: "request_compat_enabled", Type: field.TypeBool, Default: false},
+		{Name: "normalize_message_id_enabled", Type: field.TypeBool, Default: false},
 		{Name: "smart_dispatch_enabled", Type: field.TypeBool, Default: false},
 		{Name: "smart_dispatch_source_group_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "smart_dispatch_count", Type: field.TypeInt, Default: 1},
@@ -539,12 +540,12 @@ var (
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[32]},
+				Columns: []*schema.Column{GroupsColumns[33]},
 			},
 			{
 				Name:    "group_smart_dispatch_source_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[25]},
+				Columns: []*schema.Column{GroupsColumns[26]},
 			},
 		},
 	}

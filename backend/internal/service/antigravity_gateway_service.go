@@ -3898,6 +3898,9 @@ returnResponse:
 		logger.LegacyPrintf("service.antigravity_gateway", "[antigravity-Forward] transform_error error=%v body=%s", err, string(geminiBody))
 		return nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to parse upstream response")
 	}
+	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+		claudeResp = NormalizeClaudeMessageIDInJSONBody(claudeResp)
+	}
 
 	c.Data(http.StatusOK, "application/json", claudeResp)
 
@@ -4012,6 +4015,13 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 	lastDataAt := time.Now()
 
 	cw := newAntigravityClientWriter(c.Writer, flusher, "antigravity claude")
+	normalizeMessageID := NormalizeClaudeMessageIDEnabledForContext(c.Request.Context())
+	normalizeSSEEvents := func(events []byte) []byte {
+		if !normalizeMessageID || len(events) == 0 {
+			return events
+		}
+		return []byte(normalizeClaudeMessageIDInSSEBlock(string(events)))
+	}
 
 	// 仅发送一次错误事件，避免多次写入导致协议混乱
 	errorEventSent := false
@@ -4037,7 +4047,7 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 				// 上游完成，发送结束事件
 				finalEvents, agUsage := processor.Finish()
 				if len(finalEvents) > 0 {
-					cw.Write(finalEvents)
+					cw.Write(normalizeSSEEvents(finalEvents))
 				} else if !processor.MessageStartSent() && !cw.Disconnected() {
 					// 整个流未收到任何可解析的上游数据（全部 SSE 行均无法被 JSON 解析），
 					// 触发 failover 在同账号重试，避免向客户端发出缺少 message_start 的残缺流
@@ -4072,7 +4082,7 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 					ms := int(time.Since(startTime).Milliseconds())
 					firstTokenMs = &ms
 				}
-				cw.Write(claudeEvents)
+				cw.Write(normalizeSSEEvents(claudeEvents))
 			}
 
 		case <-intervalCh:
@@ -4350,6 +4360,9 @@ func (s *AntigravityGatewayService) ForwardUpstream(ctx context.Context, c *gin.
 
 		// 提取 usage
 		usage = s.extractClaudeUsage(respBody)
+		if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+			respBody = NormalizeClaudeMessageIDInJSONBody(respBody)
+		}
 
 		c.Header("Content-Type", resp.Header.Get("Content-Type"))
 		c.Status(http.StatusOK)
@@ -4449,6 +4462,7 @@ func (s *AntigravityGatewayService) streamUpstreamResponse(c *gin.Context, resp 
 
 	flusher, _ := c.Writer.(http.Flusher)
 	cw := newAntigravityClientWriter(c.Writer, flusher, "antigravity upstream")
+	normalizeMessageID := NormalizeClaudeMessageIDEnabledForContext(c.Request.Context())
 
 	for {
 		select {
@@ -4476,6 +4490,9 @@ func (s *AntigravityGatewayService) streamUpstreamResponse(c *gin.Context, resp 
 
 			// 尝试从 message_delta 或 message_stop 事件提取 usage
 			s.extractSSEUsage(line, usage)
+			if normalizeMessageID {
+				line = NormalizeClaudeMessageIDInSSELine(line)
+			}
 
 			// 透传行
 			cw.Fprintf("%s\n", line)

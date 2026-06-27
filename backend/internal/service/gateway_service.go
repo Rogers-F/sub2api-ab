@@ -5276,6 +5276,9 @@ func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(
 					firstTokenMs = &ms
 				}
 				s.parseSSEUsagePassthrough(data, usage)
+				if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+					line = NormalizeClaudeMessageIDInSSELine(line)
+				}
 			} else {
 				trimmed := strings.TrimSpace(line)
 				if strings.HasPrefix(trimmed, "event:") && anthropicStreamEventIsTerminal(strings.TrimSpace(strings.TrimPrefix(trimmed, "event:")), "") {
@@ -5590,6 +5593,9 @@ func (s *GatewayService) handleNonStreamingResponseAnthropicAPIKeyPassthrough(
 	}
 
 	usage := parseClaudeUsageFromResponseBody(body)
+	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+		body = NormalizeClaudeMessageIDInJSONBody(body)
+	}
 
 	writeAnthropicPassthroughResponseHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
@@ -5961,6 +5967,9 @@ func (s *GatewayService) handleBedrockNonStreamingResponse(
 	body = transformBedrockInvocationMetrics(body)
 
 	usage := parseClaudeUsageFromResponseBody(body)
+	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+		body = NormalizeClaudeMessageIDInJSONBody(body)
+	}
 
 	c.Header("Content-Type", "application/json")
 	if v := resp.Header.Get("x-amzn-requestid"); v != "" {
@@ -7384,6 +7393,7 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 	}
 
 	needModelReplace := originalModel != mappedModel
+	normalizeMessageID := NormalizeClaudeMessageIDEnabledForContext(c.Request.Context())
 	clientDisconnected := false // 客户端断开标志，断开后继续读取上游以获取完整usage
 	sawTerminalEvent := false
 
@@ -7441,6 +7451,13 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			eventName = eventType
 		}
 		eventChanged := false
+		if normalizeMessageID && eventType == "message_start" {
+			if msg, ok := event["message"].(map[string]any); ok {
+				currentID, _ := msg["id"].(string)
+				msg["id"] = NormalizeClaudeMessageIDForBedrock(currentID)
+				eventChanged = true
+			}
+		}
 
 		// 兼容 Kimi cached_tokens → cache_read_input_tokens
 		if eventType == "message_start" {
@@ -7899,6 +7916,9 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 	// 如果有模型映射，替换响应中的model字段
 	if originalModel != mappedModel {
 		body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
+	}
+	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+		body = NormalizeClaudeMessageIDInJSONBody(body)
 	}
 
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)

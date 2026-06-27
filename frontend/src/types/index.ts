@@ -489,6 +489,7 @@ export interface AdminGroup extends Group {
   signature_compat_enabled: boolean | null
   signature_tool_text_downgrade_enabled: boolean | null
   request_compat_enabled: boolean
+  normalize_message_id_enabled: boolean
 
   // 支持的模型系列（仅 antigravity 平台使用）
   supported_model_scopes?: string[]
@@ -589,6 +590,7 @@ export interface CreateGroupRequest {
   signature_compat_enabled?: boolean | null
   signature_tool_text_downgrade_enabled?: boolean | null
   request_compat_enabled?: boolean
+  normalize_message_id_enabled?: boolean
   mcp_xml_inject?: boolean
   supported_model_scopes?: string[]
   require_oauth_only?: boolean
@@ -621,6 +623,7 @@ export interface UpdateGroupRequest {
   signature_compat_enabled?: boolean | null
   signature_tool_text_downgrade_enabled?: boolean | null
   request_compat_enabled?: boolean
+  normalize_message_id_enabled?: boolean
   mcp_xml_inject?: boolean
   supported_model_scopes?: string[]
   require_oauth_only?: boolean

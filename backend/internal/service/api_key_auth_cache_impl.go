@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 6 // v6: added group signature compatibility switches
+const apiKeyAuthSnapshotVersion = 7 // v7: added group Claude message id normalization switch
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -254,6 +254,7 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			SignatureCompatEnabled:            apiKey.Group.SignatureCompatEnabled,
 			SignatureToolTextDowngradeEnabled: apiKey.Group.SignatureToolTextDowngradeEnabled,
 			RequestCompatEnabled:              apiKey.Group.RequestCompatEnabled,
+			NormalizeMessageIDEnabled:         apiKey.Group.NormalizeMessageIDEnabled,
 			ModelRouting:                      apiKey.Group.ModelRouting,
 			ModelRoutingEnabled:               apiKey.Group.ModelRoutingEnabled,
 			MCPXMLInject:                      apiKey.Group.MCPXMLInject,
@@ -320,6 +321,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			SignatureCompatEnabled:            snapshot.Group.SignatureCompatEnabled,
 			SignatureToolTextDowngradeEnabled: snapshot.Group.SignatureToolTextDowngradeEnabled,
 			RequestCompatEnabled:              snapshot.Group.RequestCompatEnabled,
+			NormalizeMessageIDEnabled:         snapshot.Group.NormalizeMessageIDEnabled,
 			ModelRouting:                      snapshot.Group.ModelRouting,
 			ModelRoutingEnabled:               snapshot.Group.ModelRoutingEnabled,
 			MCPXMLInject:                      snapshot.Group.MCPXMLInject,

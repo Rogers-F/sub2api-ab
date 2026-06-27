@@ -147,6 +147,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		SignatureCompatEnabled:            g.SignatureCompatEnabled,
 		SignatureToolTextDowngradeEnabled: g.SignatureToolTextDowngradeEnabled,
 		RequestCompatEnabled:              g.RequestCompatEnabled,
+		NormalizeMessageIDEnabled:         g.NormalizeMessageIDEnabled,
 		DefaultMappedModel:                g.DefaultMappedModel,
 		MessagesDispatchModelConfig:       g.MessagesDispatchModelConfig,
 		SupportedModelScopes:              g.SupportedModelScopes,

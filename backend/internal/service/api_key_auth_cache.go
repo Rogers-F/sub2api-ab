@@ -65,6 +65,7 @@ type APIKeyAuthGroupSnapshot struct {
 	SignatureCompatEnabled            *bool    `json:"signature_compat_enabled,omitempty"`
 	SignatureToolTextDowngradeEnabled *bool    `json:"signature_tool_text_downgrade_enabled,omitempty"`
 	RequestCompatEnabled              bool     `json:"request_compat_enabled"`
+	NormalizeMessageIDEnabled         bool     `json:"normalize_message_id_enabled"`
 
 	// Model routing is used by gateway account selection, so it must be part of auth cache snapshot.
 	// Only anthropic groups use these fields; others may leave them empty.

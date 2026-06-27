@@ -478,6 +478,20 @@ func (_u *GroupUpdate) SetNillableRequestCompatEnabled(v *bool) *GroupUpdate {
 	return _u
 }
 
+// SetNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field.
+func (_u *GroupUpdate) SetNormalizeMessageIDEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetNormalizeMessageIDEnabled(v)
+	return _u
+}
+
+// SetNillableNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableNormalizeMessageIDEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetNormalizeMessageIDEnabled(*v)
+	}
+	return _u
+}
+
 // SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
 func (_u *GroupUpdate) SetSmartDispatchEnabled(v bool) *GroupUpdate {
 	_u.mutation.SetSmartDispatchEnabled(v)
@@ -1150,6 +1164,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.RequestCompatEnabled(); ok {
 		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.NormalizeMessageIDEnabled(); ok {
+		_spec.SetField(group.FieldNormalizeMessageIDEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.SmartDispatchEnabled(); ok {
 		_spec.SetField(group.FieldSmartDispatchEnabled, field.TypeBool, value)
@@ -1972,6 +1989,20 @@ func (_u *GroupUpdateOne) SetNillableRequestCompatEnabled(v *bool) *GroupUpdateO
 	return _u
 }
 
+// SetNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field.
+func (_u *GroupUpdateOne) SetNormalizeMessageIDEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetNormalizeMessageIDEnabled(v)
+	return _u
+}
+
+// SetNillableNormalizeMessageIDEnabled sets the "normalize_message_id_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableNormalizeMessageIDEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetNormalizeMessageIDEnabled(*v)
+	}
+	return _u
+}
+
 // SetSmartDispatchEnabled sets the "smart_dispatch_enabled" field.
 func (_u *GroupUpdateOne) SetSmartDispatchEnabled(v bool) *GroupUpdateOne {
 	_u.mutation.SetSmartDispatchEnabled(v)
@@ -2674,6 +2705,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.RequestCompatEnabled(); ok {
 		_spec.SetField(group.FieldRequestCompatEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.NormalizeMessageIDEnabled(); ok {
+		_spec.SetField(group.FieldNormalizeMessageIDEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.SmartDispatchEnabled(); ok {
 		_spec.SetField(group.FieldSmartDispatchEnabled, field.TypeBool, value)

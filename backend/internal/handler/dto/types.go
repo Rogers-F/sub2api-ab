@@ -128,6 +128,7 @@ type AdminGroup struct {
 	SignatureCompatEnabled            *bool `json:"signature_compat_enabled"`
 	SignatureToolTextDowngradeEnabled *bool `json:"signature_tool_text_downgrade_enabled"`
 	RequestCompatEnabled              bool  `json:"request_compat_enabled"`
+	NormalizeMessageIDEnabled         bool  `json:"normalize_message_id_enabled"`
 
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
 	DefaultMappedModel          string                                   `json:"default_mapped_model"`

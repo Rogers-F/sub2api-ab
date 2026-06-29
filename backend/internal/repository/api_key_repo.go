@@ -174,6 +174,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				group.FieldSignatureCompatEnabled,
 				group.FieldSignatureToolTextDowngradeEnabled,
 				group.FieldRequestCompatEnabled,
+				group.FieldNormalizeMessageIDEnabled,
 				group.FieldModelRoutingEnabled,
 				group.FieldModelRouting,
 				group.FieldMcpXMLInject,

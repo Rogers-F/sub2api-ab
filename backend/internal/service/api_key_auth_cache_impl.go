@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 7 // v7: added group Claude message id normalization switch
+const apiKeyAuthSnapshotVersion = 8 // v8: rehydrate group Claude message id normalization switch in auth query
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int

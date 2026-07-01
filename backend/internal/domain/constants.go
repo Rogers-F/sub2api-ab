@@ -123,6 +123,8 @@ var DefaultAntigravityModelMapping = map[string]string{
 var DefaultBedrockModelMapping = map[string]string{
 	// Claude Fable
 	"claude-fable-5": "anthropic.claude-fable-5",
+	// Claude Sonnet 5
+	"claude-sonnet-5": "anthropic.claude-sonnet-5",
 	// Claude Opus
 	"claude-opus-4-8":          "us.anthropic.claude-opus-4-8-v1",
 	"claude-opus-4-7":          "us.anthropic.claude-opus-4-7-v1",

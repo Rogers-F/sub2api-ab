@@ -85,6 +85,16 @@ var (
 		Mode:                                "chat",
 		SupportsPromptCaching:               true,
 	}
+	claudeSonnet5FallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   2e-06,
+		OutputCostPerToken:                  10e-06,
+		CacheCreationInputTokenCost:         2.5e-06,
+		CacheCreationInputTokenCostAbove1hr: 4e-06,
+		CacheReadInputTokenCost:             0.2e-06,
+		LiteLLMProvider:                     "anthropic",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
 )
 
 // LiteLLMModelPricing LiteLLM价格数据结构
@@ -630,18 +640,24 @@ func (s *PricingService) GetModelPricing(modelName string) *LiteLLMModelPricing 
 		}
 	}
 
-	// 4. 基于模型系列匹配（Claude）
-	if pricing := s.matchByModelFamily(lookupCandidates[0]); pricing != nil {
-		return pricing
-	}
-
-	// 5. Claude 新模型静态兜底：远程价格源滞后时仍可正确计费。
+	// 4. Claude 新模型静态兜底：远程价格源滞后时仍可正确计费。
+	// 必须放在 Claude 系列模糊匹配前，避免 claude-sonnet-5 误配到 Sonnet 4 价格。
 	for _, candidate := range lookupCandidates {
+		if strings.Contains(candidate, "claude-sonnet-5") {
+			logger.With(zap.String("component", "service.pricing")).
+				Info(fmt.Sprintf("[Pricing] Claude fallback matched %s -> %s", modelName, "claude-sonnet-5(static)"))
+			return claudeSonnet5FallbackPricing
+		}
 		if strings.Contains(candidate, "claude-fable-5") {
 			logger.With(zap.String("component", "service.pricing")).
 				Info(fmt.Sprintf("[Pricing] Claude fallback matched %s -> %s", modelName, "claude-fable-5(static)"))
 			return claudeFable5FallbackPricing
 		}
+	}
+
+	// 5. 基于模型系列匹配（Claude）
+	if pricing := s.matchByModelFamily(lookupCandidates[0]); pricing != nil {
+		return pricing
 	}
 
 	// 6. OpenAI 模型回退策略

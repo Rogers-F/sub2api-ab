@@ -83,6 +83,26 @@ func TestFallbackPricingContainsClaudeFable5OfficialPricing(t *testing.T) {
 	require.True(t, pricing.SupportsPromptCaching)
 }
 
+func TestFallbackPricingContainsClaudeSonnet5IntroductoryPricing(t *testing.T) {
+	body, err := os.ReadFile("../../resources/model-pricing/model_prices_and_context_window.json")
+	require.NoError(t, err)
+
+	svc := &PricingService{}
+	pricingMap, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+
+	pricing := pricingMap["claude-sonnet-5"]
+	require.NotNil(t, pricing)
+	require.InDelta(t, 2e-6, pricing.InputCostPerToken, 1e-12)
+	require.InDelta(t, 10e-6, pricing.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 2.5e-6, pricing.CacheCreationInputTokenCost, 1e-12)
+	require.InDelta(t, 4e-6, pricing.CacheCreationInputTokenCostAbove1hr, 1e-12)
+	require.InDelta(t, 0.2e-6, pricing.CacheReadInputTokenCost, 1e-12)
+	require.Equal(t, "anthropic", pricing.LiteLLMProvider)
+	require.Equal(t, "chat", pricing.Mode)
+	require.True(t, pricing.SupportsPromptCaching)
+}
+
 func TestGetModelPricing_Gpt53CodexSparkUsesGpt51CodexPricing(t *testing.T) {
 	sparkPricing := &LiteLLMModelPricing{InputCostPerToken: 1}
 	gpt53Pricing := &LiteLLMModelPricing{InputCostPerToken: 9}
@@ -193,6 +213,24 @@ func TestGetModelPricing_ClaudeFable5UsesStaticFallbackWhenRemoteMissing(t *test
 	require.InDelta(t, 12.5e-6, got.CacheCreationInputTokenCost, 1e-12)
 	require.InDelta(t, 20e-6, got.CacheCreationInputTokenCostAbove1hr, 1e-12)
 	require.InDelta(t, 1e-6, got.CacheReadInputTokenCost, 1e-12)
+	require.Equal(t, "anthropic", got.LiteLLMProvider)
+	require.True(t, got.SupportsPromptCaching)
+}
+
+func TestGetModelPricing_ClaudeSonnet5UsesStaticFallbackWhenRemoteMissing(t *testing.T) {
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"claude-sonnet-4-6": {InputCostPerToken: 3e-6},
+		},
+	}
+
+	got := svc.GetModelPricing("claude-sonnet-5")
+	require.NotNil(t, got)
+	require.InDelta(t, 2e-6, got.InputCostPerToken, 1e-12)
+	require.InDelta(t, 10e-6, got.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 2.5e-6, got.CacheCreationInputTokenCost, 1e-12)
+	require.InDelta(t, 4e-6, got.CacheCreationInputTokenCostAbove1hr, 1e-12)
+	require.InDelta(t, 0.2e-6, got.CacheReadInputTokenCost, 1e-12)
 	require.Equal(t, "anthropic", got.LiteLLMProvider)
 	require.True(t, got.SupportsPromptCaching)
 }

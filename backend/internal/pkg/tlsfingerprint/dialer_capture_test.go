@@ -4,7 +4,9 @@ package tlsfingerprint
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -14,6 +16,8 @@ import (
 
 	utls "github.com/refraction-networking/utls"
 )
+
+const defaultCaptureURL = "https://tls.sub2api.org:8090"
 
 // CapturedFingerprint mirrors the Fingerprint struct from tls-fingerprint-web.
 // Used to deserialize the JSON response from the capture server.
@@ -45,7 +49,7 @@ type CapturedFingerprint struct {
 func TestDialerAgainstCaptureServer(t *testing.T) {
 	captureURL := os.Getenv("TLSFINGERPRINT_CAPTURE_URL")
 	if captureURL == "" {
-		captureURL = "https://tls.sub2api.org:8090"
+		captureURL = defaultCaptureURL
 	}
 
 	tests := []struct {
@@ -211,6 +215,10 @@ func fetchCapturedFingerprint(t *testing.T, captureURL string, profile *Profile)
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if isDefaultCaptureServerUnavailable(captureURL, err) {
+			t.Skipf("skipping test: default capture server unavailable: %v", err)
+			return nil
+		}
 		t.Fatalf("request failed: %v", err)
 		return nil
 	}
@@ -230,6 +238,33 @@ func fetchCapturedFingerprint(t *testing.T, captureURL string, profile *Profile)
 	}
 
 	return &fp
+}
+
+func isDefaultCaptureServerUnavailable(captureURL string, err error) bool {
+	if err == nil {
+		return false
+	}
+	effectiveURL := captureURL
+	if effectiveURL == "" {
+		effectiveURL = defaultCaptureURL
+	}
+	if strings.TrimRight(effectiveURL, "/") != defaultCaptureURL {
+		return false
+	}
+
+	var certErr x509.CertificateInvalidError
+	if errors.As(err, &certErr) && certErr.Reason == x509.Expired {
+		return true
+	}
+
+	errStr := err.Error()
+	return strings.Contains(errStr, "certificate has expired") ||
+		strings.Contains(errStr, "certificate is not yet valid") ||
+		strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "no such host") ||
+		strings.Contains(errStr, "network is unreachable") ||
+		strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "deadline exceeded")
 }
 
 func uint16sToInts(vals []uint16) []int {

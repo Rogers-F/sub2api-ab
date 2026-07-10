@@ -218,6 +218,25 @@ func TestGetModelPricing_OpenAIGPT55ProFallback(t *testing.T) {
 	require.InDelta(t, 1.5, pricing.LongContextOutputMultiplier, 1e-12)
 }
 
+func TestGetModelPricing_OpenAIGPT56Fallback(t *testing.T) {
+	svc := newTestBillingService()
+
+	for _, model := range []string{"gpt-5.6-sol", "gpt-5.6-terra-high", "gpt-5.6-luna-2026-06-08"} {
+		pricing, err := svc.GetModelPricing(model)
+		require.NoError(t, err, model)
+		require.NotNil(t, pricing, model)
+		require.InDelta(t, 5e-6, pricing.InputPricePerToken, 1e-12, model)
+		require.InDelta(t, 30e-6, pricing.OutputPricePerToken, 1e-12, model)
+		require.InDelta(t, 0.5e-6, pricing.CacheReadPricePerToken, 1e-12, model)
+		require.InDelta(t, 10e-6, pricing.InputPricePerTokenPriority, 1e-12, model)
+		require.InDelta(t, 60e-6, pricing.OutputPricePerTokenPriority, 1e-12, model)
+		require.InDelta(t, 1e-6, pricing.CacheReadPricePerTokenPriority, 1e-12, model)
+		require.Equal(t, 272000, pricing.LongContextInputThreshold, model)
+		require.InDelta(t, 2.0, pricing.LongContextInputMultiplier, 1e-12, model)
+		require.InDelta(t, 1.5, pricing.LongContextOutputMultiplier, 1e-12, model)
+	}
+}
+
 func TestGetModelPricing_OpenAIGPTImage2Fallback(t *testing.T) {
 	svc := newTestBillingService()
 

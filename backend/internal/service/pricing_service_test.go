@@ -302,6 +302,28 @@ func TestGetModelPricing_Gpt55ProUsesDedicatedStaticFallbackWhenRemoteMissing(t 
 	require.InDelta(t, 1.5, got.LongContextOutputCostMultiplier, 1e-12)
 }
 
+func TestGetModelPricing_Gpt56UsesDedicatedStaticFallbackWhenRemoteMissing(t *testing.T) {
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"gpt-5.4": {InputCostPerToken: 2.5e-6},
+		},
+	}
+
+	for _, model := range []string{"gpt-5.6-sol", "gpt-5.6-terra-high", "gpt-5.6-luna-2026-06-08"} {
+		got := svc.GetModelPricing(model)
+		require.NotNil(t, got, model)
+		require.InDelta(t, 5e-6, got.InputCostPerToken, 1e-12, model)
+		require.InDelta(t, 30e-6, got.OutputCostPerToken, 1e-12, model)
+		require.InDelta(t, 0.5e-6, got.CacheReadInputTokenCost, 1e-12, model)
+		require.InDelta(t, 10e-6, got.InputCostPerTokenPriority, 1e-12, model)
+		require.InDelta(t, 60e-6, got.OutputCostPerTokenPriority, 1e-12, model)
+		require.InDelta(t, 1e-6, got.CacheReadInputTokenCostPriority, 1e-12, model)
+		require.Equal(t, 272000, got.LongContextInputTokenThreshold, model)
+		require.InDelta(t, 2.0, got.LongContextInputCostMultiplier, 1e-12, model)
+		require.InDelta(t, 1.5, got.LongContextOutputCostMultiplier, 1e-12, model)
+	}
+}
+
 func TestParsePricingData_PreservesPriorityAndServiceTierFields(t *testing.T) {
 	raw := map[string]any{
 		"gpt-5.4": map[string]any{

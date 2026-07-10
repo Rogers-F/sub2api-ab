@@ -11,6 +11,9 @@ func TestCodexPresetInstructionsForModelMatchesPrettyAPIPriority(t *testing.T) {
 		model string
 		want  string
 	}{
+		{model: "gpt-5.6-sol", want: "You are Codex, a coding agent based on GPT-5"},
+		{model: "gpt-5.6-terra", want: "You are Codex, a coding agent based on GPT-5"},
+		{model: "gpt-5.6-luna", want: "You are Codex, a coding agent based on GPT-5"},
 		{model: "gpt-5.5", want: "You are Codex, a coding agent based on GPT-5"},
 		{model: "gpt-5.5-pro", want: "You are Codex, a coding agent based on GPT-5"},
 		{model: "gpt-5.3-codex", want: "You are Codex, based on GPT-5"},

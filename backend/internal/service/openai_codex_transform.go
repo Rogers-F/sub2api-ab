@@ -7,6 +7,9 @@ import (
 )
 
 var codexModelMap = map[string]string{
+	"gpt-5.6-sol":                "gpt-5.6-sol",
+	"gpt-5.6-terra":              "gpt-5.6-terra",
+	"gpt-5.6-luna":               "gpt-5.6-luna",
 	"gpt-5.4":                    "gpt-5.4",
 	"gpt-5.4-mini":               "gpt-5.4-mini",
 	"gpt-5.4-none":               "gpt-5.4",
@@ -209,6 +212,9 @@ func normalizeCodexModel(model string) string {
 
 	normalized := strings.ToLower(modelID)
 
+	if mapped := normalizeOpenAIGPT56ModelName(normalized); mapped != "" {
+		return mapped
+	}
 	if strings.Contains(normalized, "gpt-5.5-pro") || strings.Contains(normalized, "gpt 5.5 pro") {
 		return "gpt-5.5-pro"
 	}
@@ -241,6 +247,27 @@ func normalizeCodexModel(model string) string {
 	}
 
 	return "gpt-5.4"
+}
+
+func normalizeOpenAIGPT56ModelName(model string) string {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	if normalized == "" {
+		return ""
+	}
+	if strings.Contains(normalized, "/") {
+		parts := strings.Split(normalized, "/")
+		normalized = parts[len(parts)-1]
+	}
+	switch {
+	case strings.Contains(normalized, "gpt-5.6-sol") || strings.Contains(normalized, "gpt 5.6 sol"):
+		return "gpt-5.6-sol"
+	case strings.Contains(normalized, "gpt-5.6-terra") || strings.Contains(normalized, "gpt 5.6 terra"):
+		return "gpt-5.6-terra"
+	case strings.Contains(normalized, "gpt-5.6-luna") || strings.Contains(normalized, "gpt 5.6 luna"):
+		return "gpt-5.6-luna"
+	default:
+		return ""
+	}
 }
 
 func firstNonEmptyString(values ...any) string {

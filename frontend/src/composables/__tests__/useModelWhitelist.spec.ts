@@ -7,9 +7,12 @@ vi.mock('@/api/admin/accounts', () => ({
 import { buildModelMappingObject, getModelsByPlatform, getPresetMappingsByPlatform } from '../useModelWhitelist'
 
 describe('useModelWhitelist', () => {
-  it('openai 模型列表包含 GPT-5.5 与 GPT-5.4 官方模型', () => {
+  it('openai 模型列表包含 GPT-5.6、GPT-5.5 与 GPT-5.4 官方模型', () => {
     const models = getModelsByPlatform('openai')
 
+    expect(models).toContain('gpt-5.6-sol')
+    expect(models).toContain('gpt-5.6-terra')
+    expect(models).toContain('gpt-5.6-luna')
     expect(models).toContain('gpt-5.5')
     expect(models).toContain('gpt-5.5-pro')
     expect(models).toContain('gpt-5.5-2026-04-23')
@@ -17,6 +20,16 @@ describe('useModelWhitelist', () => {
     expect(models).toContain('gpt-5.4-mini')
     expect(models).toContain('gpt-5.4-2026-03-05')
     expect(models).toContain('gpt-image-2')
+  })
+
+  it('openai 预设映射包含 GPT-5.6 三模型透传', () => {
+    expect(getPresetMappingsByPlatform('openai')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'GPT-5.6 Sol', from: 'gpt-5.6-sol', to: 'gpt-5.6-sol' }),
+        expect.objectContaining({ label: 'GPT-5.6 Terra', from: 'gpt-5.6-terra', to: 'gpt-5.6-terra' }),
+        expect.objectContaining({ label: 'GPT-5.6 Luna', from: 'gpt-5.6-luna', to: 'gpt-5.6-luna' })
+      ])
+    )
   })
 
   it('openai 模型列表不再暴露已下线的 ChatGPT 登录 Codex 模型', () => {

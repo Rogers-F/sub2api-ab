@@ -49,5 +49,11 @@ describe('UseKeyModal', () => {
     expect(codeBlock.exists()).toBe(true)
     expect(codeBlock.text()).toContain('"name": "GPT-5.4 Mini"')
     expect(codeBlock.text()).not.toContain('"name": "GPT-5.4 Nano"')
+
+    const config = JSON.parse(codeBlock.text())
+    const expectedReasoningEfforts = ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+    for (const model of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+      expect(Object.keys(config.provider.openai.models[model].variants)).toEqual(expectedReasoningEfforts)
+    }
   })
 })

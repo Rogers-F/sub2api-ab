@@ -14,6 +14,7 @@ type codexPresetRule struct {
 }
 
 var codexPresetRules = []codexPresetRule{
+	{prefixes: []string{"gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"}, file: "gpt-5.4_prompt.md"},
 	{prefixes: []string{"gpt-5.4"}, file: "gpt-5.4_prompt.md"},
 	{prefixes: []string{"gpt-5.5-pro"}, file: "gpt-5.4_prompt.md"},
 	{prefixes: []string{"gpt-5.5"}, file: "gpt-5.4_prompt.md"},

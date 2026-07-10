@@ -66,6 +66,9 @@ const (
 	openAIGPT55LongContextInputThreshold   = 270000
 	openAIGPT55LongContextInputMultiplier  = 2.0
 	openAIGPT55LongContextOutputMultiplier = 1.5
+	openAIGPT56LongContextInputThreshold   = 272000
+	openAIGPT56LongContextInputMultiplier  = 2.0
+	openAIGPT56LongContextOutputMultiplier = 1.5
 )
 
 func normalizeBillingServiceTier(serviceTier string) string {
@@ -254,6 +257,23 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextInputMultiplier:  openAIGPT55LongContextInputMultiplier,
 		LongContextOutputMultiplier: openAIGPT55LongContextOutputMultiplier,
 	}
+	// OpenAI GPT-5.6（sol / terra / luna）
+	gpt56Pricing := &ModelPricing{
+		InputPricePerToken:             5e-6,   // $5 per MTok
+		InputPricePerTokenPriority:     10e-6,  // $10 per MTok
+		OutputPricePerToken:            30e-6,  // $30 per MTok
+		OutputPricePerTokenPriority:    60e-6,  // $60 per MTok
+		CacheCreationPricePerToken:     5e-6,   // $5 per MTok
+		CacheReadPricePerToken:         0.5e-6, // $0.50 per MTok
+		CacheReadPricePerTokenPriority: 1e-6,   // $1 per MTok
+		SupportsCacheBreakdown:         false,
+		LongContextInputThreshold:      openAIGPT56LongContextInputThreshold,
+		LongContextInputMultiplier:     openAIGPT56LongContextInputMultiplier,
+		LongContextOutputMultiplier:    openAIGPT56LongContextOutputMultiplier,
+	}
+	s.fallbackPrices["gpt-5.6-sol"] = gpt56Pricing
+	s.fallbackPrices["gpt-5.6-terra"] = gpt56Pricing
+	s.fallbackPrices["gpt-5.6-luna"] = gpt56Pricing
 	// OpenAI GPT-5.2（本地兜底）
 	s.fallbackPrices["gpt-5.2"] = &ModelPricing{
 		InputPricePerToken:             1.75e-6,
@@ -336,6 +356,8 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	if strings.Contains(modelLower, "gpt-5") || strings.Contains(modelLower, "codex") {
 		normalized := normalizeCodexModel(modelLower)
 		switch normalized {
+		case "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna":
+			return s.fallbackPrices[normalized]
 		case "gpt-5.5-pro":
 			return s.fallbackPrices["gpt-5.5-pro"]
 		case "gpt-5.5":
@@ -708,6 +730,12 @@ func openAILongContextPricingPolicy(model string) (openAILongContextPolicy, bool
 			inputThreshold:   openAIGPT55LongContextInputThreshold,
 			inputMultiplier:  openAIGPT55LongContextInputMultiplier,
 			outputMultiplier: openAIGPT55LongContextOutputMultiplier,
+		}, true
+	case "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna":
+		return openAILongContextPolicy{
+			inputThreshold:   openAIGPT56LongContextInputThreshold,
+			inputMultiplier:  openAIGPT56LongContextInputMultiplier,
+			outputMultiplier: openAIGPT56LongContextOutputMultiplier,
 		}, true
 	default:
 		return openAILongContextPolicy{}, false

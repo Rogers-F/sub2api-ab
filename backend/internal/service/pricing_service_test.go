@@ -42,6 +42,23 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestFallbackPricingContainsClaudeOpus5OfficialPricing(t *testing.T) {
+	body, err := os.ReadFile("../../resources/model-pricing/model_prices_and_context_window.json")
+	require.NoError(t, err)
+
+	svc := &PricingService{}
+	pricingMap, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+
+	pricing := pricingMap["claude-opus-5"]
+	require.NotNil(t, pricing)
+	require.InDelta(t, 5e-6, pricing.InputCostPerToken, 1e-12)
+	require.InDelta(t, 25e-6, pricing.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 6.25e-6, pricing.CacheCreationInputTokenCost, 1e-12)
+	require.InDelta(t, 10e-6, pricing.CacheCreationInputTokenCostAbove1hr, 1e-12)
+	require.InDelta(t, 0.5e-6, pricing.CacheReadInputTokenCost, 1e-12)
+}
+
 func TestFallbackPricingContainsClaudeOpus48CompleteOpus47Fields(t *testing.T) {
 	body, err := os.ReadFile("../../resources/model-pricing/model_prices_and_context_window.json")
 	require.NoError(t, err)

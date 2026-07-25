@@ -51,7 +51,8 @@ describe('useModelWhitelist', () => {
     expect(models).toContain('gemini-3-pro-image')
   })
 
-  it('账号模型列表包含 Claude Opus 4.8', () => {
+  it('账号模型列表包含 Claude Opus 5', () => {
+    expect(getModelsByPlatform('anthropic')).toContain('claude-opus-5')
     expect(getModelsByPlatform('anthropic')).toContain('claude-opus-4-8')
     expect(getModelsByPlatform('antigravity')).toContain('claude-opus-4-8')
   })

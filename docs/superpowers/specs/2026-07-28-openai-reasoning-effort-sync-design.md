@@ -220,8 +220,9 @@ Validation behavior:
 - Duplicate sources are rejected case-insensitively after normalization.
 - API responses return canonical values.
 
-Group duplication copies the normalized policy. Repository mapping, shallow and
-admin DTOs, and all group read paths carry both fields.
+Repository mapping, shallow and admin DTOs, and all group read paths carry both
+fields. The local fork has no group-duplication API, so the upstream duplication
+path is not applicable here.
 
 ## Authentication Cache
 
@@ -229,10 +230,9 @@ admin DTOs, and all group read paths carry both fields.
 rehydration deep-copy the mappings slice so cache entries cannot share mutable
 mapping data.
 
-Create, update, platform change, and group duplication invalidate the same
-group-scoped API-key authentication cache used by existing group routing
-fields. Cache version tests verify old snapshots are refreshed rather than
-silently dropping the new fields.
+Create, update, and platform change invalidate the same group-scoped API-key
+authentication cache used by existing group routing fields. Cache version tests
+verify old snapshots are refreshed rather than silently dropping the new fields.
 
 ## Management UI
 
@@ -284,8 +284,8 @@ split-locale changes are adapted to the local i18n layout.
 - Responses HTTP applies group mapping and ceiling before forwarding.
 - Chat Completions raw and converted paths record the effective effort.
 - WebSocket applies policy per turn and records mapped/original model metadata.
-- Group create, update, duplicate, platform change, repository mapping, and DTO
-  output preserve canonical policy.
+- Group create, update, platform change, repository mapping, and DTO output
+  preserve canonical policy.
 - Authentication cache snapshot round-trip and invalidation include the policy.
 - Migration succeeds on both empty and already-columned databases.
 

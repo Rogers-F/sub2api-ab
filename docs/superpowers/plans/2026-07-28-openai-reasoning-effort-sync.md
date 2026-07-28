@@ -17,7 +17,7 @@
 - `backend/internal/service/openai_reasoning_effort_policy_test.go`: pure policy contract.
 - `backend/migrations/132_add_group_reasoning_effort_policy.sql`: additive group columns.
 - `backend/ent/schema/group.go` and generated `backend/ent/**`: persistence schema and generated accessors.
-- `backend/internal/service/group.go`, `admin_service.go`, `admin_service_group_test.go`: service fields, create/update validation, duplication, and cache invalidation behavior.
+- `backend/internal/service/group.go`, `admin_service.go`, `admin_service_group_test.go`: service fields, create/update validation, and cache invalidation behavior. This fork has no group-duplication API to extend.
 - `backend/internal/repository/group_repo.go`, `api_key_repo.go`: persistence writes and entity mapping.
 - `backend/internal/handler/admin/group_handler.go`, `backend/internal/handler/dto/{types,mappers}.go`: admin input/output contract.
 - `backend/internal/service/api_key_auth_cache.go`, `api_key_auth_cache_impl.go` and cache tests: versioned, deep-copied policy snapshot.
@@ -125,7 +125,7 @@ git commit -m "feat(openai): add group reasoning effort policy"
 
 - [ ] **Step 1: Write failing service, handler, DTO, and cache tests**
 
-Add tests proving create/update canonicalize `MAX` and `x-high`, reject non-OpenAI policy and duplicate mappings, clear policy when a group leaves OpenAI, copy independent mapping slices when duplicating, emit canonical fields in the admin DTO, and deep-copy both snapshot directions. A cache mutation assertion must follow this shape:
+Add tests proving create/update canonicalize `MAX` and `x-high`, reject non-OpenAI policy and duplicate mappings, clear policy when a group leaves OpenAI, emit canonical fields in the admin DTO, and deep-copy both snapshot directions. The local fork does not expose the upstream group-duplication workflow. A cache mutation assertion must follow this shape:
 
 ```go
 snapshot := svc.snapshotFromAPIKey(apiKey)
@@ -164,7 +164,7 @@ Run: `cd backend && go generate ./ent`
 
 Expected: Ent accessors/mutations/schema include both columns.
 
-- [ ] **Step 4: Thread fields through service, repository, handler, DTO, duplication, and cache**
+- [ ] **Step 4: Thread fields through service, repository, handler, DTO, and cache**
 
 Add the exact fields to every boundary:
 

@@ -8,6 +8,7 @@ import (
 )
 
 type OpenAIMessagesDispatchModelConfig = domain.OpenAIMessagesDispatchModelConfig
+type ReasoningEffortMapping = domain.ReasoningEffortMapping
 
 type Group struct {
 	ID             int64
@@ -66,6 +67,8 @@ type Group struct {
 	RequirePrivacySet           bool // 调度时仅允许 privacy 已成功设置的账号（OpenAI/Antigravity/Anthropic/Gemini）
 	DefaultMappedModel          string
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
+	MaxReasoningEffort          string
+	ReasoningEffortMappings     []ReasoningEffortMapping
 
 	// 智能调度：目标分组正常状态账号不足时从号池分组移动账号过来。
 	SmartDispatchEnabled           bool

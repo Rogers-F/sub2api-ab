@@ -552,6 +552,83 @@ func TestAdminService_UpdateGroup_ClearsMessagesDispatchFieldsWhenPlatformChange
 	require.Equal(t, OpenAIMessagesDispatchModelConfig{}, repo.updated.MessagesDispatchModelConfig)
 }
 
+func TestAdminService_CreateGroup_NormalizesReasoningEffortPolicy(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	created, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:               "openai-reasoning",
+		Platform:           PlatformOpenAI,
+		RateMultiplier:     1,
+		MaxReasoningEffort: " X-HIGH ",
+		ReasoningEffortMappings: []ReasoningEffortMapping{
+			{From: " MAX ", To: " high "},
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	require.NotNil(t, repo.created)
+	require.Equal(t, "xhigh", repo.created.MaxReasoningEffort)
+	require.Equal(t, []ReasoningEffortMapping{{From: "max", To: "high"}}, repo.created.ReasoningEffortMappings)
+}
+
+func TestAdminService_CreateGroup_RejectsReasoningEffortPolicyForNonOpenAIPlatform(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	_, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:               "anthropic-reasoning",
+		Platform:           PlatformAnthropic,
+		RateMultiplier:     1,
+		MaxReasoningEffort: "high",
+	})
+
+	require.ErrorContains(t, err, "INVALID_MAX_REASONING_EFFORT")
+	require.Nil(t, repo.created)
+}
+
+func TestAdminService_UpdateGroup_ClearsReasoningEffortPolicyWhenPlatformChangesAwayFromOpenAI(t *testing.T) {
+	existing := &Group{
+		ID:                 7,
+		Name:               "openai-reasoning",
+		Platform:           PlatformOpenAI,
+		Status:             StatusActive,
+		RateMultiplier:     1,
+		MaxReasoningEffort: "max",
+		ReasoningEffortMappings: []ReasoningEffortMapping{
+			{From: "max", To: "xhigh"},
+		},
+	}
+	repo := &groupRepoStubForAdmin{getByID: existing}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	updated, err := svc.UpdateGroup(context.Background(), existing.ID, &UpdateGroupInput{Platform: PlatformGemini})
+
+	require.NoError(t, err)
+	require.NotNil(t, updated)
+	require.NotNil(t, repo.updated)
+	require.Equal(t, PlatformGemini, repo.updated.Platform)
+	require.Empty(t, repo.updated.MaxReasoningEffort)
+	require.NotNil(t, repo.updated.ReasoningEffortMappings)
+	require.Empty(t, repo.updated.ReasoningEffortMappings)
+}
+
+func TestAdminService_UpdateGroup_RejectsDuplicateReasoningEffortMappingSources(t *testing.T) {
+	existing := &Group{ID: 7, Name: "openai-reasoning", Platform: PlatformOpenAI, Status: StatusActive, RateMultiplier: 1}
+	repo := &groupRepoStubForAdmin{getByID: existing}
+	svc := &adminServiceImpl{groupRepo: repo}
+	mappings := []ReasoningEffortMapping{
+		{From: "max", To: "xhigh"},
+		{From: " MAX ", To: "high"},
+	}
+
+	_, err := svc.UpdateGroup(context.Background(), existing.ID, &UpdateGroupInput{ReasoningEffortMappings: &mappings})
+
+	require.ErrorContains(t, err, "duplicate")
+	require.Nil(t, repo.updated)
+}
+
 func TestAdminService_ListGroups_WithSearch(t *testing.T) {
 	// 测试：
 	// 1. search 参数正常传递到 repository 层

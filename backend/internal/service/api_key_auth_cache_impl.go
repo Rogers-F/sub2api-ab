@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 8 // v8: rehydrate group Claude message id normalization switch in auth query
+const apiKeyAuthSnapshotVersion = 9 // v9: include OpenAI group reasoning effort ceiling and mappings
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -262,6 +262,8 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			AllowMessagesDispatch:             apiKey.Group.AllowMessagesDispatch,
 			DefaultMappedModel:                apiKey.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:       apiKey.Group.MessagesDispatchModelConfig,
+			MaxReasoningEffort:                apiKey.Group.MaxReasoningEffort,
+			ReasoningEffortMappings:           cloneReasoningEffortMappings(apiKey.Group.ReasoningEffortMappings),
 		}
 	}
 	return snapshot
@@ -329,7 +331,10 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			AllowMessagesDispatch:             snapshot.Group.AllowMessagesDispatch,
 			DefaultMappedModel:                snapshot.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:       snapshot.Group.MessagesDispatchModelConfig,
+			MaxReasoningEffort:                snapshot.Group.MaxReasoningEffort,
+			ReasoningEffortMappings:           cloneReasoningEffortMappings(snapshot.Group.ReasoningEffortMappings),
 		}
+		sanitizeGroupReasoningEffortPolicy(apiKey.Group)
 	}
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey

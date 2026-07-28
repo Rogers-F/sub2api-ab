@@ -140,6 +140,27 @@ func (s *GroupRepoSuite) TestGetByID_PreservesMessagesDispatchModelConfig() {
 	s.Require().Equal(group.MessagesDispatchModelConfig, got.MessagesDispatchModelConfig)
 }
 
+func (s *GroupRepoSuite) TestGetByID_PreservesReasoningEffortPolicy() {
+	group := &service.Group{
+		Name:               "openai-reasoning-policy",
+		Platform:           service.PlatformOpenAI,
+		RateMultiplier:     1,
+		IsExclusive:        false,
+		Status:             service.StatusActive,
+		SubscriptionType:   service.SubscriptionTypeStandard,
+		MaxReasoningEffort: "xhigh",
+		ReasoningEffortMappings: []service.ReasoningEffortMapping{
+			{From: "max", To: "xhigh"},
+		},
+	}
+
+	s.Require().NoError(s.repo.Create(s.ctx, group))
+	got, err := s.repo.GetByID(s.ctx, group.ID)
+	s.Require().NoError(err)
+	s.Require().Equal("xhigh", got.MaxReasoningEffort)
+	s.Require().Equal([]service.ReasoningEffortMapping{{From: "max", To: "xhigh"}}, got.ReasoningEffortMappings)
+}
+
 func (s *GroupRepoSuite) TestDelete() {
 	group := &service.Group{
 		Name:             "to-delete",

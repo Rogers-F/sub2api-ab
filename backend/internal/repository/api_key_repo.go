@@ -182,6 +182,8 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				group.FieldAllowMessagesDispatch,
 				group.FieldDefaultMappedModel,
 				group.FieldMessagesDispatchModelConfig,
+				group.FieldMaxReasoningEffort,
+				group.FieldReasoningEffortMappings,
 			)
 		}).
 		Only(ctx)
@@ -687,7 +689,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 	if g == nil {
 		return nil
 	}
-	return &service.Group{
+	out := &service.Group{
 		ID:                                g.ID,
 		Name:                              g.Name,
 		Description:                       derefString(g.Description),
@@ -721,6 +723,8 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		RequirePrivacySet:                 g.RequirePrivacySet,
 		DefaultMappedModel:                g.DefaultMappedModel,
 		MessagesDispatchModelConfig:       g.MessagesDispatchModelConfig,
+		MaxReasoningEffort:                g.MaxReasoningEffort,
+		ReasoningEffortMappings:           g.ReasoningEffortMappings,
 		SmartDispatchEnabled:              g.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        g.SmartDispatchSourceGroupID,
 		SmartDispatchCount:                g.SmartDispatchCount,
@@ -728,6 +732,8 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		CreatedAt:                         g.CreatedAt,
 		UpdatedAt:                         g.UpdatedAt,
 	}
+	service.SanitizeGroupReasoningEffortPolicy(out)
+	return out
 }
 
 func derefString(s *string) string {

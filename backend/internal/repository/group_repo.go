@@ -76,6 +76,8 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
+		SetMaxReasoningEffort(groupIn.MaxReasoningEffort).
+		SetReasoningEffortMappings(groupIn.ReasoningEffortMappings).
 		SetSmartDispatchEnabled(groupIn.SmartDispatchEnabled).
 		SetNillableSmartDispatchSourceGroupID(groupIn.SmartDispatchSourceGroupID).
 		SetSmartDispatchCount(smartDispatchCount).
@@ -157,6 +159,8 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
+		SetMaxReasoningEffort(groupIn.MaxReasoningEffort).
+		SetReasoningEffortMappings(groupIn.ReasoningEffortMappings).
 		SetSmartDispatchEnabled(groupIn.SmartDispatchEnabled).
 		SetSmartDispatchCount(smartDispatchCount).
 		SetSmartDispatchMinNormalAccounts(smartDispatchMinNormalAccounts)

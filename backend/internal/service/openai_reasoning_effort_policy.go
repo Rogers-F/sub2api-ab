@@ -137,7 +137,9 @@ func mapReasoningEffort(raw string, mappings []ReasoningEffortMapping) string {
 	return value
 }
 
-func sanitizeGroupReasoningEffortPolicy(group *Group) {
+// SanitizeGroupReasoningEffortPolicy canonicalizes a trusted group loaded from
+// storage and resets stale or platform-incompatible policy data to neutral.
+func SanitizeGroupReasoningEffortPolicy(group *Group) {
 	if group == nil {
 		return
 	}
@@ -152,6 +154,17 @@ func sanitizeGroupReasoningEffortPolicy(group *Group) {
 	}
 	group.MaxReasoningEffort = maxEffort
 	group.ReasoningEffortMappings = mappings
+}
+
+func sanitizeGroupReasoningEffortPolicy(group *Group) {
+	SanitizeGroupReasoningEffortPolicy(group)
+}
+
+func cloneReasoningEffortMappings(mappings []ReasoningEffortMapping) []ReasoningEffortMapping {
+	if len(mappings) == 0 {
+		return []ReasoningEffortMapping{}
+	}
+	return append([]ReasoningEffortMapping(nil), mappings...)
 }
 
 // ApplyOpenAIReasoningEffortPolicy applies one exact mapping and then caps

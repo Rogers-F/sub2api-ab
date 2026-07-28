@@ -306,6 +306,67 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesNormalizeMessageIDEnabled(t *t
 	require.True(t, roundTrip.Group.NormalizeMessageIDEnabled)
 }
 
+func TestAPIKeyService_SnapshotRoundTrip_PreservesIndependentReasoningEffortPolicy(t *testing.T) {
+	svc := NewAPIKeyService(nil, nil, nil, nil, nil, nil, &config.Config{})
+	groupID := int64(9)
+	apiKey := &APIKey{
+		ID:      1,
+		UserID:  2,
+		GroupID: &groupID,
+		Key:     "k-roundtrip-reasoning",
+		Status:  StatusActive,
+		User: &User{
+			ID:          2,
+			Status:      StatusActive,
+			Role:        RoleUser,
+			Balance:     10,
+			Concurrency: 3,
+		},
+		Group: &Group{
+			ID:                 groupID,
+			Name:               "openai",
+			Platform:           PlatformOpenAI,
+			Status:             StatusActive,
+			SubscriptionType:   SubscriptionTypeStandard,
+			RateMultiplier:     1,
+			MaxReasoningEffort: "xhigh",
+			ReasoningEffortMappings: []ReasoningEffortMapping{
+				{From: "max", To: "xhigh"},
+			},
+		},
+	}
+
+	snapshot := svc.snapshotFromAPIKey(apiKey)
+	require.NotNil(t, snapshot)
+	require.NotNil(t, snapshot.Group)
+	require.Equal(t, "xhigh", snapshot.Group.MaxReasoningEffort)
+	require.Equal(t, []ReasoningEffortMapping{{From: "max", To: "xhigh"}}, snapshot.Group.ReasoningEffortMappings)
+
+	apiKey.Group.ReasoningEffortMappings[0].To = "low"
+	require.Equal(t, "xhigh", snapshot.Group.ReasoningEffortMappings[0].To)
+
+	roundTrip := svc.snapshotToAPIKey(apiKey.Key, snapshot)
+	require.NotNil(t, roundTrip)
+	require.NotNil(t, roundTrip.Group)
+	require.Equal(t, "xhigh", roundTrip.Group.MaxReasoningEffort)
+	require.Equal(t, []ReasoningEffortMapping{{From: "max", To: "xhigh"}}, roundTrip.Group.ReasoningEffortMappings)
+
+	snapshot.Group.ReasoningEffortMappings[0].To = "medium"
+	require.Equal(t, "xhigh", roundTrip.Group.ReasoningEffortMappings[0].To)
+}
+
+func TestAPIKeyService_RejectsPreReasoningEffortAuthSnapshot(t *testing.T) {
+	svc := &APIKeyService{}
+
+	apiKey, ok, err := svc.applyAuthCacheEntry("k-legacy-reasoning", &APIKeyAuthCacheEntry{
+		Snapshot: &APIKeyAuthSnapshot{Version: 8},
+	})
+
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Nil(t, apiKey)
+}
+
 func TestAPIKeyService_GetByKey_IgnoresLegacyAuthCacheSnapshotWithoutMessagesDispatchConfig(t *testing.T) {
 	cache := &authCacheStub{}
 	var repoCalls int32

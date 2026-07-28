@@ -114,6 +114,8 @@ type CreateGroupRequest struct {
 	RequirePrivacySet           bool                                      `json:"require_privacy_set"`
 	DefaultMappedModel          string                                    `json:"default_mapped_model"`
 	MessagesDispatchModelConfig service.OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config"`
+	MaxReasoningEffort          string                                    `json:"max_reasoning_effort"`
+	ReasoningEffortMappings     []service.ReasoningEffortMapping          `json:"reasoning_effort_mappings"`
 	// 从指定分组复制账号（创建后自动绑定）
 	CopyAccountsFromGroupIDs []int64 `json:"copy_accounts_from_group_ids"`
 	// 智能调度配置
@@ -158,6 +160,8 @@ type UpdateGroupRequest struct {
 	RequirePrivacySet           *bool                                      `json:"require_privacy_set"`
 	DefaultMappedModel          *string                                    `json:"default_mapped_model"`
 	MessagesDispatchModelConfig *service.OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config"`
+	MaxReasoningEffort          *string                                    `json:"max_reasoning_effort"`
+	ReasoningEffortMappings     *[]service.ReasoningEffortMapping          `json:"reasoning_effort_mappings"`
 	// 从指定分组复制账号（同步操作：先清空当前分组的账号绑定，再绑定源分组的账号）
 	CopyAccountsFromGroupIDs []int64 `json:"copy_accounts_from_group_ids"`
 	// 智能调度配置
@@ -284,6 +288,8 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		RequirePrivacySet:                 req.RequirePrivacySet,
 		DefaultMappedModel:                req.DefaultMappedModel,
 		MessagesDispatchModelConfig:       req.MessagesDispatchModelConfig,
+		MaxReasoningEffort:                req.MaxReasoningEffort,
+		ReasoningEffortMappings:           req.ReasoningEffortMappings,
 		CopyAccountsFromGroupIDs:          req.CopyAccountsFromGroupIDs,
 		SmartDispatchEnabled:              req.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        req.SmartDispatchSourceGroupID,
@@ -343,6 +349,8 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		RequirePrivacySet:                 req.RequirePrivacySet,
 		DefaultMappedModel:                req.DefaultMappedModel,
 		MessagesDispatchModelConfig:       req.MessagesDispatchModelConfig,
+		MaxReasoningEffort:                req.MaxReasoningEffort,
+		ReasoningEffortMappings:           req.ReasoningEffortMappings,
 		CopyAccountsFromGroupIDs:          req.CopyAccountsFromGroupIDs,
 		SmartDispatchEnabled:              req.SmartDispatchEnabled,
 		SmartDispatchSourceGroupID:        req.SmartDispatchSourceGroupID,

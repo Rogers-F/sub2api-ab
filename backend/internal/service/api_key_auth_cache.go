@@ -80,6 +80,8 @@ type APIKeyAuthGroupSnapshot struct {
 	AllowMessagesDispatch       bool                              `json:"allow_messages_dispatch"`
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
+	MaxReasoningEffort          string                            `json:"max_reasoning_effort,omitempty"`
+	ReasoningEffortMappings     []ReasoningEffortMapping          `json:"reasoning_effort_mappings"`
 }
 
 // APIKeyAuthCacheEntry 缓存条目，支持负缓存

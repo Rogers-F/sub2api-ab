@@ -577,6 +577,14 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
+        <ReasoningEffortPolicyFields
+          v-if="createForm.platform === 'openai'"
+          ref="createReasoningEffortPolicyRef"
+          id-prefix="create-group-reasoning"
+          :platform="createForm.platform"
+          v-model:max-effort="createForm.max_reasoning_effort"
+          v-model:mappings="createForm.reasoning_effort_mappings"
+        />
         <div
           v-if="createForm.subscription_type !== 'subscription'"
           data-tour="group-form-exclusive"
@@ -1899,6 +1907,14 @@
             data-tour="group-form-multiplier"
           />
         </div>
+        <ReasoningEffortPolicyFields
+          v-if="editForm.platform === 'openai'"
+          ref="editReasoningEffortPolicyRef"
+          id-prefix="edit-group-reasoning"
+          :platform="editForm.platform"
+          v-model:max-effort="editForm.max_reasoning_effort"
+          v-model:mappings="editForm.reasoning_effort_mappings"
+        />
         <div v-if="editForm.subscription_type !== 'subscription'">
           <div class="mb-1.5 flex items-center gap-1">
             <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -3113,6 +3129,7 @@ import Select from "@/components/common/Select.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
+import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { createStableObjectKeyResolver } from "@/utils/stableObjectKey";
@@ -3125,6 +3142,12 @@ import {
   resetMessagesDispatchFormState,
   type MessagesDispatchMappingRow,
 } from "./groupsMessagesDispatch";
+import {
+  normalizeReasoningEffortForPlatform,
+  reasoningEffortMappingsToAPI,
+  reasoningEffortMappingsToRows,
+  type ReasoningEffortMappingRow,
+} from "./groupsReasoningEffort";
 
 const { t } = useI18n();
 const appStore = useAppStore();
@@ -3384,6 +3407,14 @@ const deletingGroup = ref<AdminGroup | null>(null);
 const showRateMultipliersModal = ref(false);
 const rateMultipliersGroup = ref<AdminGroup | null>(null);
 const sortableGroups = ref<AdminGroup[]>([]);
+type ReasoningEffortPolicyFieldsExpose = {
+  validate: () => boolean;
+  resetValidation: () => void;
+};
+const createReasoningEffortPolicyRef =
+  ref<ReasoningEffortPolicyFieldsExpose | null>(null);
+const editReasoningEffortPolicyRef =
+  ref<ReasoningEffortPolicyFieldsExpose | null>(null);
 const createMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
 const editMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
 
@@ -3430,6 +3461,8 @@ const createForm = reactive({
   smart_dispatch_source_group_id: null as number | null,
   smart_dispatch_count: 1,
   smart_dispatch_min_normal_accounts: 1,
+  max_reasoning_effort: "",
+  reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
 
 // 简单账号类型（用于模型路由选择）
@@ -3719,6 +3752,8 @@ const editForm = reactive({
   smart_dispatch_source_group_id: null as number | null,
   smart_dispatch_count: 1,
   smart_dispatch_min_normal_accounts: 1,
+  max_reasoning_effort: "",
+  reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
 
 // 根据分组类型返回不同的删除确认消息
@@ -3899,6 +3934,9 @@ const closeCreateModal = () => {
   createForm.smart_dispatch_source_group_id = null;
   createForm.smart_dispatch_count = 1;
   createForm.smart_dispatch_min_normal_accounts = 1;
+  createForm.max_reasoning_effort = "";
+  createForm.reasoning_effort_mappings = [];
+  createReasoningEffortPolicyRef.value?.resetValidation();
   createModelRoutingRules.value = [];
 };
 
@@ -3934,6 +3972,13 @@ const normalizeSmartDispatchCount = (
 const handleCreateGroup = async () => {
   if (!createForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
+    return;
+  }
+  if (
+    createForm.platform === "openai" &&
+    createReasoningEffortPolicyRef.value &&
+    !createReasoningEffortPolicyRef.value.validate()
+  ) {
     return;
   }
   const smartDispatchCount = normalizeSmartDispatchCount(
@@ -3991,6 +4036,13 @@ const handleCreateGroup = async () => {
               exact_model_mappings: createForm.exact_model_mappings,
             })
           : undefined,
+      max_reasoning_effort: normalizeReasoningEffortForPlatform(
+        createForm.platform,
+        createForm.max_reasoning_effort,
+      ),
+      reasoning_effort_mappings: reasoningEffortMappingsToAPI(
+        createForm.reasoning_effort_mappings,
+      ),
     };
     // v-model.number 清空输入框时产生 ""，转为 null 让后端设为无限制
     const emptyToNull = (v: any) => (v === "" ? null : v);
@@ -4068,6 +4120,14 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.smart_dispatch_count = group.smart_dispatch_count || 1;
   editForm.smart_dispatch_min_normal_accounts =
     group.smart_dispatch_min_normal_accounts || 1;
+  editForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
+    group.platform,
+    group.max_reasoning_effort,
+  );
+  editForm.reasoning_effort_mappings = reasoningEffortMappingsToRows(
+    group.reasoning_effort_mappings,
+    group.platform,
+  );
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
@@ -4088,6 +4148,9 @@ const closeEditModal = () => {
   editForm.smart_dispatch_source_group_id = null;
   editForm.smart_dispatch_count = 1;
   editForm.smart_dispatch_min_normal_accounts = 1;
+  editForm.max_reasoning_effort = "";
+  editForm.reasoning_effort_mappings = [];
+  editReasoningEffortPolicyRef.value?.resetValidation();
   resetMessagesDispatchFormState(editForm);
 };
 
@@ -4095,6 +4158,13 @@ const handleUpdateGroup = async () => {
   if (!editingGroup.value) return;
   if (!editForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
+    return;
+  }
+  if (
+    editForm.platform === "openai" &&
+    editReasoningEffortPolicyRef.value &&
+    !editReasoningEffortPolicyRef.value.validate()
+  ) {
     return;
   }
   const smartDispatchCount = normalizeSmartDispatchCount(
@@ -4163,6 +4233,13 @@ const handleUpdateGroup = async () => {
               exact_model_mappings: editForm.exact_model_mappings,
             })
           : undefined,
+      max_reasoning_effort: normalizeReasoningEffortForPlatform(
+        editForm.platform,
+        editForm.max_reasoning_effort,
+      ),
+      reasoning_effort_mappings: reasoningEffortMappingsToAPI(
+        editForm.reasoning_effort_mappings,
+      ),
     };
     // v-model.number 清空输入框时产生 ""，转为 null 让后端设为无限制
     const emptyToNull = (v: any) => (v === "" ? null : v);
@@ -4256,6 +4333,15 @@ watch(
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(createForm);
     }
+    createForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
+      newVal,
+      createForm.max_reasoning_effort,
+    );
+    createForm.reasoning_effort_mappings = reasoningEffortMappingsToRows(
+      reasoningEffortMappingsToAPI(createForm.reasoning_effort_mappings),
+      newVal,
+    );
+    createReasoningEffortPolicyRef.value?.resetValidation();
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       createForm.require_oauth_only = false;
       createForm.require_privacy_set = false;
@@ -4274,6 +4360,15 @@ watch(
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(editForm);
     }
+    editForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
+      newVal,
+      editForm.max_reasoning_effort,
+    );
+    editForm.reasoning_effort_mappings = reasoningEffortMappingsToRows(
+      reasoningEffortMappingsToAPI(editForm.reasoning_effort_mappings),
+      newVal,
+    );
+    editReasoningEffortPolicyRef.value?.resetValidation();
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       editForm.require_oauth_only = false;
       editForm.require_privacy_set = false;

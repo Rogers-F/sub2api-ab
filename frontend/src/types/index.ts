@@ -447,12 +447,19 @@ export interface OpenAIMessagesDispatchModelConfig {
   exact_model_mappings?: Record<string, string>
 }
 
+export interface ReasoningEffortMapping {
+  from: string
+  to: string
+}
+
 export interface Group {
   id: number
   name: string
   description: string | null
   platform: GroupPlatform
   rate_multiplier: number
+  max_reasoning_effort?: string
+  reasoning_effort_mappings?: ReasoningEffortMapping[]
   is_exclusive: boolean
   status: 'active' | 'inactive'
   subscription_type: SubscriptionType
@@ -599,6 +606,8 @@ export interface CreateGroupRequest {
   smart_dispatch_source_group_id?: number | null
   smart_dispatch_count?: number
   smart_dispatch_min_normal_accounts?: number
+  max_reasoning_effort?: string
+  reasoning_effort_mappings?: ReasoningEffortMapping[]
   // 从指定分组复制账号
   copy_accounts_from_group_ids?: number[]
 }
@@ -632,6 +641,8 @@ export interface UpdateGroupRequest {
   smart_dispatch_source_group_id?: number | null
   smart_dispatch_count?: number
   smart_dispatch_min_normal_accounts?: number
+  max_reasoning_effort?: string
+  reasoning_effort_mappings?: ReasoningEffortMapping[]
   copy_accounts_from_group_ids?: number[]
 }
 

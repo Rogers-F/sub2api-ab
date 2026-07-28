@@ -7,7 +7,9 @@
       :disabled="disabled"
       :aria-expanded="isOpen"
       :aria-haspopup="true"
-      aria-label="Select option"
+      :id="id"
+      :aria-label="ariaLabel ?? 'Select option'"
+      :aria-describedby="ariaDescribedby"
       :class="[
         'select-trigger',
         isOpen && 'select-trigger-open',
@@ -135,6 +137,9 @@ interface Props {
   labelKey?: string
   creatable?: boolean
   creatablePrefix?: string
+  id?: string
+  ariaLabel?: string
+  ariaDescribedby?: string
 }
 
 interface Emits {

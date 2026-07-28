@@ -34,6 +34,43 @@ func TestNormalizeOpenAIReasoningEffortForGPT56(t *testing.T) {
 	}
 }
 
+func TestExtractOpenAIReasoningEffortPreservesGPT56MaxVariants(t *testing.T) {
+	variants := []string{
+		"gpt-5.6-sol",
+		"gpt-5.6-terra-2026-07-09",
+		"openai/gpt-5.6-luna",
+		"provider/gpt-5.6-sol-2026-07-09",
+	}
+
+	for _, model := range variants {
+		t.Run(model, func(t *testing.T) {
+			explicit := extractOpenAIReasoningEffortFromBody(
+				[]byte(`{"reasoning":{"effort":"max"}}`),
+				model,
+			)
+			require.NotNil(t, explicit)
+			require.Equal(t, "max", *explicit)
+
+			suffix := extractOpenAIReasoningEffortFromBody(
+				[]byte(`{"input":"hello"}`),
+				model+"-max",
+			)
+			require.NotNil(t, suffix)
+			require.Equal(t, "max", *suffix)
+		})
+	}
+
+	for _, effort := range []string{"minimal", "none"} {
+		t.Run("omits_"+effort, func(t *testing.T) {
+			got := extractOpenAIReasoningEffortFromBody(
+				[]byte(`{"reasoning":{"effort":"`+effort+`"}}`),
+				"gpt-5.6-sol",
+			)
+			require.Nil(t, got)
+		})
+	}
+}
+
 func TestNormalizeOpenAICodexCompactReasoningEffortDowngradesMax(t *testing.T) {
 	body := []byte(`{"model":"gpt-5.6-sol","input":"compact me","reasoning":{"effort":"max","summary":"auto"}}`)
 

@@ -1,12 +1,10 @@
-import type { GroupPlatform, ReasoningEffortMapping } from "@/types";
+import type {
+  GroupPlatform,
+  ReasoningEffortMapping,
+  ReasoningEffortPolicyValue,
+} from "@/types";
 
-export type ReasoningEffortPolicyValue =
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh"
-  | "max";
+export type { ReasoningEffortPolicyValue } from "@/types";
 
 const openAIReasoningEffortValues: readonly ReasoningEffortPolicyValue[] = [
   "minimal",
@@ -32,15 +30,20 @@ export function reasoningEffortOptionsForPlatform(platform: GroupPlatform) {
 export function normalizeReasoningEffortForPlatform(
   platform: GroupPlatform,
   value: string | null | undefined,
-): string {
+): ReasoningEffortPolicyValue | "" {
   const normalized = value?.trim().toLowerCase() ?? "";
-  return reasoningEffortValuesForPlatform(platform).includes(normalized)
-    ? normalized
+  return platform === "openai" &&
+    openAIReasoningEffortValues.includes(
+      normalized as ReasoningEffortPolicyValue,
+    )
+    ? (normalized as ReasoningEffortPolicyValue)
     : "";
 }
 
-export interface ReasoningEffortMappingRow extends ReasoningEffortMapping {
+export interface ReasoningEffortMappingRow {
   id: string;
+  from: string;
+  to: string;
 }
 
 export type ReasoningEffortMappingErrorCode =
@@ -58,7 +61,7 @@ export type ReasoningEffortMappingErrors = Record<
 let nextMappingRowID = 0;
 
 export function createReasoningEffortMappingRow(
-  mapping: Partial<ReasoningEffortMapping> = {},
+  mapping: Partial<Pick<ReasoningEffortMappingRow, "from" | "to">> = {},
 ): ReasoningEffortMappingRow {
   nextMappingRowID += 1;
   return {
@@ -69,7 +72,7 @@ export function createReasoningEffortMappingRow(
 }
 
 export function reasoningEffortMappingsToRows(
-  mappings?: ReasoningEffortMapping[] | null,
+  mappings?: Array<{ from: string; to: string }> | null,
   platform: GroupPlatform = "openai",
 ): ReasoningEffortMappingRow[] {
   return (mappings ?? []).flatMap((mapping) => {
@@ -82,10 +85,11 @@ export function reasoningEffortMappingsToRows(
 export function reasoningEffortMappingsToAPI(
   rows: ReasoningEffortMappingRow[],
 ): ReasoningEffortMapping[] {
-  return rows.map((row) => ({
-    from: row.from.trim(),
-    to: row.to.trim(),
-  }));
+  return rows.flatMap((row) => {
+    const from = normalizeReasoningEffortForPlatform("openai", row.from);
+    const to = normalizeReasoningEffortForPlatform("openai", row.to);
+    return from && to ? [{ from, to }] : [];
+  });
 }
 
 export function validateReasoningEffortMappings(

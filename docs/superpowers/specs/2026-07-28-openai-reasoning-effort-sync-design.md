@@ -192,10 +192,11 @@ The usage result records the effective compact value (`xhigh`).
 
 ### Cross-Mode Failover
 
-When a retry crosses into a forwarding mode that does not support the request's
-reasoning shape, remove the foreign reasoning field before the next attempt.
-The original immutable body remains available so same-mode retries preserve the
-client's intended effort and group policy.
+When a retry crosses from OpenAI passthrough into a forwarding mode that does
+not support provider-specific encrypted reasoning input items, remove those
+complete `type=reasoning` items before the next attempt. The original immutable
+body remains available so same-mode retries preserve the client's intended
+effort and group policy.
 
 ## Group Administration
 

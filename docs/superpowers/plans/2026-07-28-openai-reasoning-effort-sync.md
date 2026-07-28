@@ -330,17 +330,17 @@ git commit -m "feat(openai): enforce reasoning policy on WebSocket turns"
 
 - [ ] **Step 1: Write failing cleanup tests**
 
-Table-test same-mode retries, OAuth-to-API-key and API-key-to-OAuth failover, nested and flat fields, and bodies containing both shapes. Assert same-mode retries preserve the policy-mutated body while a mode change removes only the foreign reasoning shape needed for the target mode.
+Table-test same-mode retries, passthrough-to-non-passthrough failover, single-object and array `input` shapes, and bodies containing both encrypted and ordinary reasoning items. Assert same-mode retries preserve the policy-mutated body while a mode change removes only provider-specific encrypted reasoning items.
 
 - [ ] **Step 2: Run focused tests and observe RED**
 
 Run: `cd backend && go test ./internal/handler ./internal/service -run 'Test.*Reasoning.*Failover|Test.*Strip.*Reasoning' -count=1 -v`
 
-Expected: missing helper symbols or foreign reasoning fields remain.
+Expected: missing helper symbols or foreign encrypted reasoning items remain.
 
 - [ ] **Step 3: Implement immutable-source retry cleanup**
 
-Add a request-body helper using `sjson.DeleteBytes` for `reasoning` and `reasoning_effort`. In the retry loop, derive each attempt body from the immutable policy-applied body; when the selected account's forwarding mode differs from the previous mode, strip the incompatible field before forwarding. Never mutate the shared source body in place.
+Add a request-body helper that decodes a fresh copy and removes complete `input` items whose type is `reasoning` and that carry `encrypted_content`. In the retry loop, derive each attempt body from the immutable policy-applied body; after a passthrough attempt, strip those provider-specific items for every later non-passthrough attempt. Never mutate the shared source body in place.
 
 - [ ] **Step 4: Run GREEN**
 

@@ -440,6 +440,14 @@ export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity'
 
 export type SubscriptionType = 'standard' | 'subscription'
 
+export type ReasoningEffortPolicyValue =
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'max'
+
 export interface OpenAIMessagesDispatchModelConfig {
   opus_mapped_model?: string
   sonnet_mapped_model?: string
@@ -448,8 +456,8 @@ export interface OpenAIMessagesDispatchModelConfig {
 }
 
 export interface ReasoningEffortMapping {
-  from: string
-  to: string
+  from: ReasoningEffortPolicyValue
+  to: ReasoningEffortPolicyValue
 }
 
 export interface Group {

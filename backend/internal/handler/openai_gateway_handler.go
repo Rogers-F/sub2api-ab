@@ -54,6 +54,22 @@ func resolveOpenAIMessagesDispatchMappedModel(apiKey *service.APIKey, requestedM
 	return strings.TrimSpace(apiKey.Group.ResolveMessagesDispatchModel(requestedModel))
 }
 
+func applyOpenAIGroupReasoningEffortPolicy(apiKey *service.APIKey, body []byte) []byte {
+	if apiKey == nil || apiKey.Group == nil || apiKey.Group.Platform != service.PlatformOpenAI {
+		return body
+	}
+
+	effectiveBody, changed := service.ApplyOpenAIReasoningEffortPolicy(
+		body,
+		apiKey.Group.MaxReasoningEffort,
+		apiKey.Group.ReasoningEffortMappings,
+	)
+	if !changed {
+		return body
+	}
+	return effectiveBody
+}
+
 // NewOpenAIGatewayHandler creates a new OpenAIGatewayHandler
 func NewOpenAIGatewayHandler(
 	gatewayService *service.OpenAIGatewayService,
@@ -164,6 +180,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	body = applyOpenAIGroupReasoningEffortPolicy(apiKey, body)
 
 	streamResult := gjson.GetBytes(body, "stream")
 	if streamResult.Exists() && streamResult.Type != gjson.True && streamResult.Type != gjson.False {

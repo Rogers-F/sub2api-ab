@@ -334,7 +334,7 @@ Table-test same-mode retries, passthrough-to-non-passthrough failover, single-ob
 
 - [ ] **Step 2: Run focused tests and observe RED**
 
-Run: `cd backend && go test ./internal/handler ./internal/service -run 'Test.*Reasoning.*Failover|Test.*Strip.*Reasoning' -count=1 -v`
+Run: `cd backend && go test ./internal/handler ./internal/service -run 'Test(OpenAIReasoningFailover|SanitizeOpenAICrossModeFailoverReasoning)' -count=1 -v`
 
 Expected: missing helper symbols or foreign encrypted reasoning items remain.
 
@@ -344,7 +344,7 @@ Add a request-body helper that decodes a fresh copy and removes complete `input`
 
 - [ ] **Step 4: Run GREEN**
 
-Run: `cd backend && gofmt -w internal/handler/openai_gateway_reasoning_failover.go internal/handler/openai_gateway_reasoning_failover_test.go internal/handler/openai_gateway_handler.go internal/service/openai_gateway_service.go internal/service/openai_gateway_request_body_reasoning_test.go && go test ./internal/handler ./internal/service -run 'Test.*Reasoning.*Failover|Test.*Strip.*Reasoning' -count=1 -v`
+Run: `cd backend && gofmt -w internal/handler/openai_gateway_reasoning_failover.go internal/handler/openai_gateway_reasoning_failover_test.go internal/handler/openai_gateway_handler.go internal/service/openai_gateway_service.go internal/service/openai_gateway_request_body_reasoning_test.go && go test ./internal/handler ./internal/service -run 'Test(OpenAIReasoningFailover|SanitizeOpenAICrossModeFailoverReasoning)' -count=1 -v`
 
 Expected: cleanup matrix passes.
 

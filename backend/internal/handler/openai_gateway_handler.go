@@ -259,6 +259,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 	var lastFailedAccountID int64
+	var passthroughFailoverState openAIPassthroughFailoverState
 
 	for {
 		// Select account supporting the requested model
@@ -323,8 +324,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
+		attemptBody := h.deriveOpenAIForwardAttemptBody(reqLog, forwardBody, account, &passthroughFailoverState)
 		requestCtx, cleanupAttemptCtx := withAccountAttemptContext(c.Request.Context(), account, reqStream, switchCount, false)
-		result, err := h.gatewayService.Forward(requestCtx, c, account, forwardBody)
+		result, err := h.gatewayService.Forward(requestCtx, c, account, attemptBody)
 		cleanupAttemptCtx()
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		if accountReleaseFunc != nil {

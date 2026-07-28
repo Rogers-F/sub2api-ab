@@ -1255,7 +1255,17 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		zap.Int("candidate_count", scheduleDecision.CandidateCount),
 	)
 
+	maxReasoningEffort := ""
+	var reasoningEffortMappings []service.ReasoningEffortMapping
+	if apiKey.Group != nil && apiKey.Group.Platform == service.PlatformOpenAI {
+		maxReasoningEffort = apiKey.Group.MaxReasoningEffort
+		reasoningEffortMappings = append([]service.ReasoningEffortMapping(nil), apiKey.Group.ReasoningEffortMappings...)
+	}
+
 	hooks := &service.OpenAIWSIngressHooks{
+		InitialRequestModel:     reqModel,
+		MaxReasoningEffort:      maxReasoningEffort,
+		ReasoningEffortMappings: reasoningEffortMappings,
 		BeforeTurn: func(turn int) error {
 			if turn == 1 {
 				return nil

@@ -219,8 +219,32 @@ func (e *OpenAIWSClientCloseError) Reason() string {
 
 // OpenAIWSIngressHooks 定义入站 WS 每个 turn 的生命周期回调。
 type OpenAIWSIngressHooks struct {
-	BeforeTurn func(turn int) error
-	AfterTurn  func(turn int, result *OpenAIForwardResult, turnErr error)
+	// InitialRequestModel is the client model before the handler applies a
+	// channel mapping. It is retained solely as a last usage-metadata model
+	// candidate, so a suffix such as -max survives mapping.
+	InitialRequestModel string
+	// MaxReasoningEffort caps explicit reasoning efforts for every request turn.
+	MaxReasoningEffort string
+	// ReasoningEffortMappings rewrites explicit efforts for every request turn.
+	ReasoningEffortMappings []ReasoningEffortMapping
+	BeforeTurn              func(turn int) error
+	AfterTurn               func(turn int, result *OpenAIForwardResult, turnErr error)
+}
+
+func applyOpenAIWSIngressReasoningEffortPolicy(hooks *OpenAIWSIngressHooks, payload []byte) []byte {
+	if hooks == nil || (hooks.MaxReasoningEffort == "" && len(hooks.ReasoningEffortMappings) == 0) {
+		return payload
+	}
+
+	effectivePayload, changed := ApplyOpenAIReasoningEffortPolicy(
+		payload,
+		hooks.MaxReasoningEffort,
+		hooks.ReasoningEffortMappings,
+	)
+	if !changed {
+		return payload
+	}
+	return effectivePayload
 }
 
 func normalizeOpenAIWSLogValue(value string) string {
@@ -2426,7 +2450,12 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		promptCacheKey     string
 		previousResponseID string
 		originalModel      string
+		usageOriginalModel string
 		payloadBytes       int
+	}
+	initialUsageModel := ""
+	if hooks != nil {
+		initialUsageModel = strings.TrimSpace(hooks.InitialRequestModel)
 	}
 
 	applyPayloadMutation := func(current []byte, path string, value any) ([]byte, error) {
@@ -2489,6 +2518,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				nil,
 			)
 		}
+		normalized = applyOpenAIWSIngressReasoningEffortPolicy(hooks, normalized)
 
 		originalModel := strings.TrimSpace(values[1].String())
 		if originalModel == "" {
@@ -2497,6 +2527,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				"model is required in response.create payload",
 				nil,
 			)
+		}
+		usageOriginalModel := originalModel
+		if initialUsageModel != "" {
+			usageOriginalModel = initialUsageModel
+			initialUsageModel = ""
 		}
 		promptCacheKey := strings.TrimSpace(values[2].String())
 		previousResponseID := strings.TrimSpace(values[3].String())
@@ -2539,6 +2574,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			promptCacheKey:     promptCacheKey,
 			previousResponseID: previousResponseID,
 			originalModel:      originalModel,
+			usageOriginalModel: usageOriginalModel,
 			payloadBytes:       len(normalized),
 		}, nil
 	}
@@ -2740,7 +2776,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		return payload, nil
 	}
 
-	sendAndRelay := func(turn int, lease *openAIWSConnLease, payload []byte, payloadBytes int, originalModel string) (*OpenAIForwardResult, error) {
+	sendAndRelay := func(turn int, lease *openAIWSConnLease, payload []byte, payloadBytes int, originalModel, usageOriginalModel string) (*OpenAIForwardResult, error) {
 		if lease == nil {
 			return nil, errors.New("upstream websocket lease is nil")
 		}
@@ -2951,7 +2987,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 					Model:           originalModel,
 					UpstreamModel:   mappedModel,
 					ServiceTier:     extractOpenAIServiceTierFromBody(payload),
-					ReasoningEffort: extractOpenAIReasoningEffortFromBody(payload, mappedModel, originalModel),
+					ReasoningEffort: extractOpenAIReasoningEffortFromBody(payload, mappedModel, usageOriginalModel, originalModel),
 					Stream:          reqStream,
 					OpenAIWSMode:    true,
 					ResponseHeaders: lease.HandshakeHeaders(),
@@ -2964,6 +3000,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 
 	currentPayload := firstPayload.payloadRaw
 	currentOriginalModel := firstPayload.originalModel
+	currentUsageOriginalModel := firstPayload.usageOriginalModel
 	currentPayloadBytes := firstPayload.payloadBytes
 	isStrictAffinityTurn := func(payload []byte) bool {
 		if !storeDisabled {
@@ -3399,7 +3436,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			)
 		}
 
-		result, relayErr := sendAndRelay(turn, sessionLease, currentPayload, currentPayloadBytes, currentOriginalModel)
+		result, relayErr := sendAndRelay(turn, sessionLease, currentPayload, currentPayloadBytes, currentOriginalModel, currentUsageOriginalModel)
 		if relayErr != nil {
 			lastTurnClean = false
 			if recoverIngressPrevResponseNotFound(relayErr, turn, connID) {
@@ -3521,6 +3558,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		currentPayload = nextPayload.payloadRaw
 		currentOriginalModel = nextPayload.originalModel
+		currentUsageOriginalModel = nextPayload.usageOriginalModel
 		currentPayloadBytes = nextPayload.payloadBytes
 		storeDisabled = s.isOpenAIWSStoreDisabledInRequestRaw(currentPayload, account)
 		if !storeDisabled {

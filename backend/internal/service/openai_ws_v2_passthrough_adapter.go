@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -18,12 +19,69 @@ import (
 )
 
 type openAIWSClientFrameConn struct {
-	conn *coderws.Conn
+	conn      *coderws.Conn
+	transform func(msgType coderws.MessageType, payload []byte) ([]byte, error)
 }
 
 const openaiWSV2PassthroughModeFields = "ws_mode=passthrough ws_router=v2"
 
 var _ openaiwsv2.FrameConn = (*openAIWSClientFrameConn)(nil)
+
+type openAIWSPassthroughUsageMetadata struct {
+	mu              sync.RWMutex
+	requestModel    string
+	upstreamModel   string
+	serviceTier     *string
+	reasoningEffort *string
+}
+
+func (m *openAIWSPassthroughUsageMetadata) update(payload []byte, account *Account, originalModel string) {
+	if m == nil {
+		return
+	}
+	requestModel := strings.TrimSpace(gjson.GetBytes(payload, "model").String())
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if requestModel == "" {
+		requestModel = m.requestModel
+	}
+	if requestModel != "" {
+		m.requestModel = requestModel
+	}
+	mappedModel := requestModel
+	if account != nil {
+		mappedModel = normalizeOpenAIModelForUpstream(account, account.GetMappedModel(requestModel))
+	}
+	if mappedModel == "" {
+		mappedModel = requestModel
+	}
+	m.upstreamModel = mappedModel
+	candidate := strings.TrimSpace(originalModel)
+	if candidate == "" {
+		candidate = requestModel
+	}
+	m.serviceTier = extractOpenAIServiceTierFromBody(payload)
+	m.reasoningEffort = extractOpenAIReasoningEffortFromBody(payload, mappedModel, candidate, requestModel)
+}
+
+func (m *openAIWSPassthroughUsageMetadata) snapshot() (requestModel, upstreamModel string, serviceTier, reasoningEffort *string) {
+	if m == nil {
+		return "", "", nil, nil
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	requestModel = m.requestModel
+	upstreamModel = m.upstreamModel
+	if m.serviceTier != nil {
+		value := *m.serviceTier
+		serviceTier = &value
+	}
+	if m.reasoningEffort != nil {
+		value := *m.reasoningEffort
+		reasoningEffort = &value
+	}
+	return requestModel, upstreamModel, serviceTier, reasoningEffort
+}
 
 func (c *openAIWSClientFrameConn) ReadFrame(ctx context.Context) (coderws.MessageType, []byte, error) {
 	if c == nil || c.conn == nil {
@@ -32,7 +90,15 @@ func (c *openAIWSClientFrameConn) ReadFrame(ctx context.Context) (coderws.Messag
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return c.conn.Read(ctx)
+	msgType, payload, err := c.conn.Read(ctx)
+	if err != nil || c.transform == nil {
+		return msgType, payload, err
+	}
+	transformed, transformErr := c.transform(msgType, payload)
+	if transformErr != nil {
+		return msgType, nil, transformErr
+	}
+	return msgType, transformed, nil
 }
 
 func (c *openAIWSClientFrameConn) WriteFrame(ctx context.Context, msgType coderws.MessageType, payload []byte) error {
@@ -76,9 +142,16 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if strings.TrimSpace(token) == "" {
 		return errors.New("token is empty")
 	}
+	firstClientMessage = applyOpenAIWSIngressReasoningEffortPolicy(hooks, firstClientMessage)
 	requestModel := strings.TrimSpace(gjson.GetBytes(firstClientMessage, "model").String())
 	requestServiceTier := extractOpenAIServiceTierFromBody(firstClientMessage)
 	requestPreviousResponseID := strings.TrimSpace(gjson.GetBytes(firstClientMessage, "previous_response_id").String())
+	initialUsageModel := ""
+	if hooks != nil {
+		initialUsageModel = hooks.InitialRequestModel
+	}
+	usageMetadata := &openAIWSPassthroughUsageMetadata{}
+	usageMetadata.update(firstClientMessage, account, initialUsageModel)
 	logOpenAIWSV2Passthrough(
 		"relay_start account_id=%d model=%s previous_response_id=%s first_message_type=%s first_message_bytes=%d",
 		account.ID,
@@ -153,8 +226,21 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 
 	completedTurns := atomic.Int32{}
 	relayResult, relayExit := openaiwsv2.RunEntry(openaiwsv2.EntryInput{
-		Ctx:                ctx,
-		ClientConn:         &openAIWSClientFrameConn{conn: clientConn},
+		Ctx: ctx,
+		ClientConn: &openAIWSClientFrameConn{
+			conn: clientConn,
+			transform: func(msgType coderws.MessageType, payload []byte) ([]byte, error) {
+				if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
+					return payload, nil
+				}
+				transformed := applyOpenAIWSIngressReasoningEffortPolicy(hooks, payload)
+				eventType := strings.TrimSpace(gjson.GetBytes(transformed, "type").String())
+				if eventType == "" || eventType == "response.create" {
+					usageMetadata.update(transformed, account, "")
+				}
+				return transformed, nil
+			},
+		},
 		UpstreamConn:       upstreamFrameConn,
 		FirstClientMessage: firstClientMessage,
 		Options: openaiwsv2.RelayOptions{
@@ -170,6 +256,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			},
 			OnTurnComplete: func(turn openaiwsv2.RelayTurnResult) {
 				turnNo := int(completedTurns.Add(1))
+				metadataModel, metadataUpstreamModel, metadataServiceTier, metadataReasoningEffort := usageMetadata.snapshot()
+				if metadataModel == "" {
+					metadataModel = turn.RequestModel
+				}
 				turnResult := &OpenAIForwardResult{
 					RequestID: turn.RequestID,
 					Usage: OpenAIUsage{
@@ -178,8 +268,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 						CacheCreationInputTokens: turn.Usage.CacheCreationInputTokens,
 						CacheReadInputTokens:     turn.Usage.CacheReadInputTokens,
 					},
-					Model:           turn.RequestModel,
-					ServiceTier:     requestServiceTier,
+					Model:           metadataModel,
+					UpstreamModel:   metadataUpstreamModel,
+					ServiceTier:     metadataServiceTier,
+					ReasoningEffort: metadataReasoningEffort,
 					Stream:          true,
 					OpenAIWSMode:    true,
 					ResponseHeaders: cloneHeader(handshakeHeaders),
@@ -234,6 +326,17 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		Duration:        relayResult.Duration,
 		FirstTokenMs:    relayResult.FirstTokenMs,
 	}
+	metadataModel, metadataUpstreamModel, metadataServiceTier, metadataReasoningEffort := usageMetadata.snapshot()
+	if metadataModel != "" {
+		result.Model = metadataModel
+	}
+	if metadataUpstreamModel != "" {
+		result.UpstreamModel = metadataUpstreamModel
+	}
+	if metadataServiceTier != nil {
+		result.ServiceTier = metadataServiceTier
+	}
+	result.ReasoningEffort = metadataReasoningEffort
 
 	turnCount := int(completedTurns.Load())
 	if relayExit == nil {

@@ -35,10 +35,10 @@ func TestSanitizeOpenAICrossModeFailoverReasoningNoEncryptedItemIsNoop(t *testin
 }
 
 func TestSanitizeOpenAICrossModeFailoverReasoningPreservesOrdinaryReasoning(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.6-sol","input":[`+
-		`{"type":"reasoning","summary":[{"type":"summary_text","text":"plain"}]},`+
-		`{"type":"reasoning","encrypted_content":"ENC","id":"rs_provider"},`+
-		`{"type":"message","role":"user","content":"hello"}`+
+	body := []byte(`{"model":"gpt-5.6-sol","input":[` +
+		`{"type":"reasoning","summary":[{"type":"summary_text","text":"plain"}]},` +
+		`{"type":"reasoning","encrypted_content":"ENC","id":"rs_provider"},` +
+		`{"type":"message","role":"user","content":"hello"}` +
 		`]}`)
 
 	sanitized, changed, err := SanitizeOpenAICrossModeFailoverReasoning(body)

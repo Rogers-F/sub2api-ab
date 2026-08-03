@@ -896,7 +896,7 @@
           <p class="input-hint">{{ apiKeyHint }}</p>
         </div>
 
-        <div v-if="form.platform === 'anthropic'">
+        <div v-if="form.platform === 'anthropic' || form.platform === 'openai'">
           <label class="input-label">{{ t('admin.accounts.balanceQuery.label') }}</label>
           <select
             v-model="balanceQueryType"
@@ -908,6 +908,41 @@
             <option value="newapi">{{ t('admin.accounts.balanceQuery.newapi') }}</option>
           </select>
           <p class="input-hint">{{ t('admin.accounts.balanceQuery.hint') }}</p>
+
+          <div
+            v-if="balanceQueryType === 'newapi'"
+            class="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-800/50"
+          >
+            <p class="text-xs text-gray-600 dark:text-gray-300">
+              {{ t('admin.accounts.balanceQuery.newapiHint') }}
+            </p>
+            <div>
+              <label class="input-label">{{ t('admin.accounts.balanceQuery.accessToken') }}</label>
+              <input
+                v-model="balanceQueryAccessToken"
+                type="password"
+                required
+                autocomplete="new-password"
+                class="input font-mono"
+                data-testid="balance-query-access-token"
+                :placeholder="t('admin.accounts.balanceQuery.accessTokenPlaceholder')"
+              />
+              <p class="input-hint">{{ t('admin.accounts.balanceQuery.accessTokenHint') }}</p>
+            </div>
+            <div>
+              <label class="input-label">{{ t('admin.accounts.balanceQuery.userId') }}</label>
+              <input
+                v-model="balanceQueryUserID"
+                type="text"
+                required
+                inputmode="numeric"
+                class="input font-mono"
+                data-testid="balance-query-user-id"
+                :placeholder="t('admin.accounts.balanceQuery.userIdPlaceholder')"
+              />
+              <p class="input-hint">{{ t('admin.accounts.balanceQuery.userIdHint') }}</p>
+            </div>
+          </div>
         </div>
 
         <!-- Gemini API Key tier selection -->
@@ -3179,6 +3214,8 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
 const balanceQueryType = ref<'' | 'sub2api' | 'newapi'>('')
+const balanceQueryAccessToken = ref('')
+const balanceQueryUserID = ref('')
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
@@ -3557,6 +3594,9 @@ watch(
         : newPlatform === 'gemini'
           ? 'https://generativelanguage.googleapis.com'
           : 'https://api.anthropic.com'
+    balanceQueryType.value = ''
+    balanceQueryAccessToken.value = ''
+    balanceQueryUserID.value = ''
     // Clear model-related settings
     allowedModels.value = []
     modelMappings.value = []
@@ -3598,7 +3638,6 @@ watch(
       anthropicPassthroughEnabled.value = false
       anthropicInvalidParamRectifierEnabled.value = false
       webSearchEmulationMode.value = 'default'
-      balanceQueryType.value = ''
     }
     // Reset OAuth states
     oauth.resetState()
@@ -3616,11 +3655,13 @@ watch(
     if (platform === 'openai' && category !== 'oauth-based') {
       codexCLIOnlyEnabled.value = false
     }
-    if (platform !== 'anthropic' || category !== 'apikey') {
+    if ((platform !== 'anthropic' && platform !== 'openai') || category !== 'apikey') {
       anthropicPassthroughEnabled.value = false
       anthropicInvalidParamRectifierEnabled.value = false
       webSearchEmulationMode.value = 'default'
       balanceQueryType.value = ''
+      balanceQueryAccessToken.value = ''
+      balanceQueryUserID.value = ''
     }
   }
 )
@@ -3957,6 +3998,8 @@ const resetForm = () => {
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
   balanceQueryType.value = ''
+  balanceQueryAccessToken.value = ''
+  balanceQueryUserID.value = ''
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
   editQuotaWeeklyLimit.value = null
@@ -4267,6 +4310,19 @@ const handleSubmit = async () => {
     return
   }
 
+  const supportsBalanceQuery = form.platform === 'anthropic' || form.platform === 'openai'
+  const balanceUserID = balanceQueryUserID.value.trim()
+  if (supportsBalanceQuery && balanceQueryType.value === 'newapi') {
+    if (!balanceQueryAccessToken.value.trim()) {
+      appStore.showError(t('admin.accounts.balanceQuery.accessTokenRequired'))
+      return
+    }
+    if (!/^\d+$/.test(balanceUserID) || Number(balanceUserID) <= 0) {
+      appStore.showError(t('admin.accounts.balanceQuery.userIdRequired'))
+      return
+    }
+  }
+
   // Determine default base URL based on platform
   const defaultBaseUrl =
     form.platform === 'openai'
@@ -4280,8 +4336,12 @@ const handleSubmit = async () => {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
   }
-  if (form.platform === 'anthropic' && balanceQueryType.value) {
+  if (supportsBalanceQuery && balanceQueryType.value) {
     credentials.balance_query_type = balanceQueryType.value
+    if (balanceQueryType.value === 'newapi') {
+      credentials.balance_query_access_token = balanceQueryAccessToken.value.trim()
+      credentials.balance_query_user_id = balanceUserID
+    }
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value

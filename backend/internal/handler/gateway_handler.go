@@ -938,9 +938,10 @@ func cloneAPIKeyWithGroup(apiKey *service.APIKey, group *service.Group) *service
 // Usage handles getting account balance and usage statistics for CC Switch integration
 // GET /v1/usage
 //
-// Two modes:
+// Legacy modes plus an explicit account scope:
 //   - quota_limited: API Key has quota or rate limits configured. Returns key-level limits/usage.
 //   - unrestricted:  No key-level limits. Returns subscription or wallet balance info.
+//   - scope=account: Returns only the owning user's wallet balance.
 func (h *GatewayHandler) Usage(c *gin.Context) {
 	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
 	if !ok {
@@ -955,6 +956,10 @@ func (h *GatewayHandler) Usage(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+	if strings.EqualFold(strings.TrimSpace(c.Query("scope")), "account") {
+		h.usageAccountBalance(c, ctx, subject)
+		return
+	}
 
 	// 解析可选的日期范围参数（用于 model_stats 查询）
 	startTime, endTime := h.parseUsageDateRange(c)
@@ -979,6 +984,31 @@ func (h *GatewayHandler) Usage(c *gin.Context) {
 	}
 
 	h.usageUnrestricted(c, ctx, apiKey, subject, usageData, modelStats)
+}
+
+// usageAccountBalance returns the wallet balance for the user that owns the
+// authenticated API key. The explicit field prevents callers from confusing
+// it with key-level quota returned by the legacy usage response.
+func (h *GatewayHandler) usageAccountBalance(c *gin.Context, ctx context.Context, subject middleware2.AuthSubject) {
+	if h.userService == nil {
+		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User service is not configured")
+		return
+	}
+	latestUser, err := h.userService.GetByID(ctx, subject.UserID)
+	if err != nil {
+		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to get user info")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"mode":            "account",
+		"scope":           "account",
+		"isValid":         true,
+		"planName":        "钱包余额",
+		"account_balance": latestUser.Balance,
+		"balance":         latestUser.Balance,
+		"unit":            "USD",
+	})
 }
 
 // parseUsageDateRange 解析 start_date / end_date query params，默认返回近 30 天范围

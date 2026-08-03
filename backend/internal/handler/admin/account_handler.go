@@ -1720,7 +1720,7 @@ type BatchAccountBalancesRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required"`
 }
 
-// GetBatchBalances queries balances for configured Claude Console API Key accounts.
+// GetBatchBalances queries balances for configured Anthropic or OpenAI API Key accounts.
 // POST /api/v1/admin/accounts/balances/batch
 func (h *AccountHandler) GetBatchBalances(c *gin.Context) {
 	var req BatchAccountBalancesRequest

@@ -157,7 +157,9 @@ describe('EditAccountModal', () => {
     account.credentials = {
       api_key: 'sk-ant-test',
       base_url: 'https://relay.example.com',
-      balance_query_type: 'sub2api'
+      balance_query_type: 'sub2api',
+      balance_query_access_token: 'existing-account-token',
+      balance_query_user_id: '8'
     }
     updateAccountMock.mockReset()
     checkMixedChannelRiskMock.mockReset()
@@ -174,6 +176,50 @@ describe('EditAccountModal', () => {
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.balance_query_type).toBe('newapi')
+  })
+
+  it('enables balance query for an existing OpenAI Responses API key', async () => {
+    const account = buildAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await wrapper.setProps({ show: true })
+
+    const select = wrapper.get<HTMLSelectElement>('[data-testid="balance-query-type"]')
+    expect(select.element.value).toBe('')
+    await select.setValue('sub2api')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.balance_query_type).toBe('sub2api')
+  })
+
+  it('keeps the existing New API account token when the edit field is empty', async () => {
+    const account = buildAccount()
+    account.credentials = {
+      ...account.credentials,
+      balance_query_type: 'newapi',
+      balance_query_access_token: 'existing-account-token',
+      balance_query_user_id: '27'
+    }
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await wrapper.setProps({ show: true })
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="balance-query-access-token"]').element.value).toBe('')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="balance-query-user-id"]').element.value).toBe('27')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    const credentials = updateAccountMock.mock.calls[0]?.[1]?.credentials
+    expect(credentials?.balance_query_access_token).toBe('existing-account-token')
+    expect(credentials?.balance_query_user_id).toBe('27')
   })
 
   it('enables balance query for an existing Claude Console key without a provider', async () => {

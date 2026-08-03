@@ -563,8 +563,8 @@ const refreshTodayStatsBatch = async () => {
 }
 
 const isBalanceQuerySupported = (account: Account) => {
-  if (account.platform !== 'anthropic' || account.type !== 'apikey') return false
-  return true
+  if (account.type !== 'apikey') return false
+  return account.platform === 'anthropic' || account.platform === 'openai'
 }
 
 const isBalanceQueryConfigured = (account: Account) => {

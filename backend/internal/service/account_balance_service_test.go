@@ -72,11 +72,11 @@ func TestBuildAccountBalanceURLs(t *testing.T) {
 
 	sub2apiURL, err := buildAccountBalanceURL("https://relay.example.com/prefix/v1", AccountBalanceProviderSub2API)
 	require.NoError(t, err)
-	require.Equal(t, "https://relay.example.com/prefix/v1/usage", sub2apiURL)
+	require.Equal(t, "https://relay.example.com/prefix/v1/usage?scope=account", sub2apiURL)
 
 	newAPIURL, err := buildAccountBalanceURL("https://relay.example.com/prefix/v1", AccountBalanceProviderNewAPI)
 	require.NoError(t, err)
-	require.Equal(t, "https://relay.example.com/prefix/api/usage/token", newAPIURL)
+	require.Equal(t, "https://relay.example.com/prefix/api/user/self", newAPIURL)
 
 	statusURL, err := buildNewAPIStatusURL("https://relay.example.com/prefix/v1")
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestAccountBalanceFetchSub2API(t *testing.T) {
 		status int
 		body   string
 	}{
-		"/v1/usage": {status: http.StatusOK, body: `{"remaining":12.3456,"unit":"USD"}`},
+		"/v1/usage": {status: http.StatusOK, body: `{"account_balance":12.3456,"unit":"USD"}`},
 	}}
 	service := newAccountBalanceTestService(upstream)
 	account := &Account{
@@ -113,7 +113,9 @@ func TestAccountBalanceFetchSub2API(t *testing.T) {
 	require.Equal(t, "USD", unit)
 	require.False(t, unlimited)
 	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "account", upstream.requests[0].URL.Query().Get("scope"))
 	require.Equal(t, "Bearer sk-test", upstream.requests[0].Header.Get("Authorization"))
+	require.Equal(t, "sk-test", upstream.requests[0].Header.Get("x-api-key"))
 	require.Equal(t, "http://127.0.0.1:8080", upstream.proxies[0])
 }
 
@@ -124,9 +126,9 @@ func TestAccountBalanceFetchNewAPIUsesReportedQuotaPerUnit(t *testing.T) {
 		status int
 		body   string
 	}{
-		"/api/usage/token": {
+		"/api/user/self": {
 			status: http.StatusOK,
-			body:   `{"code":true,"data":{"total_available":750000,"unlimited_quota":false}}`,
+			body:   `{"success":true,"data":{"quota":750000}}`,
 		},
 		"/api/status": {
 			status: http.StatusOK,
@@ -136,13 +138,15 @@ func TestAccountBalanceFetchNewAPIUsesReportedQuotaPerUnit(t *testing.T) {
 	service := newAccountBalanceTestService(upstream)
 	account := &Account{
 		ID:          12,
-		Platform:    PlatformAnthropic,
+		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 2,
 		Credentials: map[string]any{
-			"base_url":           "https://new-api.example.com/v1",
-			"api_key":            "sk-newapi",
-			"balance_query_type": AccountBalanceProviderNewAPI,
+			"base_url":                   "https://new-api.example.com/v1",
+			"api_key":                    "sk-newapi",
+			"balance_query_type":         AccountBalanceProviderNewAPI,
+			"balance_query_access_token": "account-access-token",
+			"balance_query_user_id":      "42",
 		},
 	}
 
@@ -153,17 +157,43 @@ func TestAccountBalanceFetchNewAPIUsesReportedQuotaPerUnit(t *testing.T) {
 	require.Equal(t, "USD", unit)
 	require.False(t, unlimited)
 	require.Len(t, upstream.requests, 2)
-	require.Equal(t, "/api/usage/token", upstream.requests[0].URL.Path)
+	require.Equal(t, "/api/user/self", upstream.requests[0].URL.Path)
+	require.Equal(t, "Bearer account-access-token", upstream.requests[0].Header.Get("Authorization"))
+	require.Equal(t, "42", upstream.requests[0].Header.Get("New-Api-User"))
+	require.Empty(t, upstream.requests[0].Header.Get("x-api-key"))
 	require.Equal(t, "/api/status", upstream.requests[1].URL.Path)
+	require.Empty(t, upstream.requests[1].Header.Get("Authorization"))
 }
 
-func TestParseSub2APIBalanceSupportsNestedQuota(t *testing.T) {
+func TestParseSub2APIBalanceRejectsAPIKeyQuota(t *testing.T) {
 	t.Parallel()
 
-	balance, unit, unlimited, err := parseSub2APIBalance([]byte(`{"quota":{"remaining":"8.50","unit":"USD"}}`))
-	require.NoError(t, err)
-	require.NotNil(t, balance)
-	require.InDelta(t, 8.5, *balance, 0.000001)
-	require.Equal(t, "USD", unit)
+	balance, unit, unlimited, err := parseSub2APIBalance([]byte(`{"remaining":8.5,"quota":{"remaining":8.5}}`))
+	require.ErrorContains(t, err, "account balance")
+	require.Nil(t, balance)
+	require.Empty(t, unit)
 	require.False(t, unlimited)
+}
+
+func TestAccountBalanceProviderSupportsAnthropicAndOpenAIAPIKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{PlatformAnthropic, PlatformOpenAI} {
+		account := &Account{
+			Platform: platform,
+			Type:     AccountTypeAPIKey,
+			Credentials: map[string]any{
+				"balance_query_type": AccountBalanceProviderSub2API,
+			},
+		}
+		require.Equal(t, AccountBalanceProviderSub2API, accountBalanceProvider(account))
+	}
+
+	require.Empty(t, accountBalanceProvider(&Account{
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"balance_query_type": AccountBalanceProviderSub2API,
+		},
+	}))
 }

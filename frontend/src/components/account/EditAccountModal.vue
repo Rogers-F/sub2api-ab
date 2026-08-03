@@ -69,7 +69,7 @@
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
         </div>
 
-        <div v-if="account.platform === 'anthropic'">
+        <div v-if="account.platform === 'anthropic' || account.platform === 'openai'">
           <label class="input-label">{{ t('admin.accounts.balanceQuery.label') }}</label>
           <select
             v-model="balanceQueryType"
@@ -81,6 +81,40 @@
             <option value="newapi">{{ t('admin.accounts.balanceQuery.newapi') }}</option>
           </select>
           <p class="input-hint">{{ t('admin.accounts.balanceQuery.hint') }}</p>
+
+          <div
+            v-if="balanceQueryType === 'newapi'"
+            class="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-800/50"
+          >
+            <p class="text-xs text-gray-600 dark:text-gray-300">
+              {{ t('admin.accounts.balanceQuery.newapiHint') }}
+            </p>
+            <div>
+              <label class="input-label">{{ t('admin.accounts.balanceQuery.accessToken') }}</label>
+              <input
+                v-model="balanceQueryAccessToken"
+                type="password"
+                autocomplete="new-password"
+                class="input font-mono"
+                data-testid="balance-query-access-token"
+                :placeholder="t('admin.accounts.balanceQuery.accessTokenPlaceholder')"
+              />
+              <p class="input-hint">{{ t('admin.accounts.balanceQuery.accessTokenEditHint') }}</p>
+            </div>
+            <div>
+              <label class="input-label">{{ t('admin.accounts.balanceQuery.userId') }}</label>
+              <input
+                v-model="balanceQueryUserID"
+                type="text"
+                required
+                inputmode="numeric"
+                class="input font-mono"
+                data-testid="balance-query-user-id"
+                :placeholder="t('admin.accounts.balanceQuery.userIdPlaceholder')"
+              />
+              <p class="input-hint">{{ t('admin.accounts.balanceQuery.userIdHint') }}</p>
+            </div>
+          </div>
         </div>
 
         <div
@@ -2076,6 +2110,8 @@ const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
 const editApiKey = ref('')
 const balanceQueryType = ref<'' | AccountBalanceQueryType>('')
+const balanceQueryAccessToken = ref('')
+const balanceQueryUserID = ref('')
 // Bedrock credentials
 const editBedrockAccessKeyId = ref('')
 const editBedrockSecretAccessKey = ref('')
@@ -2367,6 +2403,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   balanceQueryType.value = configuredBalanceQueryType === 'sub2api' || configuredBalanceQueryType === 'newapi'
     ? configuredBalanceQueryType
     : ''
+  balanceQueryAccessToken.value = ''
+  balanceQueryUserID.value = credentials?.balance_query_user_id == null
+    ? ''
+    : String(credentials.balance_query_user_id)
   autoPauseOnExpired.value = newAccount.auto_pause_on_expired === true
 
   // Load mixed scheduling setting (only for antigravity accounts)
@@ -3134,11 +3174,34 @@ const handleSubmit = async () => {
         return
       }
 
-      if (props.account.platform === 'anthropic') {
+      if (props.account.platform === 'anthropic' || props.account.platform === 'openai') {
         if (balanceQueryType.value) {
           newCredentials.balance_query_type = balanceQueryType.value
+          if (balanceQueryType.value === 'newapi') {
+            const userID = balanceQueryUserID.value.trim()
+            if (!/^\d+$/.test(userID) || Number(userID) <= 0) {
+              appStore.showError(t('admin.accounts.balanceQuery.userIdRequired'))
+              return
+            }
+
+            const accessToken = balanceQueryAccessToken.value.trim()
+            const currentAccessToken = typeof currentCredentials.balance_query_access_token === 'string'
+              ? currentCredentials.balance_query_access_token.trim()
+              : ''
+            if (!accessToken && !currentAccessToken) {
+              appStore.showError(t('admin.accounts.balanceQuery.accessTokenRequired'))
+              return
+            }
+            newCredentials.balance_query_access_token = accessToken || currentAccessToken
+            newCredentials.balance_query_user_id = userID
+          } else {
+            delete newCredentials.balance_query_access_token
+            delete newCredentials.balance_query_user_id
+          }
         } else {
           delete newCredentials.balance_query_type
+          delete newCredentials.balance_query_access_token
+          delete newCredentials.balance_query_user_id
         }
       }
 

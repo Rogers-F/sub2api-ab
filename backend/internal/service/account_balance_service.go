@@ -21,6 +21,9 @@ const (
 	AccountBalanceProviderSub2API = "sub2api"
 	AccountBalanceProviderNewAPI  = "newapi"
 
+	accountBalanceAccessTokenCredential = "balance_query_access_token"
+	accountBalanceUserIDCredential      = "balance_query_user_id"
+
 	accountBalanceRequestTimeout = 12 * time.Second
 	accountBalanceMaxBodyBytes   = int64(64 * 1024)
 	accountBalanceBatchLimit     = 8
@@ -46,8 +49,8 @@ type newAPIQuotaMetadataCacheEntry struct {
 	expiresAt    time.Time
 }
 
-// GetAccountBalances queries configured Claude Console API Key accounts in
-// parallel. Accounts without balance_query_type are returned as unconfigured.
+// GetAccountBalances queries configured Anthropic or OpenAI API Key accounts
+// in parallel. Accounts without balance_query_type are returned as unconfigured.
 func (s *AccountTestService) GetAccountBalances(ctx context.Context, accountIDs []int64) (map[int64]AccountBalanceInfo, error) {
 	if s == nil || s.accountRepo == nil {
 		return nil, errors.New("account balance service is not configured")
@@ -105,7 +108,10 @@ func (s *AccountTestService) GetAccountBalances(ctx context.Context, accountIDs 
 }
 
 func accountBalanceProvider(account *Account) string {
-	if account == nil || account.Platform != PlatformAnthropic || account.Type != AccountTypeAPIKey {
+	if account == nil || account.Type != AccountTypeAPIKey {
+		return ""
+	}
+	if account.Platform != PlatformAnthropic && account.Platform != PlatformOpenAI {
 		return ""
 	}
 	provider := strings.ToLower(strings.TrimSpace(account.GetCredential("balance_query_type")))
@@ -129,13 +135,13 @@ func (s *AccountTestService) fetchAccountBalance(
 		return nil, "", false, errors.New("account is required")
 	}
 
-	apiKey := strings.TrimSpace(account.GetCredential("api_key"))
-	if apiKey == "" {
-		return nil, "", false, errors.New("API key is missing")
-	}
 	baseURL := strings.TrimSpace(account.GetCredential("base_url"))
 	if baseURL == "" {
-		baseURL = "https://api.anthropic.com"
+		if account.Platform == PlatformOpenAI {
+			baseURL = "https://api.openai.com"
+		} else {
+			baseURL = "https://api.anthropic.com"
+		}
 	}
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
@@ -149,15 +155,36 @@ func (s *AccountTestService) fetchAccountBalance(
 
 	queryCtx, cancel := context.WithTimeout(ctx, accountBalanceRequestTimeout)
 	defer cancel()
-	body, err := s.doAccountBalanceRequest(queryCtx, account, queryURL, apiKey)
-	if err != nil {
-		return nil, "", false, err
-	}
 
 	switch provider {
 	case AccountBalanceProviderSub2API:
+		apiKey := strings.TrimSpace(account.GetCredential("api_key"))
+		if apiKey == "" {
+			return nil, "", false, errors.New("API key is missing")
+		}
+		body, requestErr := s.doAccountBalanceRequest(queryCtx, account, queryURL, apiKey, apiKey, "")
+		if requestErr != nil {
+			return nil, "", false, requestErr
+		}
 		return parseSub2APIBalance(body)
 	case AccountBalanceProviderNewAPI:
+		accessToken := strings.TrimSpace(account.GetCredential(accountBalanceAccessTokenCredential))
+		if accessToken == "" {
+			return nil, "", false, errors.New("New API account access token is missing")
+		}
+		userID := strings.TrimSpace(account.GetCredential(accountBalanceUserIDCredential))
+		if userID == "" {
+			return nil, "", false, errors.New("New API account user ID is missing")
+		}
+		parsedUserID, parseErr := strconv.ParseInt(userID, 10, 64)
+		if parseErr != nil || parsedUserID <= 0 {
+			return nil, "", false, errors.New("New API account user ID must be a positive integer")
+		}
+		userID = strconv.FormatInt(parsedUserID, 10)
+		body, requestErr := s.doAccountBalanceRequest(queryCtx, account, queryURL, accessToken, "", userID)
+		if requestErr != nil {
+			return nil, "", false, requestErr
+		}
 		quotaPerUnit := s.getNewAPIQuotaPerUnit(queryCtx, account, normalizedBaseURL)
 		return parseNewAPIBalance(body, quotaPerUnit)
 	default:
@@ -169,15 +196,24 @@ func (s *AccountTestService) doAccountBalanceRequest(
 	ctx context.Context,
 	account *Account,
 	requestURL string,
+	bearerToken string,
 	apiKey string,
+	newAPIUserID string,
 ) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create balance request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("x-api-key", apiKey)
+	if bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+bearerToken)
+	}
+	if apiKey != "" {
+		req.Header.Set("x-api-key", apiKey)
+	}
+	if newAPIUserID != "" {
+		req.Header.Set("New-Api-User", newAPIUserID)
+	}
 	req.Header.Set("User-Agent", "Sub2API-BalanceQuery/1.0")
 
 	proxyURL := ""
@@ -215,7 +251,7 @@ func (s *AccountTestService) getNewAPIQuotaPerUnit(ctx context.Context, account 
 	if err != nil {
 		return newAPIDefaultQuotaPerUnit
 	}
-	body, err := s.doAccountBalanceRequest(ctx, account, statusURL, account.GetCredential("api_key"))
+	body, err := s.doAccountBalanceRequest(ctx, account, statusURL, "", "", "")
 	if err != nil {
 		return newAPIDefaultQuotaPerUnit
 	}
@@ -254,21 +290,17 @@ func buildAccountBalanceURL(baseURL, provider string) (string, error) {
 		default:
 			path += "/v1/usage"
 		}
+		u.RawQuery = "scope=account"
 	case AccountBalanceProviderNewAPI:
-		path = strings.TrimSuffix(path, "/v1")
-		switch {
-		case strings.HasSuffix(path, "/api/usage/token"):
-		case strings.HasSuffix(path, "/api"):
-			path += "/usage/token"
-		default:
-			path += "/api/usage/token"
-		}
+		path = newAPIEndpointPath(path, "/user/self")
 	default:
 		return "", fmt.Errorf("unsupported balance query provider: %s", provider)
 	}
 	u.Path = ensureLeadingSlash(path)
 	u.RawPath = ""
-	u.RawQuery = ""
+	if provider != AccountBalanceProviderSub2API {
+		u.RawQuery = ""
+	}
 	u.Fragment = ""
 	return strings.TrimRight(u.String(), "/"), nil
 }
@@ -278,17 +310,26 @@ func buildNewAPIStatusURL(baseURL string) (string, error) {
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return "", errors.New("invalid New API base URL")
 	}
-	path := strings.TrimSuffix(strings.TrimRight(u.Path, "/"), "/v1")
-	if strings.HasSuffix(path, "/api") {
-		path += "/status"
-	} else {
-		path += "/api/status"
-	}
+	path := newAPIEndpointPath(u.Path, "/status")
 	u.Path = ensureLeadingSlash(path)
 	u.RawPath = ""
 	u.RawQuery = ""
 	u.Fragment = ""
 	return strings.TrimRight(u.String(), "/"), nil
+}
+
+func newAPIEndpointPath(path, endpoint string) string {
+	path = strings.TrimRight(path, "/")
+	for _, suffix := range []string{"/api/user/self", "/api/usage/token", "/v1"} {
+		if strings.HasSuffix(path, suffix) {
+			path = strings.TrimSuffix(path, suffix)
+			break
+		}
+	}
+	if !strings.HasSuffix(path, "/api") {
+		path += "/api"
+	}
+	return path + endpoint
 }
 
 func ensureLeadingSlash(path string) string {
@@ -307,14 +348,11 @@ func parseSub2APIBalance(body []byte) (*float64, string, bool, error) {
 		return nil, "", false, err
 	}
 	data := nestedBalanceMap(root, "data")
-	quota := nestedBalanceMap(root, "quota")
-	dataQuota := nestedBalanceMap(data, "quota")
 
 	var balance float64
 	found := false
 	for _, candidate := range []any{
-		root["remaining"], root["balance"], quota["remaining"],
-		data["remaining"], data["balance"], dataQuota["remaining"],
+		root["account_balance"], data["account_balance"],
 	} {
 		if value, ok := balanceNumber(candidate); ok {
 			balance = value
@@ -323,12 +361,9 @@ func parseSub2APIBalance(body []byte) (*float64, string, bool, error) {
 		}
 	}
 	if !found {
-		return nil, "", false, errors.New("Sub2API response does not contain a balance")
+		return nil, "", false, errors.New("Sub2API response does not contain an account balance")
 	}
-	if balance < 0 {
-		return nil, balanceUnit(root, data, quota, dataQuota), true, nil
-	}
-	return &balance, balanceUnit(root, data, quota, dataQuota), false, nil
+	return &balance, balanceUnit(root, data), false, nil
 }
 
 func parseNewAPIBalance(body []byte, quotaPerUnit float64) (*float64, string, bool, error) {
@@ -337,28 +372,12 @@ func parseNewAPIBalance(body []byte, quotaPerUnit float64) (*float64, string, bo
 		return nil, "", false, err
 	}
 	data := nestedBalanceMap(root, "data")
-	if balanceBool(data["unlimited_quota"]) || balanceBool(root["unlimited_quota"]) {
-		return nil, "USD", true, nil
-	}
-
-	for _, candidate := range []any{data["total_available_usd"], root["total_available_usd"]} {
-		if value, ok := balanceNumber(candidate); ok {
-			if value < 0 {
-				return nil, "", false, errors.New("new API returned a negative balance")
-			}
-			return &value, "USD", false, nil
-		}
-	}
-
-	raw, ok := balanceNumber(data["total_available"])
+	raw, ok := balanceNumber(data["quota"])
 	if !ok {
-		raw, ok = balanceNumber(root["total_available"])
+		raw, ok = balanceNumber(root["quota"])
 	}
 	if !ok {
-		return nil, "", false, errors.New("new API response does not contain total_available")
-	}
-	if raw < 0 {
-		return nil, "", false, errors.New("new API returned a negative balance")
+		return nil, "", false, errors.New("New API response does not contain account quota")
 	}
 	if quotaPerUnit <= 0 || math.IsNaN(quotaPerUnit) || math.IsInf(quotaPerUnit, 0) {
 		quotaPerUnit = newAPIDefaultQuotaPerUnit
@@ -414,18 +433,6 @@ func balanceNumber(value any) (float64, bool) {
 		return 0, false
 	}
 	return number, true
-}
-
-func balanceBool(value any) bool {
-	switch v := value.(type) {
-	case bool:
-		return v
-	case string:
-		parsed, _ := strconv.ParseBool(strings.TrimSpace(v))
-		return parsed
-	default:
-		return false
-	}
 }
 
 func balanceUnit(maps ...map[string]any) string {

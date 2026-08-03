@@ -170,15 +170,15 @@ func (s *AccountTestService) fetchAccountBalance(
 	case AccountBalanceProviderNewAPI:
 		accessToken := strings.TrimSpace(account.GetCredential(accountBalanceAccessTokenCredential))
 		if accessToken == "" {
-			return nil, "", false, errors.New("New API account access token is missing")
+			return nil, "", false, errors.New("new API account access token is missing")
 		}
 		userID := strings.TrimSpace(account.GetCredential(accountBalanceUserIDCredential))
 		if userID == "" {
-			return nil, "", false, errors.New("New API account user ID is missing")
+			return nil, "", false, errors.New("new API account user ID is missing")
 		}
 		parsedUserID, parseErr := strconv.ParseInt(userID, 10, 64)
 		if parseErr != nil || parsedUserID <= 0 {
-			return nil, "", false, errors.New("New API account user ID must be a positive integer")
+			return nil, "", false, errors.New("new API account user ID must be a positive integer")
 		}
 		userID = strconv.FormatInt(parsedUserID, 10)
 		body, requestErr := s.doAccountBalanceRequest(queryCtx, account, queryURL, accessToken, "", userID)
@@ -377,7 +377,7 @@ func parseNewAPIBalance(body []byte, quotaPerUnit float64) (*float64, string, bo
 		raw, ok = balanceNumber(root["quota"])
 	}
 	if !ok {
-		return nil, "", false, errors.New("New API response does not contain account quota")
+		return nil, "", false, errors.New("new API response does not contain account quota")
 	}
 	if quotaPerUnit <= 0 || math.IsNaN(quotaPerUnit) || math.IsInf(quotaPerUnit, 0) {
 		quotaPerUnit = newAPIDefaultQuotaPerUnit

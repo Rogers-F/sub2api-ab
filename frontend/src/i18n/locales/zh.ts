@@ -2560,6 +2560,7 @@ export default {
       apiKeyHint: '您的 Claude Console API Key',
       balanceQuery: {
         label: '余额查询',
+        enable: '开启查询',
         disabled: '不查询',
         sub2api: 'Sub2API',
         newapi: 'New API',

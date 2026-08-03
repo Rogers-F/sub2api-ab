@@ -217,10 +217,18 @@
             />
           </template>
           <template #cell-balance="{ row }">
-            <span
-              v-if="!isBalanceQueryConfigured(row)"
-              class="text-sm text-gray-400 dark:text-dark-500"
-            >-</span>
+            <template v-if="!isBalanceQueryConfigured(row)">
+              <button
+                v-if="isBalanceQuerySupported(row)"
+                type="button"
+                class="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300"
+                data-testid="enable-balance-query"
+                @click="handleEdit(row)"
+              >
+                {{ t('admin.accounts.balanceQuery.enable') }}
+              </button>
+              <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+            </template>
             <span
               v-else-if="balanceQueryLoading && !accountBalancesById[String(row.id)]"
               class="inline-block h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-dark-600"
@@ -554,8 +562,13 @@ const refreshTodayStatsBatch = async () => {
   }
 }
 
-const isBalanceQueryConfigured = (account: Account) => {
+const isBalanceQuerySupported = (account: Account) => {
   if (account.platform !== 'anthropic' || account.type !== 'apikey') return false
+  return true
+}
+
+const isBalanceQueryConfigured = (account: Account) => {
+  if (!isBalanceQuerySupported(account)) return false
   const provider = account.credentials?.balance_query_type
   return provider === 'sub2api' || provider === 'newapi'
 }

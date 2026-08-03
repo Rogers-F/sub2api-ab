@@ -2410,6 +2410,7 @@ export default {
       apiKeyHint: 'Your Claude Console API Key',
       balanceQuery: {
         label: 'Balance Query',
+        enable: 'Enable query',
         disabled: 'Disabled',
         sub2api: 'Sub2API',
         newapi: 'New API',

@@ -344,7 +344,7 @@ func parseNewAPIBalance(body []byte, quotaPerUnit float64) (*float64, string, bo
 	for _, candidate := range []any{data["total_available_usd"], root["total_available_usd"]} {
 		if value, ok := balanceNumber(candidate); ok {
 			if value < 0 {
-				return nil, "", false, errors.New("New API returned a negative balance")
+				return nil, "", false, errors.New("new API returned a negative balance")
 			}
 			return &value, "USD", false, nil
 		}
@@ -355,10 +355,10 @@ func parseNewAPIBalance(body []byte, quotaPerUnit float64) (*float64, string, bo
 		raw, ok = balanceNumber(root["total_available"])
 	}
 	if !ok {
-		return nil, "", false, errors.New("New API response does not contain total_available")
+		return nil, "", false, errors.New("new API response does not contain total_available")
 	}
 	if raw < 0 {
-		return nil, "", false, errors.New("New API returned a negative balance")
+		return nil, "", false, errors.New("new API returned a negative balance")
 	}
 	if quotaPerUnit <= 0 || math.IsNaN(quotaPerUnit) || math.IsInf(quotaPerUnit, 0) {
 		quotaPerUnit = newAPIDefaultQuotaPerUnit

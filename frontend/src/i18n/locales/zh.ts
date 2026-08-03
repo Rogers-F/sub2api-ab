@@ -2246,6 +2246,7 @@ export default {
         status: '状态',
         schedulable: '调度',
         todayStats: '今日统计',
+        balance: '余额',
         groups: '分组',
         usageWindows: '用量窗口',
         proxy: '代理',
@@ -2557,6 +2558,15 @@ export default {
       apiKeyRequired: 'API Key *',
       apiKeyPlaceholder: 'sk-ant-api03-...',
       apiKeyHint: '您的 Claude Console API Key',
+      balanceQuery: {
+        label: '余额查询',
+        disabled: '不查询',
+        sub2api: 'Sub2API',
+        newapi: 'New API',
+        hint: '使用当前 Base URL 和 API Key 查询上游余额；New API 额度会自动换算为金额。',
+        queryFailed: '查询失败',
+        unlimited: '无限额度'
+      },
       // OpenAI specific hints
       openai: {
         baseUrlHint: '留空使用官方 OpenAI API',

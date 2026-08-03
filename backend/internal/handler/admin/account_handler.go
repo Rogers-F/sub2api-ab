@@ -1714,6 +1714,43 @@ type BatchTodayStatsRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required"`
 }
 
+// BatchAccountBalancesRequest is intentionally ID-only; credentials are read
+// server-side and never sent by the browser for balance queries.
+type BatchAccountBalancesRequest struct {
+	AccountIDs []int64 `json:"account_ids" binding:"required"`
+}
+
+// GetBatchBalances queries balances for configured Claude Console API Key accounts.
+// POST /api/v1/admin/accounts/balances/batch
+func (h *AccountHandler) GetBatchBalances(c *gin.Context) {
+	var req BatchAccountBalancesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	accountIDs := normalizeInt64IDList(req.AccountIDs)
+	if len(accountIDs) == 0 {
+		response.Success(c, gin.H{"balances": map[string]any{}})
+		return
+	}
+	if len(accountIDs) > 200 {
+		response.BadRequest(c, "A maximum of 200 accounts can be queried at once")
+		return
+	}
+	if h.accountTestService == nil {
+		response.InternalError(c, "Account balance service is not configured")
+		return
+	}
+
+	balances, err := h.accountTestService.GetAccountBalances(c.Request.Context(), accountIDs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"balances": balances})
+}
+
 // GetBatchTodayStats 批量获取多个账号的今日统计。
 // POST /api/v1/admin/accounts/today-stats/batch
 func (h *AccountHandler) GetBatchTodayStats(c *gin.Context) {

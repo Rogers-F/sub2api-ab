@@ -150,6 +150,32 @@ function mountModal(account = buildAccount()) {
 }
 
 describe('EditAccountModal', () => {
+  it('persists the Claude Console balance query provider', async () => {
+    const account = buildAccount()
+    account.name = 'Claude Console Key'
+    account.platform = 'anthropic'
+    account.credentials = {
+      api_key: 'sk-ant-test',
+      base_url: 'https://relay.example.com',
+      balance_query_type: 'sub2api'
+    }
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await wrapper.setProps({ show: true })
+
+    const select = wrapper.get<HTMLSelectElement>('[data-testid="balance-query-type"]')
+    expect(select.element.value).toBe('sub2api')
+    await select.setValue('newapi')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.balance_query_type).toBe('newapi')
+  })
+
   it('reopening the same account rehydrates the OpenAI whitelist from props', async () => {
     const account = buildAccount()
     updateAccountMock.mockReset()

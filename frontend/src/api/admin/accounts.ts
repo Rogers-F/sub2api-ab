@@ -17,7 +17,8 @@ import type {
   AdminDataPayload,
   AdminDataImportResult,
   CheckMixedChannelRequest,
-  CheckMixedChannelResponse
+  CheckMixedChannelResponse,
+  AccountBalanceInfo
 } from '@/types'
 
 /**
@@ -406,6 +407,10 @@ export interface BatchTodayStatsResponse {
   stats: Record<string, WindowStats>
 }
 
+export interface BatchAccountBalancesResponse {
+  balances: Record<string, AccountBalanceInfo>
+}
+
 /**
  * 批量获取多个账号的今日统计
  * @param accountIds - 账号 ID 列表
@@ -413,6 +418,13 @@ export interface BatchTodayStatsResponse {
  */
 export async function getBatchTodayStats(accountIds: number[]): Promise<BatchTodayStatsResponse> {
   const { data } = await apiClient.post<BatchTodayStatsResponse>('/admin/accounts/today-stats/batch', {
+    account_ids: accountIds
+  })
+  return data
+}
+
+export async function getBatchBalances(accountIds: number[]): Promise<BatchAccountBalancesResponse> {
+  const { data } = await apiClient.post<BatchAccountBalancesResponse>('/admin/accounts/balances/batch', {
     account_ids: accountIds
   })
   return data
@@ -643,6 +655,7 @@ export const accountsAPI = {
   getUsage,
   getTodayStats,
   getBatchTodayStats,
+  getBatchBalances,
   clearRateLimit,
   recoverState,
   resetAccountQuota,

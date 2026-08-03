@@ -659,6 +659,7 @@ export interface UpdateGroupRequest {
 export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
+export type AccountBalanceQueryType = 'sub2api' | 'newapi'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
 
 // Claude Model type (returned by /v1/models and account models API)
@@ -883,6 +884,17 @@ export interface WindowStats {
   cost: number // Account cost (account multiplier)
   standard_cost?: number
   user_cost?: number
+}
+
+export interface AccountBalanceInfo {
+  account_id: number
+  configured: boolean
+  provider?: AccountBalanceQueryType
+  balance?: number
+  unit?: string
+  unlimited?: boolean
+  queried_at?: string
+  error?: string
 }
 
 export interface UsageProgress {

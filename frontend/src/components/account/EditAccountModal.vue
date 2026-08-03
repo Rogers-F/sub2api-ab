@@ -69,6 +69,20 @@
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
         </div>
 
+        <div v-if="account.platform === 'anthropic'">
+          <label class="input-label">{{ t('admin.accounts.balanceQuery.label') }}</label>
+          <select
+            v-model="balanceQueryType"
+            class="input"
+            data-testid="balance-query-type"
+          >
+            <option value="">{{ t('admin.accounts.balanceQuery.disabled') }}</option>
+            <option value="sub2api">{{ t('admin.accounts.balanceQuery.sub2api') }}</option>
+            <option value="newapi">{{ t('admin.accounts.balanceQuery.newapi') }}</option>
+          </select>
+          <p class="input-hint">{{ t('admin.accounts.balanceQuery.hint') }}</p>
+        </div>
+
         <div
           v-if="account.platform === 'openai'"
           class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800/40 dark:bg-sky-900/20 dark:text-sky-200"
@@ -1987,7 +2001,7 @@ import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
-import type { Account, Proxy, AdminGroup, CheckMixedChannelResponse } from '@/types'
+import type { Account, Proxy, AdminGroup, CheckMixedChannelResponse, AccountBalanceQueryType } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -2061,6 +2075,7 @@ interface TempUnschedRuleForm {
 const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
 const editApiKey = ref('')
+const balanceQueryType = ref<'' | AccountBalanceQueryType>('')
 // Bedrock credentials
 const editBedrockAccessKeyId = ref('')
 const editBedrockSecretAccessKey = ref('')
@@ -2348,6 +2363,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   // Load intercept warmup requests setting (applies to all account types)
   const credentials = newAccount.credentials as Record<string, unknown> | undefined
   interceptWarmupRequests.value = credentials?.intercept_warmup_requests === true
+  const configuredBalanceQueryType = credentials?.balance_query_type
+  balanceQueryType.value = configuredBalanceQueryType === 'sub2api' || configuredBalanceQueryType === 'newapi'
+    ? configuredBalanceQueryType
+    : ''
   autoPauseOnExpired.value = newAccount.auto_pause_on_expired === true
 
   // Load mixed scheduling setting (only for antigravity accounts)
@@ -3113,6 +3132,14 @@ const handleSubmit = async () => {
       } else {
         appStore.showError(t('admin.accounts.apiKeyIsRequired'))
         return
+      }
+
+      if (props.account.platform === 'anthropic') {
+        if (balanceQueryType.value) {
+          newCredentials.balance_query_type = balanceQueryType.value
+        } else {
+          delete newCredentials.balance_query_type
+        }
       }
 
       // Add model mapping if configured（OpenAI 开启自动透传时保留现有映射，不再编辑）

@@ -2206,6 +2206,7 @@ export default {
         status: 'Status',
         schedulable: 'Schedulable',
         todayStats: 'Today Stats',
+        balance: 'Balance',
         groups: 'Groups',
         usageWindows: 'Usage Windows',
         proxy: 'Proxy',
@@ -2407,6 +2408,15 @@ export default {
       apiKeyRequired: 'API Key *',
       apiKeyPlaceholder: 'sk-ant-api03-...',
       apiKeyHint: 'Your Claude Console API Key',
+      balanceQuery: {
+        label: 'Balance Query',
+        disabled: 'Disabled',
+        sub2api: 'Sub2API',
+        newapi: 'New API',
+        hint: 'Query the upstream balance with this Base URL and API Key. New API quota units are converted automatically.',
+        queryFailed: 'Query failed',
+        unlimited: 'Unlimited'
+      },
       // OpenAI specific hints
       openai: {
         baseUrlHint: 'Leave default for official OpenAI API',

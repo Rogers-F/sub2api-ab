@@ -896,6 +896,20 @@
           <p class="input-hint">{{ apiKeyHint }}</p>
         </div>
 
+        <div v-if="form.platform === 'anthropic'">
+          <label class="input-label">{{ t('admin.accounts.balanceQuery.label') }}</label>
+          <select
+            v-model="balanceQueryType"
+            class="input"
+            data-testid="balance-query-type"
+          >
+            <option value="">{{ t('admin.accounts.balanceQuery.disabled') }}</option>
+            <option value="sub2api">{{ t('admin.accounts.balanceQuery.sub2api') }}</option>
+            <option value="newapi">{{ t('admin.accounts.balanceQuery.newapi') }}</option>
+          </select>
+          <p class="input-hint">{{ t('admin.accounts.balanceQuery.hint') }}</p>
+        </div>
+
         <!-- Gemini API Key tier selection -->
         <div v-if="form.platform === 'gemini'">
           <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
@@ -3164,6 +3178,7 @@ const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock'>('oauth-based')
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
+const balanceQueryType = ref<'' | 'sub2api' | 'newapi'>('')
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
@@ -3583,6 +3598,7 @@ watch(
       anthropicPassthroughEnabled.value = false
       anthropicInvalidParamRectifierEnabled.value = false
       webSearchEmulationMode.value = 'default'
+      balanceQueryType.value = ''
     }
     // Reset OAuth states
     oauth.resetState()
@@ -3604,6 +3620,7 @@ watch(
       anthropicPassthroughEnabled.value = false
       anthropicInvalidParamRectifierEnabled.value = false
       webSearchEmulationMode.value = 'default'
+      balanceQueryType.value = ''
     }
   }
 )
@@ -3939,6 +3956,7 @@ const resetForm = () => {
   addMethod.value = 'oauth'
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
+  balanceQueryType.value = ''
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
   editQuotaWeeklyLimit.value = null
@@ -4261,6 +4279,9 @@ const handleSubmit = async () => {
   const credentials: Record<string, unknown> = {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
+  }
+  if (form.platform === 'anthropic' && balanceQueryType.value) {
+    credentials.balance_query_type = balanceQueryType.value
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value

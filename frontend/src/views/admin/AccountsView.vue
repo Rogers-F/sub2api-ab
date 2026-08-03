@@ -216,6 +216,41 @@
               :error="todayStatsError"
             />
           </template>
+          <template #cell-balance="{ row }">
+            <span
+              v-if="!isBalanceQueryConfigured(row)"
+              class="text-sm text-gray-400 dark:text-dark-500"
+            >-</span>
+            <span
+              v-else-if="balanceQueryLoading && !accountBalancesById[String(row.id)]"
+              class="inline-block h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-dark-600"
+            ></span>
+            <div v-else-if="accountBalancesById[String(row.id)]" class="flex flex-col">
+              <span
+                v-if="accountBalancesById[String(row.id)].error"
+                class="text-sm text-red-500 dark:text-red-400"
+                :title="accountBalancesById[String(row.id)].error"
+              >
+                {{ t('admin.accounts.balanceQuery.queryFailed') }}
+              </span>
+              <span
+                v-else
+                class="font-mono text-sm font-medium text-gray-800 dark:text-gray-200"
+              >
+                {{ formatAccountBalance(accountBalancesById[String(row.id)]) }}
+              </span>
+              <span class="text-[10px] text-gray-400 dark:text-dark-500">
+                {{ balanceProviderLabel(accountBalancesById[String(row.id)].provider) }}
+              </span>
+            </div>
+            <span
+              v-else
+              class="text-sm text-red-500 dark:text-red-400"
+              :title="balanceQueryError || undefined"
+            >
+              {{ t('admin.accounts.balanceQuery.queryFailed') }}
+            </span>
+          </template>
           <template #cell-groups="{ row }">
             <AccountGroupsCell :groups="row.groups" :max-display="4" />
           </template>
@@ -347,7 +382,7 @@ import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRules
 import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfilesModal.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
-import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
+import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountBalanceInfo, AccountBalanceQueryType } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -460,6 +495,12 @@ const todayStatsError = ref<string | null>(null)
 const todayStatsReqSeq = ref(0)
 const pendingTodayStatsRefresh = ref(false)
 const usageManualRefreshToken = ref(0)
+const accountBalancesById = ref<Record<string, AccountBalanceInfo>>({})
+const balanceQueryLoading = ref(false)
+const balanceQueryError = ref<string | null>(null)
+const balanceQueryReqSeq = ref(0)
+const balanceLastRefreshedAt = ref(0)
+const BALANCE_REFRESH_INTERVAL_MS = 30_000
 
 const buildDefaultTodayStats = (): WindowStats => ({
   requests: 0,
@@ -509,6 +550,64 @@ const refreshTodayStatsBatch = async () => {
   } finally {
     if (reqSeq === todayStatsReqSeq.value) {
       todayStatsLoading.value = false
+    }
+  }
+}
+
+const isBalanceQueryConfigured = (account: Account) => {
+  if (account.platform !== 'anthropic' || account.type !== 'apikey') return false
+  const provider = account.credentials?.balance_query_type
+  return provider === 'sub2api' || provider === 'newapi'
+}
+
+const balanceProviderLabel = (provider?: AccountBalanceQueryType) => {
+  if (provider === 'sub2api') return t('admin.accounts.balanceQuery.sub2api')
+  if (provider === 'newapi') return t('admin.accounts.balanceQuery.newapi')
+  return ''
+}
+
+const formatAccountBalance = (info: AccountBalanceInfo) => {
+  if (info.unlimited) return t('admin.accounts.balanceQuery.unlimited')
+  if (typeof info.balance !== 'number') return '-'
+  const amount = info.balance.toFixed(2)
+  const unit = (info.unit || 'USD').toUpperCase()
+  return unit === 'USD' ? `$${amount}` : `${amount} ${unit}`
+}
+
+const refreshAccountBalances = async (force = false) => {
+  if (hiddenColumns.has('balance')) {
+    balanceQueryLoading.value = false
+    balanceQueryError.value = null
+    return
+  }
+  if (!force && Date.now() - balanceLastRefreshedAt.value < BALANCE_REFRESH_INTERVAL_MS) {
+    return
+  }
+
+  const accountIDs = accounts.value.filter(isBalanceQueryConfigured).map(account => account.id)
+  const reqSeq = ++balanceQueryReqSeq.value
+  if (accountIDs.length === 0) {
+    accountBalancesById.value = {}
+    balanceQueryLoading.value = false
+    balanceQueryError.value = null
+    balanceLastRefreshedAt.value = Date.now()
+    return
+  }
+
+  balanceQueryLoading.value = true
+  balanceQueryError.value = null
+  balanceLastRefreshedAt.value = Date.now()
+  try {
+    const result = await adminAPI.accounts.getBatchBalances(accountIDs)
+    if (reqSeq !== balanceQueryReqSeq.value) return
+    accountBalancesById.value = result.balances ?? {}
+  } catch (error) {
+    if (reqSeq !== balanceQueryReqSeq.value) return
+    balanceQueryError.value = t('admin.accounts.balanceQuery.queryFailed')
+    console.error('Failed to load account balances:', error)
+  } finally {
+    if (reqSeq === balanceQueryReqSeq.value) {
+      balanceQueryLoading.value = false
     }
   }
 }
@@ -617,6 +716,11 @@ const toggleColumn = (key: string) => {
       console.error('Failed to load account today stats after showing column:', error)
     })
   }
+  if (key === 'balance' && wasHidden) {
+    refreshAccountBalances(true).catch((error) => {
+      console.error('Failed to load account balances after showing column:', error)
+    })
+  }
 }
 
 const isColumnVisible = (key: string) => !hiddenColumns.has(key)
@@ -695,7 +799,7 @@ const load = async () => {
     isFirstLoad.value = false
     delete requestParams.lite
   }
-  await refreshTodayStatsBatch()
+  await Promise.all([refreshTodayStatsBatch(), refreshAccountBalances(true)])
 }
 
 const reload = async () => {
@@ -703,7 +807,7 @@ const reload = async () => {
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = false
   await baseReload()
-  await refreshTodayStatsBatch()
+  await Promise.all([refreshTodayStatsBatch(), refreshAccountBalances(true)])
 }
 
 const debouncedReload = () => {
@@ -743,8 +847,8 @@ const handleSort = (key: string, order: AccountSortOrder) => {
 watch(loading, (isLoading, wasLoading) => {
   if (wasLoading && !isLoading && pendingTodayStatsRefresh.value) {
     pendingTodayStatsRefresh.value = false
-    refreshTodayStatsBatch().catch((error) => {
-      console.error('Failed to refresh account today stats after table load:', error)
+    Promise.all([refreshTodayStatsBatch(), refreshAccountBalances(true)]).catch((error) => {
+      console.error('Failed to refresh account metrics after table load:', error)
     })
   }
 })
@@ -860,7 +964,7 @@ const refreshAccountsIncrementally = async () => {
       hasPendingListSync.value = false
     }
 
-    await refreshTodayStatsBatch()
+    await Promise.all([refreshTodayStatsBatch(), refreshAccountBalances(false)])
   } catch (error) {
     console.error('Auto refresh failed:', error)
   } finally {
@@ -951,7 +1055,8 @@ const allColumns = computed(() => {
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
-    { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
+    { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false },
+    { key: 'balance', label: t('admin.accounts.columns.balance'), sortable: false }
   ]
   if (!authStore.isSimpleMode) {
     c.push({ key: 'groups', label: t('admin.accounts.columns.groups'), sortable: false })
@@ -1272,6 +1377,9 @@ const patchAccountInList = (updatedAccount: Account) => {
 const handleAccountUpdated = (updatedAccount: Account) => {
   patchAccountInList(updatedAccount)
   enterAutoRefreshSilentWindow()
+  refreshAccountBalances(true).catch((error) => {
+    console.error('Failed to refresh account balance after update:', error)
+  })
 }
 const formatExportTimestamp = () => {
   const now = new Date()

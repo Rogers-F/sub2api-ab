@@ -1955,7 +1955,7 @@ func (s *GeminiMessagesCompatService) handleStreamingResponse(c *gin.Context, re
 		return nil, errors.New("streaming not supported")
 	}
 
-	messageID := "msg_" + randomHex(12)
+	messageID := GenerateClaudeMessageID()
 	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
 		messageID = NormalizeClaudeMessageIDForBedrock(messageID)
 	}
@@ -2723,7 +2723,7 @@ func convertGeminiToClaudeMessage(geminiResp map[string]any, originalModel strin
 	}
 
 	resp := map[string]any{
-		"id":            "msg_" + randomHex(12),
+		"id":            GenerateClaudeMessageID(),
 		"type":          "message",
 		"role":          "assistant",
 		"model":         originalModel,

@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"regexp"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+var observedBedrockMessageIDPattern = regexp.MustCompile(`^msg_bdrk_01[A-Za-z0-9]{22}$`)
 
 func TestDetectInterceptType_MaxTokensOneHaikuRequiresClaudeCodeClient(t *testing.T) {
 	body := []byte(`{"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}`)
@@ -49,7 +51,8 @@ func TestSendMockInterceptResponse_MaxTokensOneHaiku(t *testing.T) {
 
 	id, ok := response["id"].(string)
 	require.True(t, ok)
-	require.True(t, strings.HasPrefix(id, "msg_bdrk_"))
+	require.Regexp(t, observedBedrockMessageIDPattern, id)
+	require.Len(t, id, 33)
 
 	content, ok := response["content"].([]any)
 	require.True(t, ok)

@@ -2,13 +2,32 @@ package service
 
 import (
 	"context"
-	"strings"
+	"regexp"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
+
+var currentBedrockMessageIDPattern = regexp.MustCompile(`^msg_bdrk_01[A-Za-z0-9]{22}$`)
+
+func TestGenerateMessageIDs(t *testing.T) {
+	seen := make(map[string]struct{}, 100)
+	for i := 0; i < 100; i++ {
+		bedrockID := GenerateBedrockMessageID()
+		require.Regexp(t, currentBedrockMessageIDPattern, bedrockID)
+		require.Len(t, bedrockID, 33)
+		_, duplicate := seen[bedrockID]
+		require.False(t, duplicate, bedrockID)
+		seen[bedrockID] = struct{}{}
+
+		claudeID := GenerateClaudeMessageID()
+		require.Regexp(t, `^msg_01[A-Za-z0-9]{22}$`, claudeID)
+		require.Len(t, claudeID, 28)
+		require.Equal(t, "msg_bdrk_"+claudeID[len("msg_"):], NormalizeClaudeMessageIDForBedrock(claudeID))
+	}
+}
 
 func TestNormalizeClaudeMessageIDForBedrock(t *testing.T) {
 	require.Equal(t,
@@ -21,12 +40,15 @@ func TestNormalizeClaudeMessageIDForBedrock(t *testing.T) {
 	)
 
 	generated := NormalizeClaudeMessageIDForBedrock("")
-	require.True(t, strings.HasPrefix(generated, "msg_bdrk_"), generated)
-	require.Greater(t, len(generated), len("msg_bdrk_"))
+	require.Regexp(t, currentBedrockMessageIDPattern, generated)
 
 	nonMessageGenerated := NormalizeClaudeMessageIDForBedrock("response_123")
-	require.True(t, strings.HasPrefix(nonMessageGenerated, "msg_bdrk_"), nonMessageGenerated)
+	require.Regexp(t, currentBedrockMessageIDPattern, nonMessageGenerated)
 	require.NotEqual(t, "msg_bdrk_response_123", nonMessageGenerated)
+
+	malformedMessageGenerated := NormalizeClaudeMessageIDForBedrock("msg_abcdef")
+	require.Regexp(t, currentBedrockMessageIDPattern, malformedMessageGenerated)
+	require.NotEqual(t, "msg_bdrk_abcdef", malformedMessageGenerated)
 }
 
 func TestNormalizeClaudeMessageIDInJSONBody(t *testing.T) {

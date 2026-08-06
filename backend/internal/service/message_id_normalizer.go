@@ -2,28 +2,94 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"strconv"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
-	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
-const bedrockMessageIDPrefix = "msg_bdrk_"
+const (
+	anthropicMessageIDPrefix      = "msg_"
+	bedrockMessageIDPrefix        = "msg_bdrk_"
+	currentMessageIDVersionPrefix = "01"
+	currentMessageIDRandomLength  = 22
+	messageIDBase62Alphabet       = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	maxUnbiasedBase62RandomByte   = 248 // Largest multiple of 62 that fits in one byte.
+)
+
+var messageIDFallbackCounter atomic.Uint64
+
+// GenerateClaudeMessageID returns the currently observed Anthropic Messages ID shape.
+func GenerateClaudeMessageID() string {
+	return anthropicMessageIDPrefix + currentMessageIDVersionPrefix + generateMessageIDBase62(currentMessageIDRandomLength)
+}
+
+// GenerateBedrockMessageID returns the currently observed Bedrock Claude Messages ID shape.
+func GenerateBedrockMessageID() string {
+	return bedrockMessageIDPrefix + currentMessageIDVersionPrefix + generateMessageIDBase62(currentMessageIDRandomLength)
+}
 
 func NormalizeClaudeMessageIDForBedrock(id string) string {
 	id = strings.TrimSpace(id)
 	if strings.HasPrefix(id, bedrockMessageIDPrefix) {
+		// IDs received from Bedrock are opaque and may change format over time.
 		return id
 	}
-	if strings.HasPrefix(id, "msg_") {
-		suffix := strings.TrimPrefix(id, "msg_")
-		if suffix != "" {
+	if strings.HasPrefix(id, anthropicMessageIDPrefix) {
+		suffix := strings.TrimPrefix(id, anthropicMessageIDPrefix)
+		if isCurrentMessageIDSuffix(suffix) {
 			return bedrockMessageIDPrefix + suffix
 		}
 	}
-	return bedrockMessageIDPrefix + strings.ReplaceAll(uuid.NewString(), "-", "")
+	return GenerateBedrockMessageID()
+}
+
+func isCurrentMessageIDSuffix(suffix string) bool {
+	if len(suffix) != len(currentMessageIDVersionPrefix)+currentMessageIDRandomLength ||
+		!strings.HasPrefix(suffix, currentMessageIDVersionPrefix) {
+		return false
+	}
+	for _, ch := range suffix[len(currentMessageIDVersionPrefix):] {
+		if !strings.ContainsRune(messageIDBase62Alphabet, ch) {
+			return false
+		}
+	}
+	return true
+}
+
+func generateMessageIDBase62(length int) string {
+	result := make([]byte, length)
+	var randomBytes [32]byte
+	for offset := 0; offset < length; {
+		if _, err := rand.Read(randomBytes[:]); err != nil {
+			return generateMessageIDFallback(length)
+		}
+		for _, value := range randomBytes {
+			if value >= maxUnbiasedBase62RandomByte {
+				continue
+			}
+			result[offset] = messageIDBase62Alphabet[int(value)%len(messageIDBase62Alphabet)]
+			offset++
+			if offset == length {
+				break
+			}
+		}
+	}
+	return string(result)
+}
+
+func generateMessageIDFallback(length int) string {
+	value := strconv.FormatInt(time.Now().UnixNano(), 36) +
+		strconv.FormatUint(messageIDFallbackCounter.Add(1), 36)
+	if len(value) < length {
+		value = strings.Repeat("0", length-len(value)) + value
+	}
+	return value[len(value)-length:]
 }
 
 func NormalizeClaudeMessageIDInJSONBody(body []byte) []byte {

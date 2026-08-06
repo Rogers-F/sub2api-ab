@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1631,11 +1630,11 @@ func sendMockInterceptStream(c *gin.Context, model string, interceptType Interce
 
 	switch interceptType {
 	case InterceptTypeSuggestionMode:
-		msgID = "msg_mock_suggestion"
+		msgID = generateRealisticMsgID()
 		outputTokens = 1
 		textDeltas = []string{""} // 空内容
 	default: // InterceptTypeWarmup
-		msgID = "msg_mock_warmup"
+		msgID = generateRealisticMsgID()
 		outputTokens = 2
 		textDeltas = []string{"New", " Conversation"}
 	}
@@ -1671,20 +1670,9 @@ func sendMockInterceptStream(c *gin.Context, model string, interceptType Interce
 	}
 }
 
-// generateRealisticMsgID 生成仿真的消息 ID（msg_bdrk_XXXXXXX 格式）
-// 格式与 Claude API 真实响应一致，24 位随机字母数字
+// generateRealisticMsgID generates the currently observed Bedrock Messages ID shape.
 func generateRealisticMsgID() string {
-	const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	const idLen = 24
-	randomBytes := make([]byte, idLen)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return fmt.Sprintf("msg_bdrk_%d", time.Now().UnixNano())
-	}
-	b := make([]byte, idLen)
-	for i := range b {
-		b[i] = charset[int(randomBytes[i])%len(charset)]
-	}
-	return "msg_bdrk_" + string(b)
+	return service.GenerateBedrockMessageID()
 }
 
 // sendMockInterceptResponse 发送非流式 mock 响应（用于请求拦截）
@@ -1694,7 +1682,7 @@ func sendMockInterceptResponse(c *gin.Context, model string, interceptType Inter
 
 	switch interceptType {
 	case InterceptTypeSuggestionMode:
-		msgID = "msg_mock_suggestion"
+		msgID = generateRealisticMsgID()
 		text = ""
 		outputTokens = 1
 		stopReason = "end_turn"
@@ -1704,7 +1692,7 @@ func sendMockInterceptResponse(c *gin.Context, model string, interceptType Inter
 		outputTokens = 1
 		stopReason = "max_tokens" // max_tokens=1 探测请求的 stop_reason 应为 max_tokens
 	default: // InterceptTypeWarmup
-		msgID = "msg_mock_warmup"
+		msgID = generateRealisticMsgID()
 		text = "New Conversation"
 		outputTokens = 2
 		stopReason = "end_turn"

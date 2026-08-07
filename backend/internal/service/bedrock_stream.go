@@ -47,6 +47,10 @@ func (s *GatewayService) handleBedrockStreamingResponse(
 	var firstTokenMs *int
 	clientDisconnected := false
 	normalizeMessageID := NormalizeClaudeMessageIDEnabledForContext(c.Request.Context())
+	var bedrockNormalizer *BedrockSSENormalizer
+	if normalizeMessageID {
+		bedrockNormalizer = NewBedrockSSENormalizer(model)
+	}
 
 	// Bedrock EventStream 使用 application/vnd.amazon.eventstream 二进制格式。
 	// 每个帧结构：total_length(4) + headers_length(4) + prelude_crc(4) + headers + payload + message_crc(4)
@@ -140,8 +144,12 @@ func (s *GatewayService) handleBedrockStreamingResponse(
 
 			// 确定 SSE event type
 			eventType := gjson.GetBytes(sseData, "type").String()
-			if normalizeMessageID {
-				sseData = NormalizeClaudeMessageIDInSSEDataForModel(sseData, model)
+			if bedrockNormalizer != nil {
+				options := BedrockSSENormalizationOptions{}
+				if eventType == "message_stop" {
+					options = newBedrockSSEMetricsOptions(startTime, firstTokenMs, usage)
+				}
+				sseData = bedrockNormalizer.NormalizeData(sseData, options)
 			}
 
 			// 写入标准 SSE 格式

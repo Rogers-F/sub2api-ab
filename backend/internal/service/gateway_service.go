@@ -4379,6 +4379,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		reqModel = mappedModel
 		logger.LegacyPrintf("service.gateway", "Model mapping applied: %s -> %s (account: %s, source=%s)", originalModel, mappedModel, account.Name, mappingSource)
 	}
+	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+		body = NormalizeBedrockRequestToolIDs(body, bedrockSchemaModel(originalModel, reqModel))
+	}
 
 	// 获取凭证
 	token, tokenType, err := s.GetAccessToken(ctx, account)
@@ -4905,6 +4908,9 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 	if c != nil {
 		c.Set("anthropic_passthrough", true)
 	}
+	if c != nil && NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+		input.Body = NormalizeBedrockRequestToolIDs(input.Body, bedrockSchemaModel(input.OriginalModel, input.RequestModel))
+	}
 	// Pre-filter: strip empty text blocks (including nested in tool_result) to prevent upstream 400.
 	input.Body = StripEmptyTextBlocks(input.Body)
 
@@ -5060,7 +5066,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 	var firstTokenMs *int
 	var clientDisconnect bool
 	if input.RequestStream {
-		streamResult, err := s.handleStreamingResponseAnthropicAPIKeyPassthrough(ctx, resp, c, account, input.StartTime, input.RequestModel)
+		streamResult, err := s.handleStreamingResponseAnthropicAPIKeyPassthrough(ctx, resp, c, account, input.StartTime, bedrockSchemaModel(input.OriginalModel, input.RequestModel))
 		if err != nil {
 			return nil, err
 		}
@@ -5068,7 +5074,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 		firstTokenMs = streamResult.firstTokenMs
 		clientDisconnect = streamResult.clientDisconnect
 	} else {
-		usage, err = s.handleNonStreamingResponseAnthropicAPIKeyPassthrough(ctx, resp, c, account)
+		usage, err = s.handleNonStreamingResponseAnthropicAPIKeyPassthrough(ctx, resp, c, account, bedrockSchemaModel(input.OriginalModel, input.RequestModel))
 		if err != nil {
 			return nil, err
 		}
@@ -5181,6 +5187,10 @@ func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(
 	var firstTokenMs *int
 	clientDisconnected := false
 	sawTerminalEvent := false
+	var bedrockNormalizer *BedrockSSENormalizer
+	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
+		bedrockNormalizer = NewBedrockSSENormalizer(model)
+	}
 
 	scanner := bufio.NewScanner(resp.Body)
 	maxLineSize := defaultMaxLineSize
@@ -5276,8 +5286,12 @@ func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(
 					firstTokenMs = &ms
 				}
 				s.parseSSEUsagePassthrough(data, usage)
-				if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
-					line = NormalizeClaudeMessageIDInSSELineForModel(line, model)
+				if bedrockNormalizer != nil {
+					options := BedrockSSENormalizationOptions{}
+					if gjson.Get(data, "type").String() == "message_stop" {
+						options = newBedrockSSEMetricsOptions(startTime, firstTokenMs, usage)
+					}
+					line = bedrockNormalizer.NormalizeBlock(line, options)
 				}
 			} else {
 				trimmed := strings.TrimSpace(line)
@@ -5578,6 +5592,7 @@ func (s *GatewayService) handleNonStreamingResponseAnthropicAPIKeyPassthrough(
 	resp *http.Response,
 	c *gin.Context,
 	account *Account,
+	model string,
 ) (*ClaudeUsage, error) {
 	if s.rateLimitService != nil {
 		s.rateLimitService.UpdateSessionWindow(ctx, account, resp.Header)
@@ -5594,7 +5609,7 @@ func (s *GatewayService) handleNonStreamingResponseAnthropicAPIKeyPassthrough(
 
 	usage := parseClaudeUsageFromResponseBody(body)
 	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
-		body = NormalizeClaudeMessageIDInJSONBody(body)
+		body = NormalizeBedrockResponseJSON(body, model)
 	}
 
 	writeAnthropicPassthroughResponseHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
@@ -5713,7 +5728,7 @@ func (s *GatewayService) forwardBedrock(
 		firstTokenMs = streamResult.firstTokenMs
 		clientDisconnect = streamResult.clientDisconnect
 	} else {
-		usage, err = s.handleBedrockNonStreamingResponse(ctx, resp, c, account)
+		usage, err = s.handleBedrockNonStreamingResponse(ctx, resp, c, account, reqModel)
 		if err != nil {
 			return nil, err
 		}
@@ -5956,6 +5971,7 @@ func (s *GatewayService) handleBedrockNonStreamingResponse(
 	resp *http.Response,
 	c *gin.Context,
 	account *Account,
+	model string,
 ) (*ClaudeUsage, error) {
 	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, anthropicTooLargeError)
 	if err != nil {
@@ -5965,7 +5981,7 @@ func (s *GatewayService) handleBedrockNonStreamingResponse(
 	usage := parseClaudeUsageFromResponseBody(body)
 	applyBedrockInvocationMetricsUsage(body, usage)
 	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
-		body = NormalizeClaudeMessageIDInJSONBody(body)
+		body = NormalizeBedrockResponseJSON(body, model)
 	}
 
 	c.Header("Content-Type", "application/json")
@@ -7279,6 +7295,27 @@ type streamingResult struct {
 	clientDisconnect bool // 客户端是否在流式传输过程中断开
 }
 
+func newBedrockSSEMetricsOptions(startTime time.Time, firstTokenMs *int, usage *ClaudeUsage) BedrockSSENormalizationOptions {
+	invocationLatency := int(time.Since(startTime).Milliseconds())
+	if invocationLatency < 0 {
+		invocationLatency = 0
+	}
+	firstByteLatency := invocationLatency
+	if firstTokenMs != nil && *firstTokenMs >= 0 {
+		firstByteLatency = *firstTokenMs
+	}
+	options := BedrockSSENormalizationOptions{
+		AddInvocationMetrics: true,
+		InvocationLatency:    invocationLatency,
+		FirstByteLatency:     firstByteLatency,
+	}
+	if usage != nil {
+		options.InputTokens = usage.InputTokens
+		options.OutputTokens = usage.OutputTokens
+	}
+	return options
+}
+
 func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, startTime time.Time, originalModel, mappedModel string, mimicClaudeCode bool) (*streamingResult, error) {
 	// 更新5h窗口状态
 	s.rateLimitService.UpdateSessionWindow(ctx, account, resp.Header)
@@ -7391,6 +7428,10 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 
 	needModelReplace := originalModel != mappedModel
 	normalizeMessageID := NormalizeClaudeMessageIDEnabledForContext(c.Request.Context())
+	var bedrockNormalizer *BedrockSSENormalizer
+	if normalizeMessageID {
+		bedrockNormalizer = NewBedrockSSENormalizer(bedrockSchemaModel(originalModel, mappedModel))
+	}
 	clientDisconnected := false // 客户端断开标志，断开后继续读取上游以获取完整usage
 	sawTerminalEvent := false
 
@@ -7448,13 +7489,6 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			eventName = eventType
 		}
 		eventChanged := false
-		if normalizeMessageID && eventType == "message_start" {
-			if msg, ok := event["message"].(map[string]any); ok {
-				currentID, _ := msg["id"].(string)
-				msg["id"] = NormalizeClaudeMessageIDForBedrockModel(currentID, originalModel)
-				eventChanged = true
-			}
-		}
 
 		// 兼容 Kimi cached_tokens → cache_read_input_tokens
 		if eventType == "message_start" {
@@ -7496,7 +7530,18 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			}
 		}
 
+		// Billing uses the upstream usage shape; response normalization must not
+		// influence token or cache accounting.
 		usagePatch := s.extractSSEUsagePatch(event)
+
+		if bedrockNormalizer != nil {
+			options := BedrockSSENormalizationOptions{}
+			if eventType == "message_stop" {
+				options = newBedrockSSEMetricsOptions(startTime, firstTokenMs, usage)
+			}
+			eventChanged = bedrockNormalizer.NormalizeEvent(event, options) || eventChanged
+		}
+
 		if anthropicStreamEventIsTerminal(eventName, dataLine) {
 			sawTerminalEvent = true
 		}
@@ -7915,7 +7960,7 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 		body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
 	}
 	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
-		body = NormalizeClaudeMessageIDInJSONBody(body)
+		body = NormalizeBedrockResponseJSON(body, bedrockSchemaModel(originalModel, mappedModel))
 	}
 
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)

@@ -1616,6 +1616,102 @@ func detectInterceptType(body []byte, model string, maxTokens int, isStream bool
 	return InterceptTypeNone
 }
 
+type bedrockMockCacheCreation struct {
+	Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens"`
+	Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens"`
+}
+
+type bedrockMockOutputTokensDetails struct {
+	ThinkingTokens int `json:"thinking_tokens"`
+}
+
+type bedrockMockUsage struct {
+	InputTokens              int                             `json:"input_tokens"`
+	CacheCreationInputTokens int                             `json:"cache_creation_input_tokens"`
+	CacheReadInputTokens     int                             `json:"cache_read_input_tokens"`
+	CacheCreation            bedrockMockCacheCreation        `json:"cache_creation"`
+	OutputTokens             int                             `json:"output_tokens"`
+	OutputTokensDetails      *bedrockMockOutputTokensDetails `json:"output_tokens_details,omitempty"`
+	ServiceTier              string                          `json:"service_tier,omitempty"`
+}
+
+type bedrockMockContentBlock struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+type bedrockMockResponse struct {
+	Model        string                    `json:"model"`
+	ID           string                    `json:"id"`
+	Type         string                    `json:"type"`
+	Role         string                    `json:"role"`
+	Content      []bedrockMockContentBlock `json:"content"`
+	StopReason   string                    `json:"stop_reason"`
+	StopSequence any                       `json:"stop_sequence"`
+	StopDetails  json.RawMessage           `json:"stop_details,omitempty"`
+	Usage        bedrockMockUsage          `json:"usage"`
+}
+
+type bedrockMockStreamMessage struct {
+	ID           string           `json:"id"`
+	Type         string           `json:"type"`
+	Role         string           `json:"role"`
+	Model        string           `json:"model"`
+	Content      []any            `json:"content"`
+	StopReason   any              `json:"stop_reason"`
+	StopSequence any              `json:"stop_sequence"`
+	StopDetails  json.RawMessage  `json:"stop_details,omitempty"`
+	Usage        bedrockMockUsage `json:"usage"`
+}
+
+type bedrockMockMessageStart struct {
+	Type    string                   `json:"type"`
+	Message bedrockMockStreamMessage `json:"message"`
+}
+
+type bedrockMockMessageDelta struct {
+	Type  string `json:"type"`
+	Delta struct {
+		StopReason   string `json:"stop_reason"`
+		StopSequence any    `json:"stop_sequence"`
+	} `json:"delta"`
+	Usage bedrockMockUsage `json:"usage"`
+}
+
+type bedrockMockInvocationMetrics struct {
+	InputTokenCount   int `json:"inputTokenCount"`
+	OutputTokenCount  int `json:"outputTokenCount"`
+	InvocationLatency int `json:"invocationLatency"`
+	FirstByteLatency  int `json:"firstByteLatency"`
+}
+
+type bedrockMockMessageStop struct {
+	Type              string                       `json:"type"`
+	InvocationMetrics bedrockMockInvocationMetrics `json:"amazon-bedrock-invocationMetrics"`
+}
+
+func newBedrockMockUsage(model string, inputTokens, outputTokens int) bedrockMockUsage {
+	usage := bedrockMockUsage{
+		InputTokens:              inputTokens,
+		CacheCreationInputTokens: 0,
+		CacheReadInputTokens:     0,
+		CacheCreation:            bedrockMockCacheCreation{},
+		OutputTokens:             outputTokens,
+	}
+	if service.UsesModernBedrockMessageSchema(model) {
+		usage.OutputTokensDetails = &bedrockMockOutputTokensDetails{}
+		usage.ServiceTier = "standard"
+	}
+	return usage
+}
+
+func bedrockMockStopDetails(model string) json.RawMessage {
+	if service.OmitsBedrockStopDetails(model) {
+		return nil
+	}
+	return json.RawMessage("null")
+}
+
 // sendMockInterceptStream 发送流式 mock 响应（用于请求拦截）
 func sendMockInterceptStream(c *gin.Context, model string, interceptType InterceptType) {
 	c.Header("Content-Type", "text/event-stream")
@@ -1630,17 +1726,29 @@ func sendMockInterceptStream(c *gin.Context, model string, interceptType Interce
 
 	switch interceptType {
 	case InterceptTypeSuggestionMode:
-		msgID = generateRealisticMsgID()
+		msgID = generateRealisticMsgID(model)
 		outputTokens = 1
 		textDeltas = []string{""} // 空内容
 	default: // InterceptTypeWarmup
-		msgID = generateRealisticMsgID()
+		msgID = generateRealisticMsgID(model)
 		outputTokens = 2
 		textDeltas = []string{"New", " Conversation"}
 	}
 
-	// Build message_start event with fixed schema.
-	messageStartJSON := `{"type":"message_start","message":{"id":` + strconv.Quote(msgID) + `,"type":"message","role":"assistant","model":` + strconv.Quote(model) + `,"content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":0}}}`
+	messageStartJSON, _ := json.Marshal(bedrockMockMessageStart{
+		Type: "message_start",
+		Message: bedrockMockStreamMessage{
+			ID:           msgID,
+			Type:         "message",
+			Role:         "assistant",
+			Model:        model,
+			Content:      []any{},
+			StopReason:   nil,
+			StopSequence: nil,
+			StopDetails:  bedrockMockStopDetails(model),
+			Usage:        newBedrockMockUsage(model, 10, 1),
+		},
+	})
 
 	// Build events
 	events := []string{
@@ -1655,12 +1763,27 @@ func sendMockInterceptStream(c *gin.Context, model string, interceptType Interce
 	}
 
 	// Add final events
-	messageDeltaJSON := `{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":10,"output_tokens":` + strconv.Itoa(outputTokens) + `}}`
+	messageDeltaUsage := newBedrockMockUsage(model, 10, outputTokens)
+	messageDeltaUsage.ServiceTier = ""
+	messageDelta := bedrockMockMessageDelta{Type: "message_delta", Usage: messageDeltaUsage}
+	messageDelta.Delta.StopReason = "end_turn"
+	messageDelta.Delta.StopSequence = nil
+	messageDeltaJSON, _ := json.Marshal(messageDelta)
+
+	messageStopJSON, _ := json.Marshal(bedrockMockMessageStop{
+		Type: "message_stop",
+		InvocationMetrics: bedrockMockInvocationMetrics{
+			InputTokenCount:   10,
+			OutputTokenCount:  outputTokens,
+			InvocationLatency: 100 + outputTokens*20,
+			FirstByteLatency:  80,
+		},
+	})
 
 	events = append(events,
 		`event: content_block_stop`+"\n"+`data: {"index":0,"type":"content_block_stop"}`,
 		`event: message_delta`+"\n"+`data: `+string(messageDeltaJSON),
-		`event: message_stop`+"\n"+`data: {"type":"message_stop"}`,
+		`event: message_stop`+"\n"+`data: `+string(messageStopJSON),
 	)
 
 	for _, event := range events {
@@ -1670,9 +1793,9 @@ func sendMockInterceptStream(c *gin.Context, model string, interceptType Interce
 	}
 }
 
-// generateRealisticMsgID generates the currently observed Bedrock Messages ID shape.
-func generateRealisticMsgID() string {
-	return service.GenerateBedrockMessageID()
+// generateRealisticMsgID generates the Bedrock Messages ID shape for the requested model.
+func generateRealisticMsgID(model string) string {
+	return service.GenerateBedrockMessageIDForModel(model)
 }
 
 // sendMockInterceptResponse 发送非流式 mock 响应（用于请求拦截）
@@ -1682,45 +1805,36 @@ func sendMockInterceptResponse(c *gin.Context, model string, interceptType Inter
 
 	switch interceptType {
 	case InterceptTypeSuggestionMode:
-		msgID = generateRealisticMsgID()
+		msgID = generateRealisticMsgID(model)
 		text = ""
 		outputTokens = 1
 		stopReason = "end_turn"
 	case InterceptTypeMaxTokensOneHaiku:
-		msgID = generateRealisticMsgID()
+		msgID = generateRealisticMsgID(model)
 		text = "#"
 		outputTokens = 1
 		stopReason = "max_tokens" // max_tokens=1 探测请求的 stop_reason 应为 max_tokens
 	default: // InterceptTypeWarmup
-		msgID = generateRealisticMsgID()
+		msgID = generateRealisticMsgID(model)
 		text = "New Conversation"
 		outputTokens = 2
 		stopReason = "end_turn"
 	}
 
-	// 构建完整的响应格式（与 Claude API 响应格式一致）
-	response := gin.H{
-		"model":         model,
-		"id":            msgID,
-		"type":          "message",
-		"role":          "assistant",
-		"content":       []gin.H{{"type": "text", "text": text}},
-		"stop_reason":   stopReason,
-		"stop_sequence": nil,
-		"usage": gin.H{
-			"input_tokens":                10,
-			"cache_creation_input_tokens": 0,
-			"cache_read_input_tokens":     0,
-			"cache_creation": gin.H{
-				"ephemeral_5m_input_tokens": 0,
-				"ephemeral_1h_input_tokens": 0,
-			},
-			"output_tokens": outputTokens,
-			"total_tokens":  10 + outputTokens,
-		},
+	response := bedrockMockResponse{
+		Model:        model,
+		ID:           msgID,
+		Type:         "message",
+		Role:         "assistant",
+		Content:      []bedrockMockContentBlock{{Type: "text", Text: text}},
+		StopReason:   stopReason,
+		StopSequence: nil,
+		StopDetails:  bedrockMockStopDetails(model),
+		Usage:        newBedrockMockUsage(model, 10, outputTokens),
 	}
 
-	c.JSON(http.StatusOK, response)
+	payload, _ := json.Marshal(response)
+	c.Data(http.StatusOK, "application/json", payload)
 }
 
 func billingErrorDetails(err error) (status int, code, message string) {

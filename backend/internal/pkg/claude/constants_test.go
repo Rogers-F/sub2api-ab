@@ -2,6 +2,23 @@ package claude
 
 import "testing"
 
+func TestDefaultModels_ContainsModernOpusModels(t *testing.T) {
+	t.Parallel()
+
+	models := make(map[string]string, len(DefaultModels))
+	for _, model := range DefaultModels {
+		models[model.ID] = model.DisplayName
+	}
+	for id, displayName := range map[string]string{
+		"claude-opus-4-8": "Claude Opus 4.8",
+		"claude-opus-5":   "Claude Opus 5",
+	} {
+		if got := models[id]; got != displayName {
+			t.Fatalf("unexpected display name for %s: got %q want %q", id, got, displayName)
+		}
+	}
+}
+
 func TestDefaultModels_ContainsClaudeFable5(t *testing.T) {
 	t.Parallel()
 

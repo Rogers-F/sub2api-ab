@@ -40,34 +40,34 @@ func TestExtractBedrockChunkData(t *testing.T) {
 	})
 }
 
-func TestTransformBedrockInvocationMetrics(t *testing.T) {
-	t.Run("converts metrics to usage", func(t *testing.T) {
+func TestApplyBedrockInvocationMetricsUsage(t *testing.T) {
+	t.Run("uses metrics as usage fallback without mutating event", func(t *testing.T) {
 		input := `{"type":"message_delta","delta":{"stop_reason":"end_turn"},"amazon-bedrock-invocationMetrics":{"inputTokenCount":150,"outputTokenCount":42}}`
-		result := transformBedrockInvocationMetrics([]byte(input))
+		data := []byte(input)
+		usage := &ClaudeUsage{}
+		applyBedrockInvocationMetricsUsage(data, usage)
 
-		// amazon-bedrock-invocationMetrics should be removed
-		assert.False(t, gjson.GetBytes(result, "amazon-bedrock-invocationMetrics").Exists())
-		// usage should be set
-		assert.Equal(t, int64(150), gjson.GetBytes(result, "usage.input_tokens").Int())
-		assert.Equal(t, int64(42), gjson.GetBytes(result, "usage.output_tokens").Int())
-		// original fields preserved
-		assert.Equal(t, "message_delta", gjson.GetBytes(result, "type").String())
-		assert.Equal(t, "end_turn", gjson.GetBytes(result, "delta.stop_reason").String())
+		assert.Equal(t, 150, usage.InputTokens)
+		assert.Equal(t, 42, usage.OutputTokens)
+		assert.Equal(t, input, string(data))
+		assert.True(t, gjson.GetBytes(data, "amazon-bedrock-invocationMetrics").Exists())
 	})
 
 	t.Run("no metrics present", func(t *testing.T) {
 		input := `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}`
-		result := transformBedrockInvocationMetrics([]byte(input))
-		assert.JSONEq(t, input, string(result))
+		usage := &ClaudeUsage{InputTokens: 12, OutputTokens: 3}
+		applyBedrockInvocationMetricsUsage([]byte(input), usage)
+		assert.Equal(t, 12, usage.InputTokens)
+		assert.Equal(t, 3, usage.OutputTokens)
 	})
 
 	t.Run("does not overwrite existing usage", func(t *testing.T) {
 		input := `{"type":"message_delta","usage":{"output_tokens":100},"amazon-bedrock-invocationMetrics":{"inputTokenCount":150,"outputTokenCount":42}}`
-		result := transformBedrockInvocationMetrics([]byte(input))
+		usage := &ClaudeUsage{InputTokens: 120, OutputTokens: 100}
+		applyBedrockInvocationMetricsUsage([]byte(input), usage)
 
-		// metrics removed but existing usage preserved
-		assert.False(t, gjson.GetBytes(result, "amazon-bedrock-invocationMetrics").Exists())
-		assert.Equal(t, int64(100), gjson.GetBytes(result, "usage.output_tokens").Int())
+		assert.Equal(t, 120, usage.InputTokens)
+		assert.Equal(t, 100, usage.OutputTokens)
 	})
 }
 

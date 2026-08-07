@@ -5277,7 +5277,7 @@ func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(
 				}
 				s.parseSSEUsagePassthrough(data, usage)
 				if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
-					line = NormalizeClaudeMessageIDInSSELine(line)
+					line = NormalizeClaudeMessageIDInSSELineForModel(line, model)
 				}
 			} else {
 				trimmed := strings.TrimSpace(line)
@@ -5962,11 +5962,8 @@ func (s *GatewayService) handleBedrockNonStreamingResponse(
 		return nil, err
 	}
 
-	// 转换 Bedrock 特有的 amazon-bedrock-invocationMetrics 为标准 Anthropic usage 格式
-	// 并移除该字段避免透传给客户端
-	body = transformBedrockInvocationMetrics(body)
-
 	usage := parseClaudeUsageFromResponseBody(body)
+	applyBedrockInvocationMetricsUsage(body, usage)
 	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
 		body = NormalizeClaudeMessageIDInJSONBody(body)
 	}
@@ -7454,7 +7451,7 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 		if normalizeMessageID && eventType == "message_start" {
 			if msg, ok := event["message"].(map[string]any); ok {
 				currentID, _ := msg["id"].(string)
-				msg["id"] = NormalizeClaudeMessageIDForBedrock(currentID)
+				msg["id"] = NormalizeClaudeMessageIDForBedrockModel(currentID, originalModel)
 				eventChanged = true
 			}
 		}

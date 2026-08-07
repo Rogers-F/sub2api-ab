@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
@@ -135,17 +134,14 @@ func (s *GatewayService) handleBedrockStreamingResponse(
 				firstTokenMs = &ms
 			}
 
-			// 转换 Bedrock 特有的 amazon-bedrock-invocationMetrics 为标准 Anthropic usage 格式
-			// 同时移除该字段避免透传给客户端
-			sseData = transformBedrockInvocationMetrics(sseData)
-
 			// 解析 SSE 事件数据提取 usage
 			s.parseSSEUsagePassthrough(string(sseData), usage)
+			applyBedrockInvocationMetricsUsage(sseData, usage)
 
 			// 确定 SSE event type
 			eventType := gjson.GetBytes(sseData, "type").String()
 			if normalizeMessageID {
-				sseData = NormalizeClaudeMessageIDInSSEData(sseData)
+				sseData = NormalizeClaudeMessageIDInSSEDataForModel(sseData, model)
 			}
 
 			// 写入标准 SSE 格式
@@ -195,41 +191,23 @@ func extractBedrockChunkData(payload []byte) []byte {
 	return decoded
 }
 
-// transformBedrockInvocationMetrics 将 Bedrock 特有的 amazon-bedrock-invocationMetrics
-// 转换为标准 Anthropic usage 格式，并从 SSE 数据中移除该字段。
-//
-// Bedrock Invoke 返回的 message_delta 事件可能包含：
-//
-//	{"type":"message_delta","delta":{...},"amazon-bedrock-invocationMetrics":{"inputTokenCount":150,"outputTokenCount":42}}
-//
-// 转换为：
-//
-//	{"type":"message_delta","delta":{...},"usage":{"input_tokens":150,"output_tokens":42}}
-func transformBedrockInvocationMetrics(data []byte) []byte {
+// applyBedrockInvocationMetricsUsage uses Bedrock metrics only when standard usage is absent.
+// The original event remains untouched for downstream clients.
+func applyBedrockInvocationMetricsUsage(data []byte, usage *ClaudeUsage) {
+	if usage == nil {
+		return
+	}
 	metrics := gjson.GetBytes(data, "amazon-bedrock-invocationMetrics")
 	if !metrics.Exists() || !metrics.IsObject() {
-		return data
+		return
 	}
 
-	// 移除 Bedrock 特有字段
-	data, _ = sjson.DeleteBytes(data, "amazon-bedrock-invocationMetrics")
-
-	// 如果已有标准 usage 字段，不覆盖
-	if gjson.GetBytes(data, "usage").Exists() {
-		return data
+	if inputTokens := metrics.Get("inputTokenCount"); usage.InputTokens == 0 && inputTokens.Exists() {
+		usage.InputTokens = int(inputTokens.Int())
 	}
-
-	// 转换 camelCase → snake_case 写入 usage
-	inputTokens := metrics.Get("inputTokenCount")
-	outputTokens := metrics.Get("outputTokenCount")
-	if inputTokens.Exists() {
-		data, _ = sjson.SetBytes(data, "usage.input_tokens", inputTokens.Int())
+	if outputTokens := metrics.Get("outputTokenCount"); usage.OutputTokens == 0 && outputTokens.Exists() {
+		usage.OutputTokens = int(outputTokens.Int())
 	}
-	if outputTokens.Exists() {
-		data, _ = sjson.SetBytes(data, "usage.output_tokens", outputTokens.Int())
-	}
-
-	return data
 }
 
 // bedrockEventStreamDecoder 解码 AWS EventStream 二进制帧

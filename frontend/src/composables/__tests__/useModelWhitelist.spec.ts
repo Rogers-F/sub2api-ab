@@ -57,6 +57,18 @@ describe('useModelWhitelist', () => {
     expect(getModelsByPlatform('antigravity')).toContain('claude-opus-4-8')
   })
 
+  it('Bedrock 预设包含 Claude Opus 5', () => {
+    expect(getPresetMappingsByPlatform('bedrock')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Opus 5',
+          from: 'claude-opus-5',
+          to: 'anthropic.claude-opus-5'
+        })
+      ])
+    )
+  })
+
   it('账号模型列表包含 Claude Fable 5', () => {
     expect(getModelsByPlatform('anthropic')).toContain('claude-fable-5')
     expect(getModelsByPlatform('antigravity')).not.toContain('claude-fable-5')

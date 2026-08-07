@@ -323,19 +323,31 @@ func removeCustomFieldFromTools(body []byte) []byte {
 }
 
 // claudeVersionRe 匹配 Claude 模型 ID 中的版本号部分
-// 支持 claude-{tier}-{major}-{minor} 和 claude-{tier}-{major}.{minor} 格式
-var claudeVersionRe = regexp.MustCompile(`claude-(?:haiku|sonnet|opus)-(\d+)[-.](\d+)`)
+// 支持 claude-{family}-{major}-{minor}、claude-{family}-{major}.{minor} 和仅主版本号的格式。
+var claudeVersionRe = regexp.MustCompile(`claude-([a-z][a-z0-9]*)-(\d+)(?:[-.](\d+))?`)
+
+func parseClaudeModelVersion(modelID string) (family string, major, minor int, ok bool) {
+	matches := claudeVersionRe.FindStringSubmatch(strings.ToLower(strings.TrimSpace(modelID)))
+	if matches == nil {
+		return "", 0, 0, false
+	}
+	family = matches[1]
+	major, _ = strconv.Atoi(matches[2])
+	// Date-stamped Claude 4 IDs use -YYYYMMDD directly after the major version.
+	if len(matches[3]) > 2 {
+		return family, major, 0, true
+	}
+	minor, _ = strconv.Atoi(matches[3])
+	return family, major, minor, true
+}
 
 // isBedrockClaude45OrNewer 判断 Bedrock 模型 ID 是否为 Claude 4.5 或更新版本
 // Claude 4.5+ 支持 cache_control 中的 ttl 字段（"5m" 和 "1h"）
 func isBedrockClaude45OrNewer(modelID string) bool {
-	lower := strings.ToLower(modelID)
-	matches := claudeVersionRe.FindStringSubmatch(lower)
-	if matches == nil {
+	_, major, minor, ok := parseClaudeModelVersion(modelID)
+	if !ok {
 		return false
 	}
-	major, _ := strconv.Atoi(matches[1])
-	minor, _ := strconv.Atoi(matches[2])
 	return major > 4 || (major == 4 && minor >= 5)
 }
 
@@ -564,17 +576,13 @@ func containsStringInJSONArray(result gjson.Result, target string) bool {
 // bedrockModelSupportsToolSearch 判断 Bedrock 模型是否支持 tool search
 // 目前仅 Claude Opus/Sonnet 4.5+ 支持，Haiku 不支持
 func bedrockModelSupportsToolSearch(modelID string) bool {
-	lower := strings.ToLower(modelID)
-	matches := claudeVersionRe.FindStringSubmatch(lower)
-	if matches == nil {
+	family, major, minor, ok := parseClaudeModelVersion(modelID)
+	if !ok {
 		return false
 	}
-	// Haiku 不支持 tool search
-	if strings.Contains(lower, "haiku") {
+	if family != "opus" && family != "sonnet" {
 		return false
 	}
-	major, _ := strconv.Atoi(matches[1])
-	minor, _ := strconv.Atoi(matches[2])
 	return major > 4 || (major == 4 && minor >= 5)
 }
 

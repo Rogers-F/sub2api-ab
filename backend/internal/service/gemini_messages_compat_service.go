@@ -1033,7 +1033,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			claudeResp, usageObj2 := convertGeminiToClaudeMessage(collected, originalModel, collectedBytes)
 			if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
 				id, _ := claudeResp["id"].(string)
-				claudeResp["id"] = NormalizeClaudeMessageIDForBedrock(id)
+				claudeResp["id"] = NormalizeClaudeMessageIDForBedrockModel(id, originalModel)
 			}
 			c.JSON(http.StatusOK, claudeResp)
 			usage = usageObj2
@@ -1936,7 +1936,7 @@ func (s *GeminiMessagesCompatService) handleNonStreamingResponse(c *gin.Context,
 	claudeResp, usage := convertGeminiToClaudeMessage(geminiResp, originalModel, unwrappedBody)
 	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
 		id, _ := claudeResp["id"].(string)
-		claudeResp["id"] = NormalizeClaudeMessageIDForBedrock(id)
+		claudeResp["id"] = NormalizeClaudeMessageIDForBedrockModel(id, originalModel)
 	}
 	c.JSON(http.StatusOK, claudeResp)
 
@@ -1957,7 +1957,7 @@ func (s *GeminiMessagesCompatService) handleStreamingResponse(c *gin.Context, re
 
 	messageID := GenerateClaudeMessageID()
 	if NormalizeClaudeMessageIDEnabledForContext(c.Request.Context()) {
-		messageID = NormalizeClaudeMessageIDForBedrock(messageID)
+		messageID = NormalizeClaudeMessageIDForBedrockModel(messageID, originalModel)
 	}
 	messageStart := map[string]any{
 		"type": "message_start",

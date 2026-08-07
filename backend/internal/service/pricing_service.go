@@ -111,6 +111,16 @@ var (
 		Mode:                                "chat",
 		SupportsPromptCaching:               true,
 	}
+	claudeOpus5FallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   5e-06,
+		OutputCostPerToken:                  25e-06,
+		CacheCreationInputTokenCost:         6.25e-06,
+		CacheCreationInputTokenCostAbove1hr: 10e-06,
+		CacheReadInputTokenCost:             0.5e-06,
+		LiteLLMProvider:                     "anthropic",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
 )
 
 // LiteLLMModelPricing LiteLLM价格数据结构
@@ -659,6 +669,11 @@ func (s *PricingService) GetModelPricing(modelName string) *LiteLLMModelPricing 
 	// 4. Claude 新模型静态兜底：远程价格源滞后时仍可正确计费。
 	// 必须放在 Claude 系列模糊匹配前，避免 claude-sonnet-5 误配到 Sonnet 4 价格。
 	for _, candidate := range lookupCandidates {
+		if strings.Contains(candidate, "claude-opus-5") {
+			logger.With(zap.String("component", "service.pricing")).
+				Info(fmt.Sprintf("[Pricing] Claude fallback matched %s -> %s", modelName, "claude-opus-5(static)"))
+			return claudeOpus5FallbackPricing
+		}
 		if strings.Contains(candidate, "claude-sonnet-5") {
 			logger.With(zap.String("component", "service.pricing")).
 				Info(fmt.Sprintf("[Pricing] Claude fallback matched %s -> %s", modelName, "claude-sonnet-5(static)"))

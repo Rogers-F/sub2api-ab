@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base32"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -18,27 +20,64 @@ const (
 	bedrockMessageIDPrefix        = "msg_bdrk_"
 	currentMessageIDVersionPrefix = "01"
 	currentMessageIDRandomLength  = 22
+	modernMessageIDRandomBytes    = 32
 	messageIDBase62Alphabet       = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	maxUnbiasedBase62RandomByte   = 248 // Largest multiple of 62 that fits in one byte.
 )
 
 var messageIDFallbackCounter atomic.Uint64
 
+var bedrockMessageIDBase32Encoding = base32.StdEncoding.WithPadding(base32.NoPadding)
+
 // GenerateClaudeMessageID returns the currently observed Anthropic Messages ID shape.
 func GenerateClaudeMessageID() string {
 	return anthropicMessageIDPrefix + currentMessageIDVersionPrefix + generateMessageIDBase62(currentMessageIDRandomLength)
 }
 
-// GenerateBedrockMessageID returns the currently observed Bedrock Claude Messages ID shape.
+// GenerateBedrockMessageID returns the legacy Bedrock Claude Messages ID shape.
+// Use GenerateBedrockMessageIDForModel when the response model is known.
 func GenerateBedrockMessageID() string {
 	return bedrockMessageIDPrefix + currentMessageIDVersionPrefix + generateMessageIDBase62(currentMessageIDRandomLength)
 }
 
+// GenerateBedrockMessageIDForModel returns the Bedrock ID shape observed for the model generation.
+func GenerateBedrockMessageIDForModel(model string) string {
+	if UsesModernBedrockMessageSchema(model) {
+		return bedrockMessageIDPrefix + generateModernBedrockMessageIDSuffix()
+	}
+	return GenerateBedrockMessageID()
+}
+
+// UsesModernBedrockMessageSchema reports whether the model uses the schema observed on Claude 4.7+.
+func UsesModernBedrockMessageSchema(model string) bool {
+	_, major, minor, ok := parseClaudeModelVersion(model)
+	if !ok {
+		return false
+	}
+	return major >= 5 || (major == 4 && minor >= 7)
+}
+
+// OmitsBedrockStopDetails reports the observed Haiku 4.5 response exception.
+func OmitsBedrockStopDetails(model string) bool {
+	family, major, minor, ok := parseClaudeModelVersion(model)
+	if !ok {
+		return false
+	}
+	return family == "haiku" && major == 4 && minor == 5
+}
+
 func NormalizeClaudeMessageIDForBedrock(id string) string {
+	return NormalizeClaudeMessageIDForBedrockModel(id, "")
+}
+
+func NormalizeClaudeMessageIDForBedrockModel(id, model string) string {
 	id = strings.TrimSpace(id)
 	if strings.HasPrefix(id, bedrockMessageIDPrefix) {
 		// IDs received from Bedrock are opaque and may change format over time.
 		return id
+	}
+	if UsesModernBedrockMessageSchema(model) {
+		return GenerateBedrockMessageIDForModel(model)
 	}
 	if strings.HasPrefix(id, anthropicMessageIDPrefix) {
 		suffix := strings.TrimPrefix(id, anthropicMessageIDPrefix)
@@ -46,7 +85,7 @@ func NormalizeClaudeMessageIDForBedrock(id string) string {
 			return bedrockMessageIDPrefix + suffix
 		}
 	}
-	return GenerateBedrockMessageID()
+	return GenerateBedrockMessageIDForModel(model)
 }
 
 func isCurrentMessageIDSuffix(suffix string) bool {
@@ -92,7 +131,21 @@ func generateMessageIDFallback(length int) string {
 	return value[len(value)-length:]
 }
 
+func generateModernBedrockMessageIDSuffix() string {
+	randomBytes := make([]byte, modernMessageIDRandomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		fallback := sha256.Sum256([]byte(strconv.FormatInt(time.Now().UnixNano(), 36) +
+			strconv.FormatUint(messageIDFallbackCounter.Add(1), 36)))
+		randomBytes = fallback[:]
+	}
+	return strings.ToLower(bedrockMessageIDBase32Encoding.EncodeToString(randomBytes))
+}
+
 func NormalizeClaudeMessageIDInJSONBody(body []byte) []byte {
+	return NormalizeClaudeMessageIDInJSONBodyForModel(body, "")
+}
+
+func NormalizeClaudeMessageIDInJSONBodyForModel(body []byte, model string) []byte {
 	if len(body) == 0 || !gjson.ValidBytes(body) {
 		return body
 	}
@@ -100,7 +153,10 @@ func NormalizeClaudeMessageIDInJSONBody(body []byte) []byte {
 	if !id.Exists() {
 		return body
 	}
-	normalized := NormalizeClaudeMessageIDForBedrock(id.String())
+	if strings.TrimSpace(model) == "" {
+		model = gjson.GetBytes(body, "model").String()
+	}
+	normalized := NormalizeClaudeMessageIDForBedrockModel(id.String(), model)
 	out, err := sjson.SetBytes(body, "id", normalized)
 	if err != nil {
 		return body
@@ -109,6 +165,10 @@ func NormalizeClaudeMessageIDInJSONBody(body []byte) []byte {
 }
 
 func NormalizeClaudeMessageIDInSSEData(data []byte) []byte {
+	return NormalizeClaudeMessageIDInSSEDataForModel(data, "")
+}
+
+func NormalizeClaudeMessageIDInSSEDataForModel(data []byte, model string) []byte {
 	if len(data) == 0 || !gjson.ValidBytes(data) {
 		return data
 	}
@@ -119,7 +179,10 @@ func NormalizeClaudeMessageIDInSSEData(data []byte) []byte {
 	if !id.Exists() {
 		return data
 	}
-	normalized := NormalizeClaudeMessageIDForBedrock(id.String())
+	if strings.TrimSpace(model) == "" {
+		model = gjson.GetBytes(data, "message.model").String()
+	}
+	normalized := NormalizeClaudeMessageIDForBedrockModel(id.String(), model)
 	out, err := sjson.SetBytes(data, "message.id", normalized)
 	if err != nil {
 		return data
@@ -136,6 +199,10 @@ func NormalizeClaudeMessageIDEnabledForContext(ctx context.Context) bool {
 }
 
 func NormalizeClaudeMessageIDInSSELine(line string) string {
+	return NormalizeClaudeMessageIDInSSELineForModel(line, "")
+}
+
+func NormalizeClaudeMessageIDInSSELineForModel(line, model string) string {
 	data, ok := extractAnthropicSSEDataLine(line)
 	if !ok {
 		return line
@@ -144,7 +211,7 @@ func NormalizeClaudeMessageIDInSSELine(line string) string {
 	if trimmed == "" || trimmed == "[DONE]" {
 		return line
 	}
-	normalized := NormalizeClaudeMessageIDInSSEData([]byte(data))
+	normalized := NormalizeClaudeMessageIDInSSEDataForModel([]byte(data), model)
 	if string(normalized) == data {
 		return line
 	}

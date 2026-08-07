@@ -131,6 +131,20 @@ func TestGetModelPricing_FallbackClaudeOpus48UsesOpus47Pricing(t *testing.T) {
 	require.InDelta(t, 0.5e-6, opus48.CacheReadPricePerToken, 1e-12)
 }
 
+func TestGetModelPricing_FallbackClaudeOpus5UsesOpus48Pricing(t *testing.T) {
+	svc := newTestBillingService()
+
+	opus5, err := svc.GetModelPricing("anthropic.claude-opus-5")
+	require.NoError(t, err)
+	opus48, err := svc.GetModelPricing("claude-opus-4-8")
+	require.NoError(t, err)
+
+	require.InDelta(t, opus48.InputPricePerToken, opus5.InputPricePerToken, 1e-12)
+	require.InDelta(t, opus48.OutputPricePerToken, opus5.OutputPricePerToken, 1e-12)
+	require.InDelta(t, opus48.CacheCreationPricePerToken, opus5.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, opus48.CacheReadPricePerToken, opus5.CacheReadPricePerToken, 1e-12)
+}
+
 func TestGetModelPricing_CaseInsensitive(t *testing.T) {
 	svc := newTestBillingService()
 

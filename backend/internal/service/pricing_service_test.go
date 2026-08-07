@@ -59,6 +59,19 @@ func TestFallbackPricingContainsClaudeOpus5OfficialPricing(t *testing.T) {
 	require.InDelta(t, 0.5e-6, pricing.CacheReadInputTokenCost, 1e-12)
 }
 
+func TestGetModelPricing_ClaudeOpus5UsesStaticFallback(t *testing.T) {
+	svc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"claude-opus-4-1": {InputCostPerToken: 15e-6, OutputCostPerToken: 75e-6},
+	}}
+
+	for _, model := range []string{"claude-opus-5", "anthropic.claude-opus-5"} {
+		pricing := svc.GetModelPricing(model)
+		require.NotNil(t, pricing, model)
+		require.InDelta(t, 5e-6, pricing.InputCostPerToken, 1e-12)
+		require.InDelta(t, 25e-6, pricing.OutputCostPerToken, 1e-12)
+	}
+}
+
 func TestFallbackPricingContainsClaudeOpus48CompleteOpus47Fields(t *testing.T) {
 	body, err := os.ReadFile("../../resources/model-pricing/model_prices_and_context_window.json")
 	require.NoError(t, err)
